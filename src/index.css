@@ -24,6 +24,16 @@ body {
   background: #f5f9ff !important;
 }
 
+/* Prevent table column headers from wrapping */
+.ant-table-thead > tr > th .ant-table-column-title,
+.ant-table-thead > tr > th {
+  white-space: nowrap !important;
+}
+
+.ant-table-column-sorters {
+  white-space: nowrap;
+}
+
 /* Remove default ant table border radius */
 .ant-table-wrapper .ant-table {
   border-radius: 0;
