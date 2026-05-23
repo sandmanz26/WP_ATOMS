@@ -210,7 +210,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
           </Text>
         </div>
 
-        <Content style={{ background: '#fff' }}>{children}</Content>
+        <Content style={{ background: '#f5f5f5' }}>{children}</Content>
       </Layout>
     </Layout>
   )

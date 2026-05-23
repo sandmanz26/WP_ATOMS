@@ -7,7 +7,6 @@ import {
   Typography,
   Space,
   Tooltip,
-  Divider,
 } from 'antd'
 import {
   SearchOutlined,
@@ -158,9 +157,9 @@ export default function CustomerContractsPage() {
   const end = Math.min((pagination.current ?? 1) * PAGE_SIZE, filtered.length)
 
   return (
-    <div style={{ padding: '28px 32px', minHeight: '100vh', background: '#fff' }}>
+    <div style={{ padding: '28px 32px', minHeight: '100vh', background: '#f5f5f5' }}>
       {/* Page Title */}
-      <Text style={{ fontSize: 24, fontWeight: 700, display: 'block', marginBottom: 24, color: '#1a1a1a' }}>
+      <Text style={{ fontSize: 26, fontWeight: 700, display: 'block', marginBottom: 20, color: '#1a1a1a' }}>
         Customer Contracts
       </Text>
 
@@ -168,84 +167,92 @@ export default function CustomerContractsPage() {
       <div
         style={{
           display: 'flex',
-          border: '1px solid #f0f0f0',
-          borderRadius: 8,
+          gap: 16,
           marginBottom: 24,
-          overflow: 'hidden',
         }}
       >
         <StatCard count={upcomingCount} label="Upcoming" />
-        <Divider type="vertical" style={{ height: 'auto', margin: 0 }} />
         <StatCard count={endingNextFourteenDays} label="Ending (Next 14 Days)" />
       </div>
 
-      {/* Table Toolbar */}
+      {/* Table Card */}
       <div
         style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginBottom: 16,
-          gap: 12,
-          flexWrap: 'wrap',
+          background: '#fff',
+          border: '1px solid #e8e8e8',
+          borderRadius: 10,
+          overflow: 'hidden',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Text style={{ fontSize: 13, color: '#595959', whiteSpace: 'nowrap' }}>Last updated on:</Text>
-          <RangePicker
-            size="middle"
-            placeholder={['Start of time', '23 Oct 2024']}
-            style={{ fontSize: 13 }}
-          />
+        {/* Toolbar */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '16px 20px',
+            gap: 12,
+            flexWrap: 'wrap',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Text style={{ fontSize: 13, color: '#595959', whiteSpace: 'nowrap' }}>Last updated on:</Text>
+            <RangePicker
+              size="middle"
+              placeholder={['Start of time', '23 Oct 2024']}
+              style={{ fontSize: 13 }}
+            />
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Input
+              prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
+              placeholder="Search Customer Contracts"
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value)
+                setPagination((p) => ({ ...p, current: 1 }))
+              }}
+              style={{ width: 240, fontSize: 13 }}
+              allowClear
+            />
+            <Button icon={<FilterOutlined />} style={{ color: '#595959' }} />
+            <Button type="primary">Group customer contracts</Button>
+          </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Input
-            prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
-            placeholder="Search Customer Contracts"
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value)
-              setPagination((p) => ({ ...p, current: 1 }))
-            }}
-            style={{ width: 240, fontSize: 13 }}
-            allowClear
-          />
-          <Button icon={<FilterOutlined />} style={{ color: '#595959' }} />
-          <Button type="primary">Group customer contracts</Button>
-        </div>
+        {/* Table */}
+        <Table<Contract>
+          dataSource={filtered}
+          columns={columns}
+          rowKey="id"
+          size="middle"
+          scroll={{ x: 1400 }}
+          pagination={{
+            current: pagination.current,
+            pageSize: PAGE_SIZE,
+            total: filtered.length,
+            showSizeChanger: true,
+            pageSizeOptions: ['10', '20', '50'],
+            onChange: (page, size) => setPagination({ current: page, pageSize: size }),
+            style: { padding: '8px 20px' },
+          }}
+          onChange={(pag) => setPagination(pag)}
+          onRow={(record) => ({
+            onClick: () => handleRowClick(record),
+            style: { cursor: 'pointer' },
+          })}
+          rowClassName={(record) =>
+            selectedContract?.id === record.id ? 'selected-row' : ''
+          }
+          footer={() => (
+            <Text style={{ fontSize: 13, color: '#595959' }}>
+              You are now viewing Customer Contract {start} – {end} of {filtered.length}
+            </Text>
+          )}
+          style={{ borderRadius: 0 }}
+        />
       </div>
-
-      {/* Table */}
-      <Table<Contract>
-        dataSource={filtered}
-        columns={columns}
-        rowKey="id"
-        size="middle"
-        scroll={{ x: 1400 }}
-        pagination={{
-          current: pagination.current,
-          pageSize: PAGE_SIZE,
-          total: filtered.length,
-          showSizeChanger: true,
-          pageSizeOptions: ['10', '20', '50'],
-          onChange: (page, size) => setPagination({ current: page, pageSize: size }),
-        }}
-        onChange={(pag) => setPagination(pag)}
-        onRow={(record) => ({
-          onClick: () => handleRowClick(record),
-          style: { cursor: 'pointer' },
-        })}
-        rowClassName={(record) =>
-          selectedContract?.id === record.id ? 'selected-row' : ''
-        }
-        footer={() => (
-          <Text style={{ fontSize: 13, color: '#595959' }}>
-            You are now viewing Customer Contract {start} – {end} of {filtered.length}
-          </Text>
-        )}
-        style={{ borderRadius: 0 }}
-      />
 
       <ContractDrawer
         contract={selectedContract}
