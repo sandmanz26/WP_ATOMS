@@ -7,6 +7,7 @@ import {
   Typography,
   Space,
   Tooltip,
+  message,
 } from 'antd'
 import {
   SearchOutlined,
@@ -14,16 +15,23 @@ import {
   QuestionCircleOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table'
+import type { Key } from 'react'
 import type { Contract } from '@/types/contract'
 import { mockContracts, upcomingCount, endingNextFourteenDays } from '@/data/mockData'
 import StatusBadge from '@/components/common/StatusBadge'
 import StatCard from '@/components/contracts/StatCard'
 import ContractDrawer from '@/components/contracts/ContractDrawer'
+import CreateGroupModal from '@/components/contracts/CreateGroupModal'
 
 const { RangePicker } = DatePicker
 const { Text } = Typography
 
 const PAGE_SIZE = 10
+
+// PRD A.2 — determine invoice schedule from booking type
+function getInvoiceSchedule(bookingType: string) {
+  return bookingType === 'Term' ? 'recurring' : 'once-off'
+}
 
 export default function CustomerContractsPage() {
   const [search, setSearch] = useState('')
@@ -31,6 +39,70 @@ export default function CustomerContractsPage() {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [pagination, setPagination] = useState<TablePaginationConfig>({ current: 1, pageSize: PAGE_SIZE })
 
+  // ── Grouping mode ──────────────────────────────────────────────────────────
+  const [isGroupingMode, setIsGroupingMode] = useState(false)
+  const [selectedRowKeys, setSelectedRowKeys] = useState<Key[]>([])
+  const [groupModalOpen, setGroupModalOpen] = useState(false)
+
+  const selectedContracts = useMemo(
+    () => mockContracts.filter(c => selectedRowKeys.includes(c.id)),
+    [selectedRowKeys]
+  )
+
+  const enterGroupingMode = () => {
+    setIsGroupingMode(true)
+    setSelectedRowKeys([])
+    setDrawerOpen(false)
+  }
+
+  const exitGroupingMode = () => {
+    setIsGroupingMode(false)
+    setSelectedRowKeys([])
+  }
+
+  // PRD A.2 — validate selected contracts before opening modal
+  const handleGroupButtonClick = () => {
+    if (selectedRowKeys.length < 2) {
+      message.warning('Select at least 2 contracts to create a group')
+      return
+    }
+
+    // Validation 1: same customer code
+    const codes = new Set(selectedContracts.map(c => c.customerCode))
+    if (codes.size > 1) {
+      message.error('Unable to group contracts — different customer code')
+      return
+    }
+
+    // Validation 2: same invoice generation schedule
+    const schedules = new Set(selectedContracts.map(c => getInvoiceSchedule(c.bookingType)))
+    if (schedules.size > 1) {
+      message.error('Unable to group contracts — different invoice generation schedule')
+      return
+    }
+
+    // Validation 3: no voided
+    if (selectedContracts.some(c => c.status === 'Voided')) {
+      message.error('Unable to group contracts — one or more contracts are voided')
+      return
+    }
+
+    // Validation 4: none already in a group (contractGroup set and not empty)
+    if (selectedContracts.some(c => c.contractGroup && c.contractGroup.trim() !== '')) {
+      message.error('Unable to group contracts — one or more contracts are already in a group')
+      return
+    }
+
+    setGroupModalOpen(true)
+  }
+
+  const handleGroupSuccess = (groupName: string) => {
+    setGroupModalOpen(false)
+    exitGroupingMode()
+    message.success(`Group "${groupName}" created successfully`)
+  }
+
+  // ── Search / filter ────────────────────────────────────────────────────────
   const filtered = useMemo(() => {
     const q = search.toLowerCase()
     if (!q) return mockContracts
@@ -44,11 +116,22 @@ export default function CustomerContractsPage() {
     )
   }, [search])
 
+  // ── Row click ──────────────────────────────────────────────────────────────
   const handleRowClick = (record: Contract) => {
+    if (isGroupingMode) {
+      // Toggle checkbox selection
+      setSelectedRowKeys(prev =>
+        prev.includes(record.id)
+          ? prev.filter(k => k !== record.id)
+          : [...prev, record.id]
+      )
+      return
+    }
     setSelectedContract(record)
     setDrawerOpen(true)
   }
 
+  // ── Formatters ─────────────────────────────────────────────────────────────
   const formatPrice = (price: number | null) => {
     if (price === null) return <Text style={{ color: '#bfbfbf' }}>-</Text>
     return `$ ${price.toLocaleString('en-US', { minimumFractionDigits: 3 }).replace(',', '.')}`
@@ -57,6 +140,7 @@ export default function CustomerContractsPage() {
   const formatPeriod = (start: string, end: string | null) =>
     end ? `${start} - ${end}` : `${start} - no end date`
 
+  // ── Columns ────────────────────────────────────────────────────────────────
   const columns: ColumnsType<Contract> = [
     {
       title: 'Contract No',
@@ -79,7 +163,7 @@ export default function CustomerContractsPage() {
       dataIndex: 'contractGroup',
       key: 'contractGroup',
       sorter: (a, b) => a.contractGroup.localeCompare(b.contractGroup),
-      render: (v) => <Text style={{ fontSize: 13 }}>{v}</Text>,
+      render: (v) => <Text style={{ fontSize: 13 }}>{v || '-'}</Text>,
       width: 180,
     },
     {
@@ -164,13 +248,7 @@ export default function CustomerContractsPage() {
       </Text>
 
       {/* Stat Cards */}
-      <div
-        style={{
-          display: 'flex',
-          gap: 16,
-          marginBottom: 24,
-        }}
-      >
+      <div style={{ display: 'flex', gap: 16, marginBottom: 24 }}>
         <StatCard count={upcomingCount} label="Upcoming" />
         <StatCard count={endingNextFourteenDays} label="Ending (Next 14 Days)" />
       </div>
@@ -184,50 +262,87 @@ export default function CustomerContractsPage() {
           overflow: 'hidden',
         }}
       >
-        {/* Toolbar */}
+        {/* ── Toolbar ──────────────────────────────────────────────── */}
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            padding: '16px 20px',
+            padding: '14px 20px',
             gap: 12,
             flexWrap: 'wrap',
+            minHeight: 60,
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Text style={{ fontSize: 13, color: '#595959', whiteSpace: 'nowrap' }}>Last updated on:</Text>
-            <RangePicker
-              size="middle"
-              placeholder={['Start of time', '23 Oct 2024']}
-              style={{ fontSize: 13 }}
-            />
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Input
-              prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
-              placeholder="Search Customer Contracts"
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value)
-                setPagination((p) => ({ ...p, current: 1 }))
-              }}
-              style={{ width: 240, fontSize: 13 }}
-              allowClear
-            />
-            <Button icon={<FilterOutlined />} style={{ color: '#595959' }} />
-            <Button type="primary">Group customer contracts</Button>
-          </div>
+          {isGroupingMode ? (
+            /* Grouping mode toolbar — PRD A.1 */
+            <>
+              <Text style={{ fontSize: 13, color: '#595959', fontWeight: 500 }}>
+                {selectedRowKeys.length > 0
+                  ? `${selectedRowKeys.length} Contract${selectedRowKeys.length > 1 ? 's' : ''} Selected`
+                  : 'Select contracts to group'}
+              </Text>
+              <Space size={8}>
+                <Button onClick={exitGroupingMode}>Cancel</Button>
+                <Button
+                  type="primary"
+                  disabled={selectedRowKeys.length < 2}
+                  onClick={handleGroupButtonClick}
+                >
+                  Group
+                </Button>
+              </Space>
+            </>
+          ) : (
+            /* Normal toolbar */
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Text style={{ fontSize: 13, color: '#595959', whiteSpace: 'nowrap' }}>Last updated on:</Text>
+                <RangePicker
+                  size="middle"
+                  placeholder={['Start of time', '23 Oct 2024']}
+                  style={{ fontSize: 13 }}
+                />
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Input
+                  prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
+                  placeholder="Search Customer Contracts"
+                  value={search}
+                  onChange={(e) => {
+                    setSearch(e.target.value)
+                    setPagination(p => ({ ...p, current: 1 }))
+                  }}
+                  style={{ width: 240, fontSize: 13 }}
+                  allowClear
+                />
+                <Button icon={<FilterOutlined />} style={{ color: '#595959' }} />
+                <Button type="primary" onClick={enterGroupingMode}>
+                  Group customer contracts
+                </Button>
+              </div>
+            </>
+          )}
         </div>
 
-        {/* Table */}
+        {/* ── Table ────────────────────────────────────────────────── */}
         <Table<Contract>
           dataSource={filtered}
           columns={columns}
           rowKey="id"
           size="middle"
           scroll={{ x: 1400 }}
+          /* PRD A.1 — row checkboxes only in grouping mode */
+          rowSelection={
+            isGroupingMode
+              ? {
+                  type: 'checkbox',
+                  selectedRowKeys,
+                  onChange: (keys) => setSelectedRowKeys(keys),
+                  columnWidth: 48,
+                }
+              : undefined
+          }
           pagination={{
             current: pagination.current,
             pageSize: PAGE_SIZE,
@@ -242,9 +357,11 @@ export default function CustomerContractsPage() {
             onClick: () => handleRowClick(record),
             style: { cursor: 'pointer' },
           })}
-          rowClassName={(record) =>
-            selectedContract?.id === record.id ? 'selected-row' : ''
-          }
+          rowClassName={(record) => {
+            if (isGroupingMode && selectedRowKeys.includes(record.id)) return 'selected-row'
+            if (!isGroupingMode && selectedContract?.id === record.id) return 'selected-row'
+            return ''
+          }}
           footer={() => (
             <Text style={{ fontSize: 13, color: '#595959' }}>
               You are now viewing Customer Contract {start} – {end} of {filtered.length}
@@ -254,10 +371,21 @@ export default function CustomerContractsPage() {
         />
       </div>
 
-      <ContractDrawer
-        contract={selectedContract}
-        open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
+      {/* Side drawer — hidden while in grouping mode */}
+      {!isGroupingMode && (
+        <ContractDrawer
+          contract={selectedContract}
+          open={drawerOpen}
+          onClose={() => setDrawerOpen(false)}
+        />
+      )}
+
+      {/* Create Group Modal */}
+      <CreateGroupModal
+        open={groupModalOpen}
+        onCancel={() => setGroupModalOpen(false)}
+        onSuccess={handleGroupSuccess}
+        selectedContracts={selectedContracts}
       />
     </div>
   )
