@@ -22,6 +22,7 @@ import StatusBadge from '@/components/common/StatusBadge'
 import StatCard from '@/components/contracts/StatCard'
 import ContractDrawer from '@/components/contracts/ContractDrawer'
 import CreateGroupModal from '@/components/contracts/CreateGroupModal'
+import type { AppPage } from '@/App'
 
 const { RangePicker } = DatePicker
 const { Text } = Typography
@@ -33,7 +34,11 @@ function getInvoiceSchedule(bookingType: string) {
   return bookingType === 'Term' ? 'recurring' : 'once-off'
 }
 
-export default function CustomerContractsPage() {
+interface CustomerContractsPageProps {
+  onNavigate: (page: AppPage) => void
+}
+
+export default function CustomerContractsPage({ onNavigate }: CustomerContractsPageProps) {
   const [search, setSearch] = useState('')
   const [selectedContract, setSelectedContract] = useState<Contract | null>(null)
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -377,6 +382,7 @@ export default function CustomerContractsPage() {
           contract={selectedContract}
           open={drawerOpen}
           onClose={() => setDrawerOpen(false)}
+          onNavigate={onNavigate}
         />
       )}
 
