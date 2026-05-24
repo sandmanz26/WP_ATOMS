@@ -1,7 +1,9 @@
 import { useState, useRef } from 'react'
 import {
-  Input, Select, Table, Typography, Tag, Divider, message,
+  Input, Select, Table, Typography, Tag, Divider, message, DatePicker,
 } from 'antd'
+import dayjs from 'dayjs'
+import type { Dayjs } from 'dayjs'
 import type { ColumnsType } from 'antd/es/table'
 import EditPageLayout from './EditPageLayout'
 import { mockContracts } from '@/data/mockData'
@@ -52,6 +54,12 @@ export default function EditBasicInformationPage({ contractId, onBack }: Props) 
   const contract = mockContracts.find(c => c.id === contractId)!
   const [remarks, setRemarks] = useState(contract.contractRemark ?? '')
   const [picName, setPicName] = useState(contract.picName ?? '')
+  const [startDate, setStartDate] = useState<Dayjs | null>(
+    () => dayjs(contract.contractPeriodStart, 'D MMM YYYY')
+  )
+  const [endDate, setEndDate] = useState<Dayjs | null>(
+    () => contract.contractPeriodEnd ? dayjs(contract.contractPeriodEnd, 'D MMM YYYY') : null
+  )
   const [activeTab, setActiveTab] = useState<TabKey>('basic')
 
   const basicRef = useRef<HTMLDivElement>(null)
@@ -202,20 +210,31 @@ export default function EditBasicInformationPage({ contractId, onBack }: Props) 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 16 }}>
           <div>
             <FieldLabel>Contract Start Date</FieldLabel>
-            <Input
-              value={contract.contractPeriodStart}
-              disabled={!startDateEditable}
-              style={!startDateEditable ? DISABLED_INPUT : {}}
-            />
+            {startDateEditable ? (
+              <DatePicker
+                value={startDate}
+                onChange={setStartDate}
+                format="D MMM YYYY"
+                style={{ width: '100%' }}
+              />
+            ) : (
+              <Input value={contract.contractPeriodStart} disabled style={DISABLED_INPUT} />
+            )}
           </div>
           <div>
             <FieldLabel>Contract End Date</FieldLabel>
-            <Input
-              value={contract.contractPeriodEnd ?? ''}
-              disabled={!isEditable}
-              style={!isEditable ? DISABLED_INPUT : {}}
-              placeholder="—"
-            />
+            {isEditable ? (
+              <DatePicker
+                value={endDate}
+                onChange={setEndDate}
+                format="D MMM YYYY"
+                style={{ width: '100%' }}
+                allowClear
+                placeholder="No end date"
+              />
+            ) : (
+              <Input value={contract.contractPeriodEnd ?? ''} disabled style={DISABLED_INPUT} placeholder="—" />
+            )}
           </div>
           <div>
             <FieldLabel>Contract Group</FieldLabel>
