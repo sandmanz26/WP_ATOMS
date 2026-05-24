@@ -294,6 +294,7 @@ export default function ContractDetailPage({ contractId, onNavigate, onBack }: P
             <StatusBadge status={contract.status} />
           </div>
           <Space size={8}>
+            <Button onClick={onBack}>Cancel</Button>
             <Dropdown
               menu={{ items: actionItems, onClick: handleActionClick }}
               trigger={['click']}
@@ -354,13 +355,17 @@ export default function ContractDetailPage({ contractId, onNavigate, onBack }: P
             <Text style={SECTION_TITLE}>Basic Information</Text>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 32 }}>
 
-              {/* Left: fields */}
+              {/* Left: fields with dividers between rows */}
               <div>
-                <div style={{ marginBottom: 20 }}>
+                {/* Row: Contract Title */}
+                <div style={{ padding: '4px 0 16px' }}>
                   <Text style={LBL}>Contract Title</Text>
-                  <Text style={VAL}>{contract.contractTitle}</Text>
+                  <Text style={{ ...VAL, fontSize: 14 }}>{contract.contractTitle}</Text>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 40px', marginBottom: 16 }}>
+                <Divider style={{ margin: '0 0 16px' }} />
+
+                {/* Row: Booking Type / Price Type */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 40px', padding: '0 0 16px' }}>
                   <div>
                     <Text style={LBL}>Booking Type</Text>
                     <Text style={VAL}>{contract.bookingType || '-'}</Text>
@@ -369,6 +374,11 @@ export default function ContractDetailPage({ contractId, onNavigate, onBack }: P
                     <Text style={LBL}>Price Type</Text>
                     <Text style={VAL}>{contract.priceType || '-'}</Text>
                   </div>
+                </div>
+                <Divider style={{ margin: '0 0 16px' }} />
+
+                {/* Row: Contract Period / Contract Group */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 40px', padding: '0 0 16px' }}>
                   <div>
                     <Text style={LBL}>Contract Period</Text>
                     <Text style={{ ...VAL, color: '#1677ff' }}>
@@ -381,6 +391,11 @@ export default function ContractDetailPage({ contractId, onNavigate, onBack }: P
                     <Text style={LBL}>Contract Group</Text>
                     <Text style={VAL}>{contract.contractGroup || '-'}</Text>
                   </div>
+                </div>
+                <Divider style={{ margin: '0 0 16px' }} />
+
+                {/* Row: Source Quotation / Contract Remark */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 40px' }}>
                   <div>
                     <Text style={LBL}>Source Quotation</Text>
                     <Text style={VAL}>-</Text>
@@ -394,24 +409,33 @@ export default function ContractDetailPage({ contractId, onNavigate, onBack }: P
 
               {/* Right: Price Summary card */}
               <div style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid #e8e8e8', alignSelf: 'start' }}>
-                <div style={{ background: '#1a1a1a', padding: '14px 20px' }}>
+                <div style={{ background: '#2d2d2d', padding: '16px 20px', textAlign: 'center' }}>
                   <Text style={{ color: '#fff', fontWeight: 600, fontSize: 15 }}>Price Summary</Text>
                 </div>
-                <div style={{ padding: '16px 20px' }}>
-                  {([
-                    ['Sub Total', fmt(subtotal)],
-                    ['Discount', fmt(discountAmt)],
-                    ['Surcharge', fmt(surchargeAmt)],
-                    ['GST (9%)', fmt(gst)],
-                  ] as [string, string][]).map(([label, val]) => (
-                    <div key={label} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
-                      <Text style={{ fontSize: 13, color: '#595959' }}>{label}</Text>
-                      <Text style={{ fontSize: 13 }}>{val}</Text>
-                    </div>
-                  ))}
-                  <Divider style={{ margin: '12px 0' }} />
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-                    <Text style={{ fontSize: 12, color: '#595959', lineHeight: 1.4 }}>
+                <div style={{ padding: '0 20px' }}>
+                  {/* Sub Total — prominent */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 0' }}>
+                    <Text style={{ fontSize: 14, fontWeight: 700 }}>Sub Total</Text>
+                    <Text style={{ fontSize: 15, fontWeight: 700 }}>{fmt(subtotal)}</Text>
+                  </div>
+                  <Divider style={{ margin: 0 }} />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0' }}>
+                    <Text style={{ fontSize: 13, color: '#595959' }}>Discount</Text>
+                    <Text style={{ fontSize: 13 }}>{fmt(discountAmt)}</Text>
+                  </div>
+                  <Divider style={{ margin: 0 }} />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0' }}>
+                    <Text style={{ fontSize: 13, color: '#595959' }}>Surcharge</Text>
+                    <Text style={{ fontSize: 13 }}>{fmt(surchargeAmt)}</Text>
+                  </div>
+                  <Divider style={{ margin: 0 }} />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0' }}>
+                    <Text style={{ fontSize: 13, color: '#595959' }}>GST (9%)</Text>
+                    <Text style={{ fontSize: 13 }}>{fmt(gst)}</Text>
+                  </div>
+                  <Divider style={{ margin: 0 }} />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, padding: '14px 0' }}>
+                    <Text style={{ fontSize: 12, color: '#595959', lineHeight: 1.5, flex: 1 }}>
                       {contract.bookingType === 'Term'
                         ? 'Actual Total for 1st Full Month of Service'
                         : 'Total Quotation Value'}
@@ -426,7 +450,7 @@ export default function ContractDetailPage({ contractId, onNavigate, onBack }: P
           {/* ── Section 2: Customer Details ── */}
           <div ref={customerRef} style={CARD}>
             <Text style={SECTION_TITLE}>Customer Details</Text>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px 40px', marginBottom: 20 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0 40px', paddingBottom: 16 }}>
               <div>
                 <Text style={LBL}>Customer Code</Text>
                 <Text style={VAL}>{contract.customerCode}</Text>
@@ -440,7 +464,8 @@ export default function ContractDetailPage({ contractId, onNavigate, onBack }: P
                 <Text style={VAL}>{contract.picName || '-'}</Text>
               </div>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px 40px' }}>
+            <Divider style={{ margin: '0 0 16px' }} />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0 40px' }}>
               <div>
                 <Text style={LBL}>PIC Contact Number</Text>
                 <Text style={VAL}>{contract.picContact || '-'}</Text>
