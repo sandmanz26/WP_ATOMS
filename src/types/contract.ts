@@ -1,10 +1,11 @@
-export type ContractStatus = 'Active' | 'Upcoming' | 'Ended' | 'Voided'
+export type ContractStatus = 'Active' | 'Upcoming' | 'Ending' | 'Ended' | 'Voided'
 export type BookingType = 'Term' | 'Ad-hoc'
 
 export interface Trip {
   id: string
   tripType: 'Fixed' | 'One-day' | 'Shuttle'
   startTime: string
+  endTime?: string
   capacity: number
   activeDays: string
   linkedRoute: string
@@ -46,6 +47,9 @@ export interface Contract {
   effectiveMonth?: string
   companyName?: string
   address?: string
+  postalCode?: string
+  unitNo?: string
+  buildingName?: string
   picName?: string
   picContact?: string
   picEmail?: string
