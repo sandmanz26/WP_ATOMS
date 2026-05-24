@@ -10,6 +10,7 @@ import type { AppPage } from '@/App'
 import StatusBadge from '@/components/common/StatusBadge'
 import EditPaymentDetailsModal from '@/components/contracts/EditPaymentDetailsModal'
 import VoidContractModal from '@/components/contracts/VoidContractModal'
+import JoinGroupModal from '@/components/contracts/JoinGroupModal'
 
 const { Text, Title } = Typography
 
@@ -92,7 +93,11 @@ export default function ContractDetailPage({ contractId, onNavigate, onBack }: P
   const [activeTab, setActiveTab] = useState<TabKey>('basic')
   const [paymentModalOpen, setPaymentModalOpen] = useState(false)
   const [voidModalOpen, setVoidModalOpen] = useState(false)
+  const [joinGroupOpen, setJoinGroupOpen] = useState(false)
   const [changeHistoryOpen, setChangeHistoryOpen] = useState(false)
+  const [voidedState, setVoidedState] = useState<{
+    voidedOn: string; voidedBy: string; reason: string
+  } | null>(null)
 
   const basicRef = useRef<HTMLDivElement>(null)
   const customerRef = useRef<HTMLDivElement>(null)
@@ -113,10 +118,11 @@ export default function ContractDetailPage({ contractId, onNavigate, onBack }: P
     window.scrollTo({ top, behavior: 'smooth' })
   }
 
-  const isEndedOrVoided = contract.status === 'Ended' || contract.status === 'Voided'
-  const isUpcoming = contract.status === 'Upcoming'
+  const effectiveStatus = voidedState ? 'Voided' as const : contract.status
+  const isEndedOrVoided = effectiveStatus === 'Ended' || effectiveStatus === 'Voided'
+  const isUpcoming = effectiveStatus === 'Upcoming'
   const hasGroup = Boolean(contract.contractGroup?.trim())
-  const isVoided = contract.status === 'Voided'
+  const isVoided = effectiveStatus === 'Voided'
   const hasTrips = contract.trips.length > 0
   const hasCharges = contract.otherCharges.length > 0
 
@@ -207,7 +213,7 @@ export default function ContractDetailPage({ contractId, onNavigate, onBack }: P
       document.getElementById('section-price-history')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }
     else if (key === 'download') message.info('Download is not yet available')
-    else if (key === 'join') message.info('Join group is not yet available')
+    else if (key === 'join') setJoinGroupOpen(true)
   }
 
   // Trip columns (sortable per PRD)
@@ -306,7 +312,7 @@ export default function ContractDetailPage({ contractId, onNavigate, onBack }: P
             <Title level={3} style={{ margin: 0, fontSize: 26, fontWeight: 700, color: '#1a1a1a' }}>
               {contract.contractNo}
             </Title>
-            <StatusBadge status={contract.status} />
+            <StatusBadge status={effectiveStatus} />
           </div>
           <Space size={8}>
             <Button onClick={onBack}>Cancel</Button>
@@ -610,6 +616,27 @@ export default function ContractDetailPage({ contractId, onNavigate, onBack }: P
               <Text style={LBL}>Updated By</Text>
               <Text style={VAL}>{contract.lastUpdatedBy}</Text>
             </div>
+
+            {/* ── Void fields (shown only after contract is voided) ── */}
+            {voidedState && (
+              <>
+                <Divider style={{ margin: '16px 0' }} />
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px 40px', marginBottom: 20 }}>
+                  <div>
+                    <Text style={LBL}>Voided On</Text>
+                    <Text style={VAL}>{voidedState.voidedOn}</Text>
+                  </div>
+                  <div>
+                    <Text style={LBL}>Voided By</Text>
+                    <Text style={VAL}>{voidedState.voidedBy}</Text>
+                  </div>
+                </div>
+                <div>
+                  <Text style={LBL}>Reason for Voiding</Text>
+                  <Text style={{ ...VAL, whiteSpace: 'normal' }}>{voidedState.reason}</Text>
+                </div>
+              </>
+            )}
           </div>
 
         </div>
@@ -626,6 +653,18 @@ export default function ContractDetailPage({ contractId, onNavigate, onBack }: P
       <VoidContractModal
         open={voidModalOpen}
         onClose={() => setVoidModalOpen(false)}
+        onVoid={(reason) => {
+          const now = new Date()
+          const voidedOn = now.toLocaleDateString('en-GB', {
+            day: 'numeric', month: 'short', year: 'numeric',
+          }) + ', ' + now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+          setVoidedState({ voidedOn, voidedBy: 'Heikke Ekkieh', reason })
+          setVoidModalOpen(false)
+        }}
+      />
+      <JoinGroupModal
+        open={joinGroupOpen}
+        onClose={() => setJoinGroupOpen(false)}
       />
 
       {/* ── Change History Drawer ── */}
