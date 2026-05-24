@@ -67,6 +67,11 @@ function fmt(n: number) {
   })}`
 }
 
+function fmtAdjust(type: '$' | '%' | undefined, rawValue: number | undefined, computedAmt: number): string {
+  if (type === '%') return `${rawValue ?? 0}%`
+  return fmt(computedAmt)
+}
+
 function fmtTotal(n: number) {
   const isInt = Number.isInteger(n)
   if (isInt) return `$ ${n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })},-`
@@ -433,12 +438,12 @@ export default function ContractDetailPage({ contractId, onNavigate, onBack }: P
                   <Divider style={{ margin: 0 }} />
                   <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0' }}>
                     <Text style={{ fontSize: 13, color: '#595959' }}>Discount</Text>
-                    <Text style={{ fontSize: 13 }}>{fmt(discountAmt)}</Text>
+                    <Text style={{ fontSize: 13 }}>{fmtAdjust(contract.discountType, contract.discount, discountAmt)}</Text>
                   </div>
                   <Divider style={{ margin: 0 }} />
                   <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0' }}>
                     <Text style={{ fontSize: 13, color: '#595959' }}>Surcharge</Text>
-                    <Text style={{ fontSize: 13 }}>{fmt(surchargeAmt)}</Text>
+                    <Text style={{ fontSize: 13 }}>{fmtAdjust(contract.surchargeType, contract.surcharge, surchargeAmt)}</Text>
                   </div>
                   <Divider style={{ margin: 0 }} />
                   <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0' }}>
@@ -453,7 +458,7 @@ export default function ContractDetailPage({ contractId, onNavigate, onBack }: P
                         : 'Total Quotation Value'}
                     </Text>
                     <Text style={{ fontSize: 14, fontWeight: 700, flexShrink: 0 }}>
-                      {`$ ${total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                      {fmt(total)}
                     </Text>
                   </div>
                 </div>
