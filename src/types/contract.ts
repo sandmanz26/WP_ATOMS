@@ -46,6 +46,9 @@ export interface Contract {
   effectiveMonth?: string
   companyName?: string
   address?: string
+  postalCode?: string
+  unitNo?: string
+  buildingName?: string
   picName?: string
   picContact?: string
   picEmail?: string
