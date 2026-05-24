@@ -60,7 +60,17 @@ const LBL: React.CSSProperties = { fontSize: 12, color: '#8c8c8c', display: 'blo
 const VAL: React.CSSProperties = { fontSize: 13, display: 'block', fontWeight: 600, color: '#1a1a1a' }
 
 function fmt(n: number) {
-  return `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  const isInt = Number.isInteger(n)
+  return `$ ${n.toLocaleString('en-US', {
+    minimumFractionDigits: isInt ? 0 : 2,
+    maximumFractionDigits: 2,
+  })}`
+}
+
+function fmtTotal(n: number) {
+  const isInt = Number.isInteger(n)
+  if (isInt) return `$ ${n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })},-`
+  return `$ ${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
 function ordinalDay(n: string): string {
@@ -413,10 +423,12 @@ export default function ContractDetailPage({ contractId, onNavigate, onBack }: P
                   <Text style={{ color: '#fff', fontWeight: 600, fontSize: 15 }}>Price Summary</Text>
                 </div>
                 <div style={{ padding: '0 20px' }}>
-                  {/* Sub Total — prominent */}
+                  {/* Sub Total — prominent, always 2dp */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 0' }}>
                     <Text style={{ fontSize: 14, fontWeight: 700 }}>Sub Total</Text>
-                    <Text style={{ fontSize: 15, fontWeight: 700 }}>{fmt(subtotal)}</Text>
+                    <Text style={{ fontSize: 15, fontWeight: 700 }}>
+                      {`$ ${subtotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                    </Text>
                   </div>
                   <Divider style={{ margin: 0 }} />
                   <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0' }}>
@@ -440,7 +452,9 @@ export default function ContractDetailPage({ contractId, onNavigate, onBack }: P
                         ? 'Actual Total for 1st Full Month of Service'
                         : 'Total Quotation Value'}
                     </Text>
-                    <Text style={{ fontSize: 14, fontWeight: 700, flexShrink: 0 }}>{fmt(total)}</Text>
+                    <Text style={{ fontSize: 14, fontWeight: 700, flexShrink: 0 }}>
+                      {`$ ${total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                    </Text>
                   </div>
                 </div>
               </div>
@@ -488,7 +502,7 @@ export default function ContractDetailPage({ contractId, onNavigate, onBack }: P
             <div ref={tripsRef} style={CARD}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                 <Text style={{ ...SECTION_TITLE, marginBottom: 0 }}>Trips</Text>
-                <Text style={{ fontSize: 15, fontWeight: 600 }}>{fmt(subtotalTrips)}</Text>
+                <Text style={{ fontSize: 15, fontWeight: 600 }}>{fmtTotal(subtotalTrips)}</Text>
               </div>
               <Table<Trip>
                 dataSource={contract.trips}
@@ -506,7 +520,7 @@ export default function ContractDetailPage({ contractId, onNavigate, onBack }: P
             <div ref={chargesRef} style={CARD}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                 <Text style={{ ...SECTION_TITLE, marginBottom: 0 }}>Other Charges</Text>
-                <Text style={{ fontSize: 15, fontWeight: 600 }}>{fmt(subtotalCharges)}</Text>
+                <Text style={{ fontSize: 15, fontWeight: 600 }}>{fmtTotal(subtotalCharges)}</Text>
               </div>
               <Table<OtherCharge>
                 dataSource={contract.otherCharges}
