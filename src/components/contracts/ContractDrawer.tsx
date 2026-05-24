@@ -11,6 +11,7 @@ import type { AppPage } from '@/App'
 import StatusBadge from '@/components/common/StatusBadge'
 import EditPaymentDetailsModal from '@/components/contracts/EditPaymentDetailsModal'
 import VoidContractModal from '@/components/contracts/VoidContractModal'
+import JoinGroupModal from '@/components/contracts/JoinGroupModal'
 
 const mockPriceHistory = [
   { id: '1', effectiveDate: '14 Jan 2026', editType: 'Price Edit', editMade: 'Trip price updated $800 → $1,200', reason: 'Annual price review', addedBy: 'Aldan Kwok' },
@@ -103,14 +104,19 @@ const chargeColumns = [
 export default function ContractDrawer({ contract, open, onClose, onNavigate }: ContractDrawerProps) {
   const [paymentModalOpen, setPaymentModalOpen] = useState(false)
   const [voidModalOpen, setVoidModalOpen] = useState(false)
+  const [joinGroupOpen, setJoinGroupOpen] = useState(false)
   const [priceHistoryOpen, setPriceHistoryOpen] = useState(false)
+  const [voidedState, setVoidedState] = useState<{
+    voidedOn: string; voidedBy: string; reason: string
+  } | null>(null)
 
   if (!contract) return null
 
-  const isEndedOrVoided = contract.status === 'Ended' || contract.status === 'Voided'
+  const effectiveStatus = voidedState ? 'Voided' as const : contract.status
+  const isEndedOrVoided = effectiveStatus === 'Ended' || effectiveStatus === 'Voided'
   const hasGroup = Boolean(contract.contractGroup && contract.contractGroup.trim() !== '')
-  const isUpcoming = contract.status === 'Upcoming'
-  const isVoided = contract.status === 'Voided'
+  const isUpcoming = effectiveStatus === 'Upcoming'
+  const isVoided = effectiveStatus === 'Voided'
 
   const formatPrice = (price: number | null) => {
     if (price === null) return '-'
@@ -221,6 +227,8 @@ export default function ContractDrawer({ contract, open, onClose, onNavigate }: 
   const handleActionMenuClick = ({ key }: { key: string }) => {
     if (key === 'void' && isUpcoming) {
       setVoidModalOpen(true)
+    } else if (key === 'join') {
+      setJoinGroupOpen(true)
     } else if (key === 'history') {
       message.info('Change history is not yet available')
     } else if (key === 'price-history') {
@@ -271,7 +279,7 @@ export default function ContractDrawer({ contract, open, onClose, onNavigate }: 
                 >
                   {contract.contractNo}
                 </Title>
-                <StatusBadge status={contract.status} />
+                <StatusBadge status={effectiveStatus} />
               </div>
 
               <Space size={8} style={{ flexShrink: 0 }}>
@@ -438,6 +446,20 @@ export default function ContractDrawer({ contract, open, onClose, onNavigate }: 
       <VoidContractModal
         open={voidModalOpen}
         onClose={() => setVoidModalOpen(false)}
+        onVoid={(reason) => {
+          const now = new Date()
+          const voidedOn = now.toLocaleDateString('en-GB', {
+            day: 'numeric', month: 'short', year: 'numeric',
+          }) + ', ' + now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+          setVoidedState({ voidedOn, voidedBy: 'Heikke Ekkieh', reason })
+          setVoidModalOpen(false)
+        }}
+      />
+
+      {/* Join Existing Group Modal */}
+      <JoinGroupModal
+        open={joinGroupOpen}
+        onClose={() => setJoinGroupOpen(false)}
       />
 
       {/* Price Change History Modal */}

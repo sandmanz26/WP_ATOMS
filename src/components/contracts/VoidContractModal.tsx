@@ -1,59 +1,81 @@
 import { useState } from 'react'
-import { Modal, Input, Typography, message } from 'antd'
+import { Modal, Form, Input, Button, Typography, message } from 'antd'
 
-const { Text } = Typography
-const { TextArea } = Input
+const { Paragraph } = Typography
 
 interface VoidContractModalProps {
   open: boolean
   onClose: () => void
+  onVoid: (reason: string) => void
 }
 
-export default function VoidContractModal({ open, onClose }: VoidContractModalProps) {
-  const [reason, setReason] = useState('')
+export default function VoidContractModal({ open, onClose, onVoid }: VoidContractModalProps) {
+  const [form] = Form.useForm()
+  const [loading, setLoading] = useState(false)
 
-  const handleConfirm = () => {
-    if (!reason.trim()) return
-    message.success('Contract voided successfully')
-    setReason('')
-    onClose()
+  const handleConfirm = async () => {
+    try {
+      await form.validateFields()
+      const { reasonForVoiding } = form.getFieldsValue()
+      setLoading(true)
+      // Simulate API call
+      await new Promise(res => setTimeout(res, 600))
+      message.success('Successfully voided customer contract')
+      form.resetFields()
+      setLoading(false)
+      onVoid(reasonForVoiding)
+    } catch {
+      setLoading(false)
+    }
   }
 
   const handleCancel = () => {
-    setReason('')
+    form.resetFields()
     onClose()
   }
 
   return (
     <Modal
       open={open}
-      title="Void Contract"
+      title="Void Customer Contract"
       onCancel={handleCancel}
-      okText="Confirm"
-      okButtonProps={{
-        danger: true,
-        disabled: !reason.trim(),
-      }}
-      cancelText="Cancel"
-      onOk={handleConfirm}
-      width={480}
+      width={520}
+      centered
+      maskClosable={false}
+      keyboard={false}
+      closable={true}
+      footer={[
+        <Button key="cancel" onClick={handleCancel}>
+          Cancel
+        </Button>,
+        <Button key="confirm" type="primary" danger loading={loading} onClick={handleConfirm}>
+          Confirm
+        </Button>,
+      ]}
     >
-      <Text style={{ display: 'block', marginBottom: 16, color: '#595959' }}>
-        This action cannot be undone. All trips will be auto-cancelled.
-      </Text>
-      <div>
-        <Text style={{ display: 'block', marginBottom: 6, color: '#8c8c8c', fontSize: 13 }}>
-          Reason for Voiding <span style={{ color: '#ff4d4f' }}>*</span>
-        </Text>
-        <TextArea
-          value={reason}
-          onChange={(e) => setReason(e.target.value)}
-          maxLength={120}
-          showCount
-          rows={3}
-          placeholder="Enter reason for voiding this contract"
-        />
-      </div>
+      <Paragraph style={{ color: '#595959', marginTop: 8, marginBottom: 20 }}>
+        Are you sure you want to void this customer contract? This action cannot be undone.
+        All trips under this contract will be cancelled and unassigned.
+      </Paragraph>
+
+      <Form form={form} layout="vertical" requiredMark>
+        <Form.Item
+          label="Reason for Voiding"
+          name="reasonForVoiding"
+          required
+          rules={[
+            { required: true, message: 'Reason for voiding is required' },
+            { max: 120, message: 'Maximum 120 characters' },
+          ]}
+        >
+          <Input.TextArea
+            rows={3}
+            maxLength={120}
+            showCount
+            placeholder="Enter reason for voiding the contract"
+          />
+        </Form.Item>
+      </Form>
     </Modal>
   )
 }
