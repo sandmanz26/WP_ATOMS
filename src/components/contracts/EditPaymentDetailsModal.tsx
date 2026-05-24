@@ -1,5 +1,7 @@
 import { useState } from 'react'
-import { Modal, Form, Select, Input, Tooltip, Typography, message } from 'antd'
+import { Modal, Form, Select, Input, DatePicker, Tooltip, Typography, message } from 'antd'
+import dayjs from 'dayjs'
+import type { Dayjs } from 'dayjs'
 import type { Contract } from '@/types/contract'
 
 const { Text } = Typography
@@ -10,111 +12,176 @@ interface EditPaymentDetailsModalProps {
   contract: Contract
 }
 
-const dayOptions = [
+// Invoice Generation Date: 1-31 + "last day of month" (Term/Others+per-month)
+const invoiceGenDayOptions = [
   ...Array.from({ length: 31 }, (_, i) => ({ label: String(i + 1), value: String(i + 1) })),
   { label: 'Last day of month', value: 'last' },
 ]
 
+// Invoice Date: 1-31 only (no "last day")
+const invoiceDateDayOptions = Array.from({ length: 31 }, (_, i) => ({
+  label: String(i + 1),
+  value: String(i + 1),
+}))
+
+const paymentTermsOptions = [
+  { value: '7', label: '7 days' },
+  { value: '14', label: '14 days' },
+  { value: '30', label: '30 days' },
+  { value: '60', label: '60 days' },
+  { value: '90', label: '90 days' },
+]
+
+function RequiredLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <Text style={{ color: '#8c8c8c', fontSize: 13 }}>
+      <span style={{ color: '#ff4d4f', marginRight: 3 }}>*</span>
+      {children}
+    </Text>
+  )
+}
+
 export default function EditPaymentDetailsModal({ open, onClose, contract }: EditPaymentDetailsModalProps) {
   const [form] = Form.useForm()
-  const isGroupManaged = Boolean(contract.contractGroup && contract.contractGroup.trim() !== '')
 
-  const [invoiceGenDate, setInvoiceGenDate] = useState(contract.invoiceGenerationDate ?? '')
-  const [invoiceDate, setInvoiceDate] = useState(contract.invoiceDate ?? '')
-  const [paymentTerms, setPaymentTerms] = useState(contract.paymentTerms ?? '')
-  const [terminationNotice, setTerminationNotice] = useState(contract.terminationNotice ?? '')
+  const isGroupManaged = Boolean(contract.contractGroup?.trim())
+  const isAdHoc = contract.bookingType === 'Ad-hoc'
+
+  // Day-of-month values (Term / Others+per-month)
+  const [invoiceGenDay, setInvoiceGenDay] = useState(contract.invoiceGenerationDate ?? '')
+  const [invoiceDateDay, setInvoiceDateDay] = useState(contract.invoiceDate ?? '')
+
+  // Date picker values (Ad-hoc / once-off)
+  const [invoiceGenPicker, setInvoiceGenPicker] = useState<Dayjs | null>(
+    contract.invoiceGenerationDate
+      ? dayjs(contract.invoiceGenerationDate, ['D MMM YYYY', 'YYYY-MM-DD'])
+      : null
+  )
+  const [invoiceDatePicker, setInvoiceDatePicker] = useState<Dayjs | null>(
+    contract.invoiceDate
+      ? dayjs(contract.invoiceDate, ['D MMM YYYY', 'YYYY-MM-DD'])
+      : null
+  )
+
+  const [paymentTerms, setPaymentTerms] = useState(String(contract.paymentTerms ?? ''))
+  const [terminationNotice, setTerminationNotice] = useState(String(contract.terminationNotice ?? ''))
+
+  const groupTooltip = 'Tooltip: disable invoice & payment terms fields'
 
   const handleSave = () => {
     message.success('Saved successfully')
     onClose()
   }
 
-  const handleCancel = () => {
-    onClose()
-  }
-
-  const groupTooltip = 'Managed at group level'
-
-  const labelStyle: React.CSSProperties = { color: '#8c8c8c', fontSize: 13 }
-
   return (
     <Modal
       open={open}
       title="Edit Payment Details"
-      onCancel={handleCancel}
+      onCancel={onClose}
       onOk={handleSave}
       okText="Save"
       cancelText="Cancel"
-      width={680}
+      width={640}
     >
-      <Form layout="vertical" form={form} style={{ marginTop: 12 }}>
-        {/* Row 1 */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
-          <Form.Item label={<Text style={labelStyle}>Billing Company</Text>}>
+      <Form layout="vertical" form={form} style={{ marginTop: 16 }}>
+
+        {/* Row 1: Billing Company + Account Payable */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          <Form.Item label={<RequiredLabel>Billing Company</RequiredLabel>} style={{ marginBottom: 12 }}>
             <Select
-              value={contract.billingCompany}
+              value={contract.billingCompany ?? undefined}
               disabled
-              placeholder="Billing Company"
-              options={[{ label: contract.billingCompany, value: contract.billingCompany }]}
+              placeholder="—"
+              options={contract.billingCompany ? [{ label: contract.billingCompany, value: contract.billingCompany }] : []}
+              style={{ width: '100%' }}
             />
           </Form.Item>
 
-          <Form.Item label={<Text style={labelStyle}>Account Payable</Text>}>
+          <Form.Item label={<RequiredLabel>Account Payable</RequiredLabel>} style={{ marginBottom: 12 }}>
             <Select
-              value={contract.accountPayable}
+              value={contract.accountPayable ?? undefined}
               disabled
-              placeholder="Account Payable"
-              options={[{ label: contract.accountPayable, value: contract.accountPayable }]}
+              placeholder="—"
+              options={contract.accountPayable ? [{ label: contract.accountPayable, value: contract.accountPayable }] : []}
+              style={{ width: '100%' }}
             />
           </Form.Item>
+        </div>
 
-          <Form.Item label={<Text style={labelStyle}>Invoice Generation Date</Text>}>
+        {/* Row 2: Invoice Generation Date + Invoice Date */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          <Form.Item label={<RequiredLabel>Invoice Generation Date</RequiredLabel>} style={{ marginBottom: 12 }}>
             <Tooltip title={isGroupManaged ? groupTooltip : undefined}>
-              <Select
-                value={invoiceGenDate || undefined}
-                onChange={setInvoiceGenDate}
-                disabled={isGroupManaged}
-                placeholder="Select day"
-                options={dayOptions}
-              />
+              {isAdHoc ? (
+                <DatePicker
+                  value={invoiceGenPicker}
+                  onChange={setInvoiceGenPicker}
+                  disabled={isGroupManaged}
+                  format="D MMM YYYY"
+                  style={{ width: '100%' }}
+                  placeholder="Select date"
+                />
+              ) : (
+                <Select
+                  value={invoiceGenDay || undefined}
+                  onChange={setInvoiceGenDay}
+                  disabled={isGroupManaged}
+                  placeholder="Select day"
+                  options={invoiceGenDayOptions}
+                  style={{ width: '100%' }}
+                />
+              )}
+            </Tooltip>
+          </Form.Item>
+
+          <Form.Item label={<RequiredLabel>Invoice Date</RequiredLabel>} style={{ marginBottom: 12 }}>
+            <Tooltip title={isGroupManaged ? groupTooltip : undefined}>
+              {isAdHoc ? (
+                <DatePicker
+                  value={invoiceDatePicker}
+                  onChange={setInvoiceDatePicker}
+                  disabled={isGroupManaged}
+                  format="D MMM YYYY"
+                  style={{ width: '100%' }}
+                  placeholder="Select date"
+                />
+              ) : (
+                <Select
+                  value={invoiceDateDay || undefined}
+                  onChange={setInvoiceDateDay}
+                  disabled={isGroupManaged}
+                  placeholder="Select day"
+                  options={invoiceDateDayOptions}
+                  style={{ width: '100%' }}
+                />
+              )}
             </Tooltip>
           </Form.Item>
         </div>
 
-        {/* Row 2 */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
-          <Form.Item label={<Text style={labelStyle}>Invoice Date</Text>}>
+        {/* Row 3: Payment Terms + Termination Notice */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          <Form.Item label={<RequiredLabel>Payment Terms</RequiredLabel>} style={{ marginBottom: 0 }}>
             <Tooltip title={isGroupManaged ? groupTooltip : undefined}>
               <Select
-                value={invoiceDate || undefined}
-                onChange={setInvoiceDate}
+                value={paymentTerms || undefined}
+                onChange={setPaymentTerms}
                 disabled={isGroupManaged}
-                placeholder="Select day"
-                options={dayOptions}
+                placeholder="Select payment terms"
+                options={paymentTermsOptions}
+                style={{ width: '100%' }}
               />
             </Tooltip>
           </Form.Item>
 
-          <Form.Item label={<Text style={labelStyle}>Payment Terms (days)</Text>}>
-            <Tooltip title={isGroupManaged ? groupTooltip : undefined}>
-              <Input
-                value={paymentTerms}
-                onChange={(e) => setPaymentTerms(e.target.value)}
-                disabled={isGroupManaged}
-                placeholder="e.g. 30"
-                type="number"
-                min={0}
-              />
-            </Tooltip>
-          </Form.Item>
-
-          <Form.Item label={<Text style={labelStyle}>Termination Notice (days)</Text>}>
+          <Form.Item label={<RequiredLabel>Termination Notice</RequiredLabel>} style={{ marginBottom: 0 }}>
             <Input
               value={terminationNotice}
-              onChange={(e) => setTerminationNotice(Number(e.target.value))}
-              placeholder="e.g. 30"
+              onChange={e => setTerminationNotice(e.target.value)}
               type="number"
               min={0}
+              addonAfter="days"
+              placeholder="e.g. 30"
             />
           </Form.Item>
         </div>
