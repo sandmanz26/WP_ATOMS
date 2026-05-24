@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Drawer, Button, Dropdown, Table, Typography, Divider, Space, Tooltip, message } from 'antd'
+import { Drawer, Button, Dropdown, Table, Typography, Divider, Space, Tooltip, message, Modal } from 'antd'
 import {
   CloseOutlined,
   LinkOutlined,
@@ -11,6 +11,14 @@ import type { AppPage } from '@/App'
 import StatusBadge from '@/components/common/StatusBadge'
 import EditPaymentDetailsModal from '@/components/contracts/EditPaymentDetailsModal'
 import VoidContractModal from '@/components/contracts/VoidContractModal'
+
+const mockPriceHistory = [
+  { id: '1', effectiveDate: '14 Jan 2026', editType: 'Price Edit', editMade: 'Trip price updated $800 → $1,200', reason: 'Annual price review', addedBy: 'Aldan Kwok' },
+  { id: '2', effectiveDate: '14 Jan 2026', editType: 'Price Edit', editMade: 'Trip price updated $700 → $950', reason: 'Annual price review', addedBy: 'Monica Leo' },
+  { id: '3', effectiveDate: '14 Jan 2026', editType: 'Surcharge Edit', editMade: 'Surcharge added $200', reason: 'Fuel cost increase', addedBy: 'Richard Jen' },
+  { id: '4', effectiveDate: '17 Jan 2026', editType: 'Discount Edit', editMade: 'Discount changed $300 → $500', reason: 'Customer loyalty discount', addedBy: 'Richie Ken' },
+  { id: '5', effectiveDate: '15 Jan 2026', editType: 'Price Edit', editMade: 'Other charge unit price $50 → $80', reason: 'Service fee update', addedBy: 'Nicholas Maung' },
+]
 
 const { Text, Title } = Typography
 
@@ -68,21 +76,11 @@ const tripColumns = [
     render: (v: number) => <Text style={{ fontSize: 13 }}>{v}</Text>,
   },
   {
-    title: 'Active Days',
-    dataIndex: 'activeDays',
-    key: 'activeDays',
+    title: 'Trip Description',
+    dataIndex: 'tripDescription',
+    key: 'tripDescription',
     onHeaderCell: () => ({ style: { whiteSpace: 'nowrap' as const } }),
-    render: (v: string) => <Text style={{ fontSize: 13 }}>{v}</Text>,
-  },
-  {
-    title: 'Linked Route',
-    dataIndex: 'linkedRoute',
-    key: 'linkedRoute',
-    width: 105,
-    onHeaderCell: () => ({ style: { whiteSpace: 'nowrap' as const } }),
-    render: (v: string) => (
-      <Text style={{ color: '#1677ff', fontSize: 13, cursor: 'pointer' }}>{v}</Text>
-    ),
+    render: (v?: string) => <Text style={{ fontSize: 13 }}>{v || '-'}</Text>,
   },
 ]
 
@@ -105,6 +103,7 @@ const chargeColumns = [
 export default function ContractDrawer({ contract, open, onClose, onNavigate }: ContractDrawerProps) {
   const [paymentModalOpen, setPaymentModalOpen] = useState(false)
   const [voidModalOpen, setVoidModalOpen] = useState(false)
+  const [priceHistoryOpen, setPriceHistoryOpen] = useState(false)
 
   if (!contract) return null
 
@@ -225,7 +224,7 @@ export default function ContractDrawer({ contract, open, onClose, onNavigate }: 
     } else if (key === 'history') {
       message.info('Change history is not yet available')
     } else if (key === 'price-history') {
-      message.info('Price change history is not yet available')
+      setPriceHistoryOpen(true)
     } else if (key === 'download') {
       message.info('Download is not yet available')
     }
@@ -440,6 +439,30 @@ export default function ContractDrawer({ contract, open, onClose, onNavigate }: 
         open={voidModalOpen}
         onClose={() => setVoidModalOpen(false)}
       />
+
+      {/* Price Change History Modal */}
+      <Modal
+        open={priceHistoryOpen}
+        title="Price Change History"
+        footer={null}
+        onCancel={() => setPriceHistoryOpen(false)}
+        width={720}
+      >
+        <Table
+          dataSource={mockPriceHistory}
+          rowKey="id"
+          size="small"
+          pagination={{ pageSize: 5, size: 'small', showSizeChanger: false }}
+          columns={[
+            { title: 'Edit Effective Date', dataIndex: 'effectiveDate', key: 'ed', width: 150, onHeaderCell: () => ({ style: { whiteSpace: 'nowrap' as const } }) },
+            { title: 'Edit Type', dataIndex: 'editType', key: 'et', width: 120, onHeaderCell: () => ({ style: { whiteSpace: 'nowrap' as const } }) },
+            { title: 'Edit Made', dataIndex: 'editMade', key: 'em', onHeaderCell: () => ({ style: { whiteSpace: 'nowrap' as const } }) },
+            { title: 'Reason for Price Change', dataIndex: 'reason', key: 'r', onHeaderCell: () => ({ style: { whiteSpace: 'nowrap' as const } }) },
+            { title: 'Added By', dataIndex: 'addedBy', key: 'ab', width: 120, onHeaderCell: () => ({ style: { whiteSpace: 'nowrap' as const } }) },
+          ]}
+          scroll={{ x: 600 }}
+        />
+      </Modal>
     </>
   )
 }

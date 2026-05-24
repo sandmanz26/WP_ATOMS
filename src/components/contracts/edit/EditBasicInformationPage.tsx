@@ -75,6 +75,19 @@ export default function EditBasicInformationPage({ contractId, onBack }: Props) 
 
   const isEditable = contract.status !== 'Ended' && contract.status !== 'Voided'
 
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const startDateEditable = (() => {
+    if (!isEditable) return false
+    const m = contract.contractPeriodStart.match(/^(\d{1,2})\s+(\w{3})\s+(\d{4})$/)
+    if (!m) return false
+    const monthMap: Record<string, number> = { Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5, Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11 }
+    const month = monthMap[m[2]]
+    if (month == null) return false
+    const d = new Date(parseInt(m[3]), month, parseInt(m[1]))
+    return d >= today
+  })()
+
   const fmt = (n: number) =>
     `$ ${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
@@ -165,10 +178,9 @@ export default function EditBasicInformationPage({ contractId, onBack }: Props) 
             <FieldLabel required>Contract Title</FieldLabel>
             <Input
               value={contract.contractTitle}
-              disabled={!isEditable}
-              style={!isEditable ? DISABLED_INPUT : {}}
+              disabled
+              style={DISABLED_INPUT}
               maxLength={120}
-              showCount
             />
           </div>
           <div>
@@ -190,7 +202,11 @@ export default function EditBasicInformationPage({ contractId, onBack }: Props) 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 16 }}>
           <div>
             <FieldLabel>Contract Start Date</FieldLabel>
-            <Input value={contract.contractPeriodStart} disabled style={DISABLED_INPUT} />
+            <Input
+              value={contract.contractPeriodStart}
+              disabled={!startDateEditable}
+              style={!startDateEditable ? DISABLED_INPUT : {}}
+            />
           </div>
           <div>
             <FieldLabel>Contract End Date</FieldLabel>
@@ -332,10 +348,10 @@ export default function EditBasicInformationPage({ contractId, onBack }: Props) 
         )}
       </div>
 
-      {/* ── Quotation Price Summary ── */}
+      {/* ── Discount and Surcharge ── */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
         <div style={CARD}>
-          <Text style={SECTION_TITLE}>Quotation Price Summary</Text>
+          <Text style={SECTION_TITLE}>Discount and Surcharge</Text>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 12 }}>
             <div>
               <FieldLabel>Discount Amount</FieldLabel>
@@ -385,7 +401,7 @@ export default function EditBasicInformationPage({ contractId, onBack }: Props) 
         <div style={{ ...CARD, display: 'flex', flexDirection: 'column', gap: 0 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
             <Text style={{ fontSize: 14, color: '#595959' }}>
-              {contract.bookingType === 'Term' ? 'Actual Total for First Month of Service' : 'Total Quotation Value'}
+              {contract.bookingType === 'Term' ? 'Actual Total for Full Month of Service' : 'Total Quotation Value'}
             </Text>
             <Text style={{ fontSize: 15, fontWeight: 700 }}>{fmt(total)}</Text>
           </div>
