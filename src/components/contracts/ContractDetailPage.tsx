@@ -449,7 +449,7 @@ export default function ContractDetailPage({ contractId, onNavigate, onBack }: P
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, padding: '14px 0' }}>
                     <Text style={{ fontSize: 12, color: '#595959', lineHeight: 1.5, flex: 1 }}>
                       {contract.bookingType === 'Term'
-                        ? 'Actual Total for 1st Full Month of Service'
+                        ? 'Actual Total for Full Month of Service'
                         : 'Total Quotation Value'}
                     </Text>
                     <Text style={{ fontSize: 14, fontWeight: 700, flexShrink: 0 }}>
@@ -564,7 +564,7 @@ export default function ContractDetailPage({ contractId, onNavigate, onBack }: P
               </div>
               <div>
                 <Text style={LBL}>Termination Notice</Text>
-                <Text style={VAL}>{contract.terminationNotice != null ? contract.terminationNotice : '-'}</Text>
+                <Text style={VAL}>{contract.terminationNotice != null ? `${contract.terminationNotice} days` : '-'}</Text>
               </div>
             </div>
           </div>
