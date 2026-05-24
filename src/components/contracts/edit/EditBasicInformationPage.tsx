@@ -96,8 +96,15 @@ export default function EditBasicInformationPage({ contractId, onBack }: Props) 
     return d >= today
   })()
 
-  const fmt = (n: number) =>
-    `$ ${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  const fmt = (n: number) => {
+    const isInt = Number.isInteger(n)
+    return `$ ${n.toLocaleString('en-US', { minimumFractionDigits: isInt ? 0 : 2, maximumFractionDigits: 2 })}`
+  }
+
+  const fmtAdjust = (type: '$' | '%' | undefined, rawValue: number | undefined, computedAmt: number): string => {
+    if (type === '%') return `${rawValue ?? 0}%`
+    return fmt(computedAmt)
+  }
 
   const subtotalTrips = contract.trips.reduce((s, t) => s + (t.tripPrice ?? 0), 0)
   const subtotalCharges = contract.otherCharges.reduce((s, c) => s + (c.amount ?? 0), 0)
@@ -424,16 +431,22 @@ export default function EditBasicInformationPage({ contractId, onBack }: Props) 
             </Text>
             <Text style={{ fontSize: 15, fontWeight: 700 }}>{fmt(total)}</Text>
           </div>
-          {([['Subtotal', subtotal], ['Discount', -discountAmt], ['Surcharge', surchargeAmt]] as [string, number][]).map(([label, val]) => (
-            <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0' }}>
-              <Text style={{ color: '#595959', fontSize: 14 }}>{label}</Text>
-              <Text style={{ fontSize: 14 }}>{fmt(val)}</Text>
-            </div>
-          ))}
+          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0' }}>
+            <Text style={{ color: '#595959', fontSize: 14 }}>Subtotal</Text>
+            <Text style={{ fontSize: 14 }}>{fmt(subtotal)}</Text>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0' }}>
+            <Text style={{ color: '#595959', fontSize: 14 }}>Discount</Text>
+            <Text style={{ fontSize: 14 }}>{fmtAdjust(contract.discountType, contract.discount, discountAmt)}</Text>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0' }}>
+            <Text style={{ color: '#595959', fontSize: 14 }}>Surcharge</Text>
+            <Text style={{ fontSize: 14 }}>{fmtAdjust(contract.surchargeType, contract.surcharge, surchargeAmt)}</Text>
+          </div>
           <Divider style={{ margin: '8px 0' }} />
           <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
-            <Text style={{ color: '#595959', fontSize: 14 }}>GST(9%)</Text>
-            <Text style={{ fontSize: 14, color: '#8c8c8c' }}>({fmt(gst)})</Text>
+            <Text style={{ color: '#595959', fontSize: 14 }}>GST (9%)</Text>
+            <Text style={{ fontSize: 14, color: '#8c8c8c' }}>{fmt(gst)}</Text>
           </div>
         </div>
       </div>
