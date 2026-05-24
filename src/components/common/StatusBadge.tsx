@@ -4,6 +4,7 @@ import type { ContractStatus } from '@/types/contract'
 const statusConfig: Record<ContractStatus, { color: string; bg: string; border: string }> = {
   Active: { color: '#389e0d', bg: '#f6ffed', border: '#b7eb8f' },
   Upcoming: { color: '#0958d9', bg: '#e6f4ff', border: '#91caff' },
+  Ending: { color: '#d46b08', bg: '#fff7e6', border: '#ffd591' },
   Ended: { color: '#595959', bg: '#fafafa', border: '#d9d9d9' },
   Voided: { color: '#cf1322', bg: '#fff1f0', border: '#ffa39e' },
 }

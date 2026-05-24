@@ -250,7 +250,10 @@ export default function ContractDrawer({ contract, open, onClose, onNavigate }: 
 
             {/* See full details / Close */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-              <Text style={{ color: '#1677ff', fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
+              <Text
+                onClick={() => { onNavigate({ type: 'detail', contractId: contract.id }); onClose() }}
+                style={{ color: '#1677ff', fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}
+              >
                 <LinkOutlined style={{ fontSize: 13 }} />
                 See full details
               </Text>
