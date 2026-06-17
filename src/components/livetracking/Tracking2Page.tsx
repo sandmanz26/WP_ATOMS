@@ -15,8 +15,11 @@ import {
   type VehicleStop,
   type TripStatus,
   mockStops,
-  routePath,
-  routePath2,
+  trafficSegments,
+  TRAFFIC_COLOR,
+  TRAFFIC_LABEL,
+  DESTINATION,
+  DESTINATION_NAME,
   DEFAULT_CENTER,
   DEFAULT_ZOOM,
   FOCUS_ZOOM,
@@ -53,27 +56,48 @@ const STATUS_SOFT: Record<TripStatus, string> = {
   'To Check': '#fdecec',
 }
 
-/* ── Circular status-colored map marker with steering-wheel glyph ── */
+/* ── Circular status-colored bus marker (Westpoint fleet) ── */
 function makeMarker(color: string, selected: boolean) {
   const d = selected ? 42 : 32
+  const g = Math.round(d * 0.54)
   const ring = selected ? `box-shadow:0 0 0 4px ${color}33, 0 6px 16px rgba(15,23,42,.28);` : 'box-shadow:0 3px 8px rgba(15,23,42,.28);'
   return L.divIcon({
     className: 'tracking2-marker',
     html: `
       <div style="width:${d}px;height:${d}px;border-radius:50%;background:${color};
         border:3px solid #fff;${ring}display:flex;align-items:center;justify-content:center;">
-        <svg width="${Math.round(d * 0.52)}" height="${Math.round(d * 0.52)}" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round">
-          <circle cx="12" cy="12" r="9"/>
-          <circle cx="12" cy="12" r="2.4" fill="#fff" stroke="none"/>
-          <line x1="12" y1="12" x2="12" y2="3.2"/>
-          <line x1="12" y1="12" x2="4.6" y2="16.3"/>
-          <line x1="12" y1="12" x2="19.4" y2="16.3"/>
+        <svg width="${g}" height="${g}" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="4" y="4.5" width="16" height="12.5" rx="2.4"/>
+          <line x1="4" y1="11" x2="20" y2="11"/>
+          <line x1="9" y1="4.5" x2="9" y2="11"/>
+          <line x1="15" y1="4.5" x2="15" y2="11"/>
+          <circle cx="8" cy="18.4" r="1.5" fill="#fff" stroke="none"/>
+          <circle cx="16" cy="18.4" r="1.5" fill="#fff" stroke="none"/>
         </svg>
       </div>`,
     iconSize: [d, d],
     iconAnchor: [d / 2, d / 2],
   })
 }
+
+/* ── Destination (school) marker ── */
+const destinationIcon = L.divIcon({
+  className: 'tracking2-dest',
+  html: `
+    <div style="display:flex;flex-direction:column;align-items:center;">
+      <div style="width:30px;height:30px;border-radius:9px;background:#0f172a;border:3px solid #fff;
+        box-shadow:0 3px 8px rgba(15,23,42,.3);display:flex;align-items:center;justify-content:center;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 21h18"/>
+          <path d="M5 21V8l7-4 7 4v13"/>
+          <path d="M9 21v-5h6v5"/>
+        </svg>
+      </div>
+      <div style="width:2px;height:8px;background:#0f172a;"></div>
+    </div>`,
+  iconSize: [30, 40],
+  iconAnchor: [15, 40],
+})
 
 /* ── Imperatively drives the map on selection ── */
 function MapController({ selectedId }: { selectedId: string | null }) {
@@ -433,8 +457,43 @@ export default function Tracking2Page() {
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
             />
             <MapController selectedId={selectedId} />
-            <Polyline positions={routePath} pathOptions={{ color: C.brand, weight: 4, opacity: 0.75 }} />
-            <Polyline positions={routePath2} pathOptions={{ color: C.brand, weight: 4, opacity: 0.75 }} />
+
+            {/* 1. Road conditions (traffic) — colored by congestion level */}
+            {trafficSegments.map((t) => (
+              <Polyline
+                key={t.id}
+                positions={t.path}
+                pathOptions={{ color: TRAFFIC_COLOR[t.level], weight: 7, opacity: 0.55, lineCap: 'round' }}
+              />
+            ))}
+
+            {/* 2. Driver routes — to the destination; selected one is highlighted */}
+            {mockStops
+              .filter((s) => s.route && s.route.length > 1)
+              .map((s) => {
+                const sel = selectedId === s.id
+                const dim = selectedId != null && !sel
+                return (
+                  <Polyline
+                    key={`route-${s.id}`}
+                    positions={s.route as [number, number][]}
+                    pathOptions={
+                      sel
+                        ? { color: C.brand, weight: 5, opacity: 0.95 }
+                        : { color: '#64748b', weight: 3, opacity: dim ? 0.1 : 0.4, dashArray: '6 8' }
+                    }
+                  />
+                )
+              })}
+
+            {/* Destination (school) */}
+            <Marker position={DESTINATION} icon={destinationIcon}>
+              <MapTooltip direction="top" offset={[0, -38]} className="tracking2-tooltip">
+                {DESTINATION_NAME}
+              </MapTooltip>
+            </Marker>
+
+            {/* 3. Driver markers (Westpoint buses), colored by trip status */}
             {mockStops
               .filter((s) => s.lat != null && s.lng != null)
               .map((s) => {
@@ -449,8 +508,8 @@ export default function Tracking2Page() {
                     zIndexOffset={sel ? 1000 : 0}
                   >
                     {sel && (
-                      <MapTooltip permanent direction="top" offset={[0, -18]} className="tracking2-tooltip">
-                        <strong>{s.driver}</strong> · ETA {s.eta ?? '—'}
+                      <MapTooltip permanent direction="top" offset={[0, -22]} className="tracking2-tooltip">
+                        <strong>{s.driver}</strong> · {s.plate} · ETA {s.eta ?? '—'}
                       </MapTooltip>
                     )}
                   </Marker>
@@ -465,22 +524,40 @@ export default function Tracking2Page() {
               left: 16,
               bottom: 16,
               zIndex: 500,
-              background: 'rgba(255,255,255,.95)',
+              background: 'rgba(255,255,255,.96)',
               backdropFilter: 'blur(4px)',
               border: `1px solid ${C.line}`,
               borderRadius: 12,
-              padding: '10px 14px',
+              padding: '11px 14px',
               boxShadow: '0 4px 14px rgba(15,23,42,.1)',
               display: 'flex',
-              gap: 16,
+              flexDirection: 'column',
+              gap: 8,
             }}
           >
-            {([['On Time', C.onTime], ['Late', C.late], ['To Check', C.toCheck]] as const).map(([l, c]) => (
-              <div key={l} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ width: 9, height: 9, borderRadius: '50%', background: c }} />
-                <Text style={{ fontSize: 12, color: C.sub }}>{l}</Text>
-              </div>
-            ))}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+              <Text style={{ fontSize: 10.5, fontWeight: 700, color: C.faint, textTransform: 'uppercase', letterSpacing: 0.4, width: 52 }}>
+                Bus
+              </Text>
+              {([['On Time', C.onTime], ['Late', C.late], ['To Check', C.toCheck]] as const).map(([l, c]) => (
+                <div key={l} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ width: 9, height: 9, borderRadius: '50%', background: c }} />
+                  <Text style={{ fontSize: 12, color: C.sub }}>{l}</Text>
+                </div>
+              ))}
+            </div>
+            <div style={{ height: 1, background: C.line }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+              <Text style={{ fontSize: 10.5, fontWeight: 700, color: C.faint, textTransform: 'uppercase', letterSpacing: 0.4, width: 52 }}>
+                Traffic
+              </Text>
+              {(['smooth', 'moderate', 'heavy'] as const).map((lvl) => (
+                <div key={lvl} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ width: 14, height: 4, borderRadius: 2, background: TRAFFIC_COLOR[lvl] }} />
+                  <Text style={{ fontSize: 12, color: C.sub }}>{TRAFFIC_LABEL[lvl]}</Text>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
