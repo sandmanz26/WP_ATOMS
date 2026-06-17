@@ -13,6 +13,7 @@ import {
   ClockCircleOutlined,
   CaretRightOutlined,
   PauseOutlined,
+  ArrowRightOutlined,
 } from '@ant-design/icons'
 import {
   type VehicleStop,
@@ -20,8 +21,6 @@ import {
   trafficSegments,
   TRAFFIC_COLOR,
   TRAFFIC_LABEL,
-  DESTINATION,
-  DESTINATION_NAME,
   DEFAULT_CENTER,
   DEFAULT_ZOOM,
   FOCUS_ZOOM,
@@ -53,6 +52,23 @@ function makePin(fill: string) {
 }
 const carIcon = makePin('#1a1a1a')
 const carIconSelected = makePin('#1677ff')
+
+/* ── Origin (pickup point) marker ── */
+const originIcon = L.divIcon({
+  className: 'live-tracking-origin',
+  html: `
+    <div style="display:flex;flex-direction:column;align-items:center;">
+      <div style="width:26px;height:26px;border-radius:50%;background:#16a34a;border:3px solid #fff;
+        box-shadow:0 3px 8px rgba(15,23,42,.3);display:flex;align-items:center;justify-content:center;">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="4" fill="#fff" stroke="none"/>
+        </svg>
+      </div>
+      <div style="width:2px;height:7px;background:#16a34a;"></div>
+    </div>`,
+  iconSize: [26, 35],
+  iconAnchor: [13, 35],
+})
 
 /* ── Destination (school) marker ── */
 const destinationIcon = L.divIcon({
@@ -234,21 +250,27 @@ function DriverCard({
         <MoreOutlined style={{ color: '#bfbfbf', fontSize: 16, cursor: 'pointer' }} />
       </div>
 
-      {/* Destination */}
-      <Text
-        style={{
-          display: 'block',
-          fontWeight: 600,
-          fontSize: 15,
-          color: selected ? '#1677ff' : '#1a1a1a',
-          marginTop: 6,
-        }}
-      >
-        {stop.destination}
-      </Text>
+      {/* Trip: from → to */}
+      {stop.from && stop.to ? (
+        <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#16a34a', flexShrink: 0 }} />
+          <Text style={{ fontSize: 12.5, color: '#595959' }} ellipsis>{stop.from.name}</Text>
+          <ArrowRightOutlined style={{ color: '#bfbfbf', fontSize: 11, flexShrink: 0 }} />
+          <Text
+            style={{ fontSize: 12.5, fontWeight: 600, color: selected ? '#1677ff' : '#1a1a1a' }}
+            ellipsis
+          >
+            {stop.to.name}
+          </Text>
+        </div>
+      ) : (
+        <Text style={{ display: 'block', fontWeight: 600, fontSize: 15, color: selected ? '#1677ff' : '#1a1a1a', marginTop: 6 }}>
+          {stop.destination}
+        </Text>
+      )}
 
       {/* Scheduled time */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
         <ClockCircleOutlined style={{ color: '#8c8c8c', fontSize: 13 }} />
         <Text style={{ fontSize: 13, color: '#8c8c8c' }}>{stop.scheduled}</Text>
       </div>
@@ -338,12 +360,15 @@ export default function LiveTrackingPage() {
     return () => clearInterval(id)
   }, [simulating])
 
-  // Current position of a driver: along its route while simulating, else live/last-seen
+  // Current position of a driver: advance from its current phase while
+  // simulating, else its live/last-seen position
   const livePos = (s: VehicleStop): [number, number] | null => {
-    if (simulating && s.route && s.route.length > 1) return pointAlong(s.route, progress)
+    if (simulating && s.route && s.route.length > 1) return pointAlong(s.route, (s.phase + progress) % 1)
     return s.lat != null && s.lng != null ? [s.lat, s.lng] : null
   }
   posRef.current = Object.fromEntries(mockStops.map((s) => [s.id, livePos(s)]))
+
+  const selectedStop = selectedId ? mockStops.find((s) => s.id === selectedId) ?? null : null
 
   // When selection changes (e.g. from a marker click), auto-scroll the list to its card
   useEffect(() => {
@@ -522,12 +547,21 @@ export default function LiveTrackingPage() {
                       )
                     })}
 
-                {/* Destination (school) */}
-                <Marker position={DESTINATION} icon={destinationIcon}>
-                  <MapTooltip direction="top" offset={[0, -38]} className="tracking2-tooltip">
-                    {DESTINATION_NAME}
-                  </MapTooltip>
-                </Marker>
+                {/* Selected trip's origin (from) and destination (to) */}
+                {selectedStop?.from && (
+                  <Marker position={[selectedStop.from.lat, selectedStop.from.lng]} icon={originIcon}>
+                    <MapTooltip direction="top" offset={[0, -30]} className="tracking2-tooltip">
+                      From: <strong>{selectedStop.from.name}</strong>
+                    </MapTooltip>
+                  </Marker>
+                )}
+                {selectedStop?.to && (
+                  <Marker position={[selectedStop.to.lat, selectedStop.to.lng]} icon={destinationIcon}>
+                    <MapTooltip direction="top" offset={[0, -38]} className="tracking2-tooltip">
+                      To: <strong>{selectedStop.to.name}</strong>
+                    </MapTooltip>
+                  </Marker>
+                )}
 
                 {/* Driver markers — animated along route while simulating */}
                 {filtered
