@@ -3,6 +3,7 @@ import { Layout, Menu, Avatar, Badge, Typography } from 'antd'
 import {
   BellOutlined,
   TeamOutlined,
+  EnvironmentOutlined,
   UserOutlined,
   CarOutlined,
   AppstoreOutlined,
@@ -10,15 +11,24 @@ import {
   RightOutlined,
   SettingOutlined,
 } from '@ant-design/icons'
+import type { AppPage } from '@/App'
 
 const { Sider, Content } = Layout
 const { Text } = Typography
 
 interface AppLayoutProps {
   children: React.ReactNode
+  activeKey?: string
+  breadcrumbLabel?: string
+  onNavigate?: (page: AppPage) => void
 }
 
-export default function AppLayout({ children }: AppLayoutProps) {
+export default function AppLayout({
+  children,
+  activeKey = 'customer-contracts',
+  breadcrumbLabel = 'Customer Contracts',
+  onNavigate,
+}: AppLayoutProps) {
   const [collapsed, setCollapsed] = useState(false)
   const [operationsOpen, setOperationsOpen] = useState(true)
   const [staffOpen, setStaffOpen] = useState(false)
@@ -84,6 +94,13 @@ export default function AppLayout({ children }: AppLayoutProps) {
             label: (
               <Text style={{ fontSize: 13, paddingLeft: 8 }}>Drivers</Text>
             ),
+          },
+          {
+            key: 'live-tracking',
+            label: (
+              <Text style={{ fontSize: 13, paddingLeft: 8 }}>Live Tracking</Text>
+            ),
+            onClick: () => onNavigate?.({ type: 'live-tracking' }),
           },
         ]
       : []),
@@ -158,7 +175,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
         {/* Nav */}
         <Menu
           mode="inline"
-          selectedKeys={['customer-contracts']}
+          selectedKeys={[activeKey]}
           style={{ border: 'none', marginTop: 4 }}
           items={menuItems.map((item) => ({
             key: item.key,
@@ -169,7 +186,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
           }))}
         />
 
-        {/* Breadcrumb-style customer contracts highlight */}
+        {/* Breadcrumb-style active section highlight */}
         <div
           style={{
             margin: '4px 8px',
@@ -181,10 +198,14 @@ export default function AppLayout({ children }: AppLayoutProps) {
             gap: 8,
           }}
         >
-          <TeamOutlined style={{ color: '#1677ff', fontSize: 14 }} />
+          {activeKey === 'live-tracking' ? (
+            <EnvironmentOutlined style={{ color: '#1677ff', fontSize: 14 }} />
+          ) : (
+            <TeamOutlined style={{ color: '#1677ff', fontSize: 14 }} />
+          )}
           {!collapsed && (
             <Text style={{ fontSize: 13, color: '#1677ff', fontWeight: 500 }}>
-              Customer Contracts
+              {breadcrumbLabel}
             </Text>
           )}
         </div>
@@ -206,7 +227,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
           }}
         >
           <Text style={{ fontSize: 13, color: '#8c8c8c' }}>
-            / Customer Contracts
+            / {breadcrumbLabel}
           </Text>
         </div>
 

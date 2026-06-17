@@ -5,6 +5,7 @@ import ContractDetailPage from '@/components/contracts/ContractDetailPage'
 import EditBasicInformationPage from '@/components/contracts/edit/EditBasicInformationPage'
 import EditPricePage from '@/components/contracts/edit/EditPricePage'
 import EditGroupPage from '@/components/contracts/edit/EditGroupPage'
+import LiveTrackingPage from '@/components/livetracking/LiveTrackingPage'
 
 export type AppPage =
   | { type: 'listing' }
@@ -12,6 +13,7 @@ export type AppPage =
   | { type: 'edit-basic'; contractId: string }
   | { type: 'edit-price'; contractId: string }
   | { type: 'edit-group'; contractId: string }
+  | { type: 'live-tracking' }
 
 export default function App() {
   const [page, setPage] = useState<AppPage>({ type: 'listing' })
@@ -23,8 +25,16 @@ export default function App() {
   if (page.type === 'edit-price') return <EditPricePage contractId={page.contractId} onBack={goBack} />
   if (page.type === 'edit-group') return <EditGroupPage contractId={page.contractId} onBack={goBack} />
 
+  if (page.type === 'live-tracking') {
+    return (
+      <AppLayout activeKey="live-tracking" breadcrumbLabel="Live Tracking" onNavigate={navigate}>
+        <LiveTrackingPage />
+      </AppLayout>
+    )
+  }
+
   return (
-    <AppLayout>
+    <AppLayout activeKey="customer-contracts" breadcrumbLabel="Customer Contracts" onNavigate={navigate}>
       <CustomerContractsPage onNavigate={navigate} />
     </AppLayout>
   )
