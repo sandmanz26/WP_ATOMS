@@ -58,7 +58,7 @@ export default function EditPageLayout({
             {label}
           </div>
         ))}
-        {['Fleet Owners', 'Fleets', 'Drivers', 'Live Tracking'].map((label) => (
+        {['Fleet Owners', 'Fleets', 'Drivers', 'Live Tracking', 'Tracking 2.0'].map((label) => (
           <div key={label} style={{ padding: '8px 32px', fontSize: 13, color: '#595959', cursor: 'pointer' }}>
             {label}
           </div>

@@ -59,3 +59,20 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #bfbfbf;
 }
+
+/* Tracking 2.0 — selected marker tooltip */
+.tracking2-tooltip.leaflet-tooltip {
+  background: #0f172a;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 5px 9px;
+  font-size: 12px;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.28);
+}
+.tracking2-tooltip.leaflet-tooltip strong {
+  font-weight: 600;
+}
+.tracking2-tooltip.leaflet-tooltip-top::before {
+  border-top-color: #0f172a;
+}
