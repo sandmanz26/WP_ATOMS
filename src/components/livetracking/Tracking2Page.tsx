@@ -468,7 +468,7 @@ export default function Tracking2Page() {
             ))}
 
             {/* 2. Driver routes — to the destination; selected one is highlighted */}
-            {mockStops
+            {filtered
               .filter((s) => s.route && s.route.length > 1)
               .map((s) => {
                 const sel = selectedId === s.id
@@ -494,7 +494,7 @@ export default function Tracking2Page() {
             </Marker>
 
             {/* 3. Driver markers (Westpoint buses), colored by trip status */}
-            {mockStops
+            {filtered
               .filter((s) => s.lat != null && s.lng != null)
               .map((s) => {
                 const sel = selectedId === s.id

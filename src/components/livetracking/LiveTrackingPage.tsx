@@ -298,6 +298,10 @@ export default function LiveTrackingPage() {
   const driverOptions = Array.from(new Set(mockStops.map((s) => s.driver))).map((d) => ({ label: d, value: d }))
   const vehicleOptions = Array.from(new Set(mockStops.map((s) => s.plate))).map((p) => ({ label: p, value: p }))
 
+  // Stat counts derived from the data (kept in sync with the list/map)
+  const lateCount = mockStops.filter((s) => deriveStatus(s.scheduled, s.eta) === 'Late').length
+  const toCheckCount = mockStops.filter((s) => deriveStatus(s.scheduled, s.eta) === 'To Check').length
+
   const clearAllFilters = () => {
     setCustomerCode('')
     setFleetOwner('')
@@ -411,14 +415,14 @@ export default function LiveTrackingPage() {
                 iconBg="#f5a623"
                 label="Late"
                 labelColor="#fa541c"
-                count={12}
+                count={lateCount}
               />
               <StatCard
                 icon={<FileSearchOutlined />}
                 iconBg="#f5222d"
                 label="To Check"
                 labelColor="#1a1a1a"
-                count={12}
+                count={toCheckCount}
               />
             </div>
 
@@ -432,7 +436,7 @@ export default function LiveTrackingPage() {
                 <MapController selectedId={selectedId} />
                 <Polyline positions={routePath} pathOptions={{ color: '#52c41a', weight: 4 }} />
                 <Polyline positions={routePath2} pathOptions={{ color: '#52c41a', weight: 4 }} />
-                {mockStops
+                {filtered
                   .filter((stop) => stop.lat != null && stop.lng != null)
                   .map((stop) => (
                     <Marker
