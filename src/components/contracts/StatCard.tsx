@@ -15,7 +15,7 @@ export default function StatCard({ count, label, onFilter }: StatCardProps) {
         flex: 1,
         background: '#fff',
         border: '1px solid #e8e8e8',
-        borderRadius: 10,
+        borderRadius: 4,
         overflow: 'hidden',
       }}
     >

@@ -48,7 +48,7 @@ const TAB_LABELS: Record<TabKey, string> = {
 }
 
 const SIDEBAR_ITEMS = ['Notifications', 'Roles & Permissions', 'Tenant', 'Staff', 'Operations']
-const SIDEBAR_SUBITEMS = ['Fleet Owners', 'Fleets', 'Drivers']
+const SIDEBAR_SUBITEMS = ['Fleet Owners', 'Fleets', 'Drivers', 'Live Tracking']
 
 const CARD: React.CSSProperties = {
   background: '#fff', border: '1px solid #e8e8e8', borderRadius: 10,
