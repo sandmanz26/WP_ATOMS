@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { MapContainer, TileLayer, Marker, Polyline, useMap } from 'react-leaflet'
+import { MapContainer, TileLayer, Marker, Polyline, Tooltip as MapTooltip, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { Typography, Input, Button, Select, Popover } from 'antd'
@@ -15,8 +15,11 @@ import {
 import {
   type VehicleStop,
   mockStops,
-  routePath,
-  routePath2,
+  trafficSegments,
+  TRAFFIC_COLOR,
+  TRAFFIC_LABEL,
+  DESTINATION,
+  DESTINATION_NAME,
   DEFAULT_CENTER,
   DEFAULT_ZOOM,
   FOCUS_ZOOM,
@@ -47,6 +50,25 @@ function makePin(fill: string) {
 }
 const carIcon = makePin('#1a1a1a')
 const carIconSelected = makePin('#1677ff')
+
+/* ── Destination (school) marker ── */
+const destinationIcon = L.divIcon({
+  className: 'live-tracking-dest',
+  html: `
+    <div style="display:flex;flex-direction:column;align-items:center;">
+      <div style="width:30px;height:30px;border-radius:9px;background:#0f172a;border:3px solid #fff;
+        box-shadow:0 3px 8px rgba(15,23,42,.3);display:flex;align-items:center;justify-content:center;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 21h18"/>
+          <path d="M5 21V8l7-4 7 4v13"/>
+          <path d="M9 21v-5h6v5"/>
+        </svg>
+      </div>
+      <div style="width:2px;height:8px;background:#0f172a;"></div>
+    </div>`,
+  iconSize: [30, 40],
+  iconAnchor: [15, 40],
+})
 
 /* ── Imperatively drives the map when a card/marker is selected ── */
 function MapController({ selectedId }: { selectedId: string | null }) {
@@ -427,15 +449,50 @@ export default function LiveTrackingPage() {
             </div>
 
             {/* Map */}
-            <div style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid #f0f0f0', flex: 1, minHeight: 600 }}>
+            <div style={{ position: 'relative', borderRadius: 12, overflow: 'hidden', border: '1px solid #f0f0f0', flex: 1, minHeight: 600 }}>
               <MapContainer center={DEFAULT_CENTER} zoom={DEFAULT_ZOOM} style={{ height: '100%', minHeight: 600, width: '100%' }}>
                 <TileLayer
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                   attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 />
                 <MapController selectedId={selectedId} />
-                <Polyline positions={routePath} pathOptions={{ color: '#52c41a', weight: 4 }} />
-                <Polyline positions={routePath2} pathOptions={{ color: '#52c41a', weight: 4 }} />
+
+                {/* Road conditions (traffic) */}
+                {trafficSegments.map((t) => (
+                  <Polyline
+                    key={t.id}
+                    positions={t.path}
+                    pathOptions={{ color: TRAFFIC_COLOR[t.level], weight: 7, opacity: 0.55, lineCap: 'round' }}
+                  />
+                ))}
+
+                {/* Driver routes to the destination; selected one highlighted */}
+                {filtered
+                  .filter((s) => s.route && s.route.length > 1)
+                  .map((s) => {
+                    const sel = selectedId === s.id
+                    const dim = selectedId != null && !sel
+                    return (
+                      <Polyline
+                        key={`route-${s.id}`}
+                        positions={s.route as [number, number][]}
+                        pathOptions={
+                          sel
+                            ? { color: '#1677ff', weight: 5, opacity: 0.95 }
+                            : { color: '#64748b', weight: 3, opacity: dim ? 0.1 : 0.4, dashArray: '6 8' }
+                        }
+                      />
+                    )
+                  })}
+
+                {/* Destination (school) */}
+                <Marker position={DESTINATION} icon={destinationIcon}>
+                  <MapTooltip direction="top" offset={[0, -38]} className="tracking2-tooltip">
+                    {DESTINATION_NAME}
+                  </MapTooltip>
+                </Marker>
+
+                {/* Driver markers */}
                 {filtered
                   .filter((stop) => stop.lat != null && stop.lng != null)
                   .map((stop) => (
@@ -444,9 +501,43 @@ export default function LiveTrackingPage() {
                       position={[stop.lat as number, stop.lng as number]}
                       icon={selectedId === stop.id ? carIconSelected : carIcon}
                       eventHandlers={{ click: () => setSelectedId(stop.id) }}
-                    />
+                    >
+                      {selectedId === stop.id && (
+                        <MapTooltip permanent direction="top" offset={[0, -38]} className="tracking2-tooltip">
+                          <strong>{stop.driver}</strong> · {stop.plate} · ETA {stop.eta ?? '—'}
+                        </MapTooltip>
+                      )}
+                    </Marker>
                   ))}
               </MapContainer>
+
+              {/* Traffic legend */}
+              <div
+                style={{
+                  position: 'absolute',
+                  left: 14,
+                  bottom: 14,
+                  zIndex: 500,
+                  background: 'rgba(255,255,255,.96)',
+                  border: '1px solid #f0f0f0',
+                  borderRadius: 10,
+                  padding: '9px 12px',
+                  boxShadow: '0 4px 14px rgba(15,23,42,.1)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 14,
+                }}
+              >
+                <Text style={{ fontSize: 10.5, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.4 }}>
+                  Traffic
+                </Text>
+                {(['smooth', 'moderate', 'heavy'] as const).map((lvl) => (
+                  <div key={lvl} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ width: 14, height: 4, borderRadius: 2, background: TRAFFIC_COLOR[lvl] }} />
+                    <Text style={{ fontSize: 12, color: '#64748b' }}>{TRAFFIC_LABEL[lvl]}</Text>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 
