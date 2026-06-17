@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { MapContainer, TileLayer, Marker, Polyline, Tooltip as MapTooltip, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { Typography, Input, Button, Select, Popover } from 'antd'
+import { Typography, Input, Button, Select, Popover, Switch } from 'antd'
 import {
   SearchOutlined,
   FilterOutlined,
@@ -11,6 +11,8 @@ import {
   WifiOutlined,
   MoreOutlined,
   ClockCircleOutlined,
+  CaretRightOutlined,
+  PauseOutlined,
 } from '@ant-design/icons'
 import {
   type VehicleStop,
@@ -25,6 +27,7 @@ import {
   FOCUS_ZOOM,
   ZOOM_OUT,
   deriveStatus,
+  pointAlong,
   STATUS_STYLE,
 } from './trackingData'
 
@@ -71,20 +74,25 @@ const destinationIcon = L.divIcon({
 })
 
 /* ── Imperatively drives the map when a card/marker is selected ── */
-function MapController({ selectedId }: { selectedId: string | null }) {
+function MapController({
+  selectedId,
+  posRef,
+}: {
+  selectedId: string | null
+  posRef: React.MutableRefObject<Record<string, [number, number] | null>>
+}) {
   const map = useMap()
   useEffect(() => {
     if (!selectedId) return
-    const stop = mockStops.find((s) => s.id === selectedId)
-    if (!stop) return
-    if (stop.lat != null && stop.lng != null) {
+    const p = posRef.current[selectedId]
+    if (p) {
       // Available driver, or To Check with a last-seen location → zoom in to icon
-      map.flyTo([stop.lat, stop.lng], FOCUS_ZOOM, { duration: 0.7 })
+      map.flyTo(p, FOCUS_ZOOM, { duration: 0.7 })
     } else {
       // To Check with no driver last seen → zoom out, no driver icon
       map.flyTo(DEFAULT_CENTER, ZOOM_OUT, { duration: 0.7 })
     }
-  }, [selectedId, map])
+  }, [selectedId, map, posRef])
   return null
 }
 
@@ -308,7 +316,34 @@ export default function LiveTrackingPage() {
   const [driverStatus, setDriverStatus] = useState<string | undefined>()
   const [tripStatus, setTripStatus] = useState<string | undefined>()
 
+  // Map layer toggles + movement simulation
+  const [showRoutes, setShowRoutes] = useState(true)
+  const [showTraffic, setShowTraffic] = useState(true)
+  const [simulating, setSimulating] = useState(false)
+  const [progress, setProgress] = useState(0)
+
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({})
+  // Latest live position per driver (animated when simulating, else static)
+  const posRef = useRef<Record<string, [number, number] | null>>({})
+
+  // Advance the simulation while playing
+  useEffect(() => {
+    if (!simulating) return
+    const id = setInterval(() => {
+      setProgress((p) => {
+        const np = p + 0.004
+        return np >= 1 ? 0 : np
+      })
+    }, 80)
+    return () => clearInterval(id)
+  }, [simulating])
+
+  // Current position of a driver: along its route while simulating, else live/last-seen
+  const livePos = (s: VehicleStop): [number, number] | null => {
+    if (simulating && s.route && s.route.length > 1) return pointAlong(s.route, progress)
+    return s.lat != null && s.lng != null ? [s.lat, s.lng] : null
+  }
+  posRef.current = Object.fromEntries(mockStops.map((s) => [s.id, livePos(s)]))
 
   // When selection changes (e.g. from a marker click), auto-scroll the list to its card
   useEffect(() => {
@@ -455,35 +490,37 @@ export default function LiveTrackingPage() {
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                   attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 />
-                <MapController selectedId={selectedId} />
+                <MapController selectedId={selectedId} posRef={posRef} />
 
-                {/* Road conditions (traffic) */}
-                {trafficSegments.map((t) => (
-                  <Polyline
-                    key={t.id}
-                    positions={t.path}
-                    pathOptions={{ color: TRAFFIC_COLOR[t.level], weight: 7, opacity: 0.55, lineCap: 'round' }}
-                  />
-                ))}
+                {/* Road conditions (traffic) — toggleable */}
+                {showTraffic &&
+                  trafficSegments.map((t) => (
+                    <Polyline
+                      key={t.id}
+                      positions={t.path}
+                      pathOptions={{ color: TRAFFIC_COLOR[t.level], weight: 7, opacity: 0.55, lineCap: 'round' }}
+                    />
+                  ))}
 
-                {/* Driver routes to the destination; selected one highlighted */}
-                {filtered
-                  .filter((s) => s.route && s.route.length > 1)
-                  .map((s) => {
-                    const sel = selectedId === s.id
-                    const dim = selectedId != null && !sel
-                    return (
-                      <Polyline
-                        key={`route-${s.id}`}
-                        positions={s.route as [number, number][]}
-                        pathOptions={
-                          sel
-                            ? { color: '#1677ff', weight: 5, opacity: 0.95 }
-                            : { color: '#64748b', weight: 3, opacity: dim ? 0.1 : 0.4, dashArray: '6 8' }
-                        }
-                      />
-                    )
-                  })}
+                {/* Driver routes to the destination — toggleable; selected one highlighted */}
+                {showRoutes &&
+                  filtered
+                    .filter((s) => s.route && s.route.length > 1)
+                    .map((s) => {
+                      const sel = selectedId === s.id
+                      const dim = selectedId != null && !sel
+                      return (
+                        <Polyline
+                          key={`route-${s.id}`}
+                          positions={s.route as [number, number][]}
+                          pathOptions={
+                            sel
+                              ? { color: '#1677ff', weight: 5, opacity: 0.95 }
+                              : { color: '#64748b', weight: 3, opacity: dim ? 0.1 : 0.4, dashArray: '6 8' }
+                          }
+                        />
+                      )
+                    })}
 
                 {/* Destination (school) */}
                 <Marker position={DESTINATION} icon={destinationIcon}>
@@ -492,13 +529,14 @@ export default function LiveTrackingPage() {
                   </MapTooltip>
                 </Marker>
 
-                {/* Driver markers */}
+                {/* Driver markers — animated along route while simulating */}
                 {filtered
-                  .filter((stop) => stop.lat != null && stop.lng != null)
-                  .map((stop) => (
+                  .map((stop) => ({ stop, pos: posRef.current[stop.id] }))
+                  .filter((x) => x.pos != null)
+                  .map(({ stop, pos }) => (
                     <Marker
                       key={stop.id}
-                      position={[stop.lat as number, stop.lng as number]}
+                      position={pos as [number, number]}
                       icon={selectedId === stop.id ? carIconSelected : carIcon}
                       eventHandlers={{ click: () => setSelectedId(stop.id) }}
                     >
@@ -510,6 +548,43 @@ export default function LiveTrackingPage() {
                     </Marker>
                   ))}
               </MapContainer>
+
+              {/* Map controls: layer toggles + movement simulation */}
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 12,
+                  right: 12,
+                  zIndex: 500,
+                  background: 'rgba(255,255,255,.96)',
+                  border: '1px solid #f0f0f0',
+                  borderRadius: 10,
+                  padding: '10px 12px',
+                  boxShadow: '0 4px 14px rgba(15,23,42,.12)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 8,
+                  minWidth: 168,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                  <Text style={{ fontSize: 13, color: '#595959' }}>Show routes</Text>
+                  <Switch size="small" checked={showRoutes} onChange={setShowRoutes} />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                  <Text style={{ fontSize: 13, color: '#595959' }}>Show traffic</Text>
+                  <Switch size="small" checked={showTraffic} onChange={setShowTraffic} />
+                </div>
+                <Button
+                  size="small"
+                  type={simulating ? 'primary' : 'default'}
+                  icon={simulating ? <PauseOutlined /> : <CaretRightOutlined />}
+                  onClick={() => setSimulating((v) => !v)}
+                  block
+                >
+                  {simulating ? 'Pause' : 'Simulate'}
+                </Button>
+              </div>
 
               {/* Traffic legend */}
               <div
