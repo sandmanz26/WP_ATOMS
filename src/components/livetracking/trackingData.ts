@@ -103,7 +103,7 @@ export function pointAlong(route: [number, number][], t: number): [number, numbe
 
 // Each trip = a driver running from a pickup point to a school, on its own
 // route. `tracked: false` means the bus has no live GPS (To Check, no last seen).
-interface BaseTrip {
+export interface BaseTrip {
   id: string
   label: string
   scheduled: string
@@ -138,7 +138,7 @@ const FLEET_OWNER_BY_PLATE: Record<string, string> = {
   PC190K: 'Westpoint Transit',
 }
 
-const baseTrips: BaseTrip[] = [
+export const baseTrips: BaseTrip[] = [
   // "To Check" that has already been notified (PRD §4.5) → shows as "Notified"
   { id: '1', label: 'BT-01', scheduled: '17:10', eta: null, driver: 'Ronald Abdulah', plate: 'PC165X', lastOnline: '21 Jun 2026, 03:30 PM', online: false, from: ORIGINS.bukitTimahPlaza, to: SCHOOLS.methodistGirls, phase: 0.35, notified: true },
   { id: '2', label: 'AR-04', scheduled: '17:10', eta: '17:15', driver: 'Ronald Abdulah', plate: 'PC165X', online: true, from: ORIGINS.adamRoad, to: SCHOOLS.nanyangPri, phase: 0.5 },
@@ -169,32 +169,40 @@ const baseTrips: BaseTrip[] = [
   { id: '23', label: 'CL-09', scheduled: '19:30', eta: '19:25', driver: 'Nuraini Binte', plate: 'PC190K', online: true, from: ORIGINS.clementi, to: SCHOOLS.methodistGirls, phase: 0.45 },
 ]
 
-export const mockStops: VehicleStop[] = baseTrips.map((t) => {
-  const tracked = t.tracked !== false
-  const route = tracked ? buildRoute(t.from, t.to) : undefined
-  const pos = route ? pointAlong(route, t.phase) : null
-  return {
-    id: t.id,
-    label: t.label,
-    destination: t.to.name,
-    customerCode: t.to.code ?? '—',
-    scheduled: t.scheduled,
-    eta: t.eta,
-    driver: t.driver,
-    fleetOwner: FLEET_OWNER_BY_PLATE[t.plate] ?? 'Westpoint Transit',
-    plate: t.plate,
-    lastOnline: t.lastOnline,
-    online: t.online,
-    notified: t.notified,
-    firstPointRegistered: t.firstPointRegistered,
-    from: t.from,
-    to: t.to,
-    route,
-    phase: t.phase,
-    lat: pos ? pos[0] : null,
-    lng: pos ? pos[1] : null,
-  }
-})
+// Build live VehicleStop records from a set of trips. Exposed so the Live
+// Tracking test console can rebuild the dataset from a sliced/overridden
+// subset of `baseTrips` while keeping map markers, the driver list and the
+// stat counts derived from the exact same records (always in sync).
+export function buildStops(trips: BaseTrip[]): VehicleStop[] {
+  return trips.map((t) => {
+    const tracked = t.tracked !== false
+    const route = tracked ? buildRoute(t.from, t.to) : undefined
+    const pos = route ? pointAlong(route, t.phase) : null
+    return {
+      id: t.id,
+      label: t.label,
+      destination: t.to.name,
+      customerCode: t.to.code ?? '—',
+      scheduled: t.scheduled,
+      eta: t.eta,
+      driver: t.driver,
+      fleetOwner: FLEET_OWNER_BY_PLATE[t.plate] ?? 'Westpoint Transit',
+      plate: t.plate,
+      lastOnline: t.lastOnline,
+      online: t.online,
+      notified: t.notified,
+      firstPointRegistered: t.firstPointRegistered,
+      from: t.from,
+      to: t.to,
+      route,
+      phase: t.phase,
+      lat: pos ? pos[0] : null,
+      lng: pos ? pos[1] : null,
+    }
+  })
+}
+
+export const mockStops: VehicleStop[] = buildStops(baseTrips)
 
 export const routePath: [number, number][] = [
   [1.3380, 103.7720],

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { MapContainer, TileLayer, Marker, Polyline, Tooltip as MapTooltip, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { Typography, Input, Button, Select, Popover, Switch } from 'antd'
+import { Typography, Input, Button, Select, Popover, Switch, Slider } from 'antd'
 import {
   SearchOutlined,
   FilterOutlined,
@@ -16,10 +16,17 @@ import {
   ArrowRightOutlined,
   FullscreenOutlined,
   FullscreenExitOutlined,
+  HolderOutlined,
+  CloseOutlined,
+  ReloadOutlined,
+  BugOutlined,
 } from '@ant-design/icons'
 import {
   type VehicleStop,
-  mockStops,
+  type BaseTrip,
+  type TripStatus,
+  baseTrips,
+  buildStops,
   trafficSegments,
   TRAFFIC_COLOR,
   TRAFFIC_LABEL,
@@ -28,6 +35,7 @@ import {
   FOCUS_ZOOM,
   ZOOM_OUT,
   deriveStatus,
+  toMinutes,
   pointAlong,
   STATUS_STYLE,
   formatTimeAmPm,
@@ -123,6 +131,191 @@ function FullscreenSync({ isFullscreen }: { isFullscreen: boolean }) {
     return () => clearTimeout(t)
   }, [isFullscreen, map])
   return null
+}
+
+/* ── Test console: per-driver status override + helpers ── */
+type StatusOverride = 'auto' | TripStatus | 'Offline'
+
+const OVERRIDE_OPTIONS: { label: string; value: StatusOverride }[] = [
+  { label: 'Auto', value: 'auto' },
+  { label: 'On Time', value: 'On Time' },
+  { label: 'Late', value: 'Late' },
+  { label: 'To Check', value: 'To Check' },
+  { label: 'Notified', value: 'Notified' },
+  { label: 'Offline', value: 'Offline' },
+]
+
+function minutesToHHMM(total: number): string {
+  const wrapped = ((total % 1440) + 1440) % 1440
+  return `${String(Math.floor(wrapped / 60)).padStart(2, '0')}:${String(wrapped % 60).padStart(2, '0')}`
+}
+
+// Force a trip into the exact status a tester picked, so the same override
+// flows through deriveStatus() into the map marker, the card and the stat
+// counts — there is no separate "test" data path to drift out of sync.
+function applyOverride(t: BaseTrip, override: StatusOverride): BaseTrip {
+  switch (override) {
+    case 'Offline':
+      return { ...t, online: false, notified: false, eta: null, lastOnline: t.lastOnline ?? '22 Jun 2026, 09:00 AM' }
+    case 'On Time':
+      return { ...t, online: true, notified: false, firstPointRegistered: false, eta: t.scheduled }
+    case 'Late':
+      return { ...t, online: true, notified: false, firstPointRegistered: false, eta: minutesToHHMM(toMinutes(t.scheduled) + 15) }
+    case 'To Check':
+      return { ...t, online: true, notified: false, firstPointRegistered: false, eta: null }
+    case 'Notified':
+      return { ...t, notified: true }
+    default:
+      return t
+  }
+}
+
+// Minimal drag-by-header behaviour, no extra dependency needed.
+function useDraggable(initial: { x: number; y: number }) {
+  const [pos, setPos] = useState(initial)
+  const dragRef = useRef<{ startX: number; startY: number; baseX: number; baseY: number } | null>(null)
+
+  const onDragStart = (e: React.MouseEvent) => {
+    dragRef.current = { startX: e.clientX, startY: e.clientY, baseX: pos.x, baseY: pos.y }
+    const onMove = (ev: MouseEvent) => {
+      const d = dragRef.current
+      if (!d) return
+      setPos({ x: d.baseX + (ev.clientX - d.startX), y: d.baseY + (ev.clientY - d.startY) })
+    }
+    const onUp = () => {
+      dragRef.current = null
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }
+
+  return { pos, onDragStart }
+}
+
+/* ── Draggable test console: control # drivers/trips shown + force each
+   driver's status, so QA can reproduce a specific test case on demand ── */
+function TestConsole({
+  pos,
+  onDragStart,
+  onClose,
+  driverCount,
+  maxDrivers,
+  onDriverCountChange,
+  trips,
+  overrides,
+  onOverrideChange,
+  onReset,
+  bulkStatus,
+  onBulkStatusChange,
+  onBulkApply,
+  summary,
+}: {
+  pos: { x: number; y: number }
+  onDragStart: (e: React.MouseEvent) => void
+  onClose: () => void
+  driverCount: number
+  maxDrivers: number
+  onDriverCountChange: (n: number) => void
+  trips: BaseTrip[]
+  overrides: Record<string, StatusOverride>
+  onOverrideChange: (id: string, v: StatusOverride) => void
+  onReset: () => void
+  bulkStatus: StatusOverride
+  onBulkStatusChange: (v: StatusOverride) => void
+  onBulkApply: () => void
+  summary: { label: string; color: string; count: number }[]
+}) {
+  return (
+    <div
+      data-testid="test-console"
+      style={{
+        position: 'fixed',
+        top: pos.y,
+        left: pos.x,
+        zIndex: 2000,
+        width: 300,
+        background: '#fff',
+        border: '1px solid #ffd591',
+        borderRadius: 12,
+        boxShadow: '0 12px 32px rgba(15,23,42,.18)',
+        display: 'flex',
+        flexDirection: 'column',
+        maxHeight: '78vh',
+      }}
+    >
+      <div
+        onMouseDown={onDragStart}
+        style={{
+          cursor: 'grab',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          padding: '9px 10px',
+          borderBottom: '1px solid #ffe7ba',
+          background: '#fff7e6',
+          borderRadius: '12px 12px 0 0',
+          userSelect: 'none',
+        }}
+      >
+        <HolderOutlined style={{ color: '#d48806' }} />
+        <Text style={{ fontWeight: 600, fontSize: 13, color: '#d48806', flex: 1 }}>Test Console</Text>
+        <Button size="small" type="text" icon={<ReloadOutlined />} onClick={onReset} title="Reset overrides" />
+        <Button size="small" type="text" icon={<CloseOutlined />} onClick={onClose} title="Hide" />
+      </div>
+
+      <div style={{ padding: '10px 12px', overflowY: 'auto', flex: 1 }}>
+        {/* Live sync summary — same `stops` array feeds the map markers, the
+            driver list and these counts, so this is always what's on screen */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
+          {summary.map((s) => (
+            <div key={s.label} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: s.color, display: 'inline-block' }} />
+              <Text style={{ fontSize: 11.5, color: '#595959' }}>{s.label} {s.count}</Text>
+            </div>
+          ))}
+        </div>
+
+        <Text style={{ fontSize: 12, color: '#8c8c8c' }}>
+          Drivers / trips shown: <strong style={{ color: '#1a1a1a' }}>{driverCount}</strong> / {maxDrivers}
+        </Text>
+        <Slider min={1} max={maxDrivers} value={driverCount} onChange={onDriverCountChange} />
+
+        <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+          <Select
+            size="small"
+            value={bulkStatus}
+            onChange={onBulkStatusChange}
+            options={OVERRIDE_OPTIONS}
+            style={{ flex: 1 }}
+          />
+          <Button size="small" onClick={onBulkApply}>Apply to all</Button>
+        </div>
+
+        <Text style={{ fontSize: 12, fontWeight: 600, color: '#1a1a1a', display: 'block', marginBottom: 6 }}>
+          Per-driver status
+        </Text>
+        {trips.map((t) => (
+          <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+            <Text
+              style={{ fontSize: 12, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+              title={`${t.driver} · ${t.label}`}
+            >
+              {t.driver} <span style={{ color: '#bfbfbf' }}>· {t.label}</span>
+            </Text>
+            <Select
+              size="small"
+              value={overrides[t.id] ?? 'auto'}
+              onChange={(v) => onOverrideChange(t.id, v)}
+              options={OVERRIDE_OPTIONS}
+              style={{ width: 104, flexShrink: 0 }}
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  )
 }
 
 /* ── Stat card (Late / To Check) ── */
@@ -390,6 +583,35 @@ export default function LiveTrackingPage() {
   const [progress, setProgress] = useState(0)
   const [isFullscreen, setIsFullscreen] = useState(false)
 
+  // Test console — lets dev/QA dial in a specific test case (how many
+  // drivers/trips are live, and what status each one is in) and see it
+  // reflected immediately in the map markers, list and stat counts below.
+  const [testPanelVisible, setTestPanelVisible] = useState(true)
+  const [driverCount, setDriverCount] = useState(baseTrips.length)
+  const [statusOverrides, setStatusOverrides] = useState<Record<string, StatusOverride>>({})
+  const [bulkStatus, setBulkStatus] = useState<StatusOverride>('auto')
+  const { pos: testPanelPos, onDragStart: onTestPanelDragStart } = useDraggable({
+    x: Math.max(window.innerWidth - 332, 16),
+    y: 96,
+  })
+
+  const visibleTrips = baseTrips.slice(0, driverCount)
+  const workingTrips = visibleTrips.map((t) => applyOverride(t, statusOverrides[t.id] ?? 'auto'))
+  const stops = buildStops(workingTrips)
+
+  const setOverride = (id: string, v: StatusOverride) =>
+    setStatusOverrides((prev) => ({ ...prev, [id]: v }))
+  const resetOverrides = () => {
+    setStatusOverrides({})
+    setBulkStatus('auto')
+  }
+  const applyBulkStatus = () =>
+    setStatusOverrides((prev) => {
+      const next = { ...prev }
+      visibleTrips.forEach((t) => { next[t.id] = bulkStatus })
+      return next
+    })
+
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({})
   // Latest live position per driver (animated when simulating, else static)
   const posRef = useRef<Record<string, [number, number] | null>>({})
@@ -412,9 +634,9 @@ export default function LiveTrackingPage() {
     if (simulating && s.route && s.route.length > 1) return pointAlong(s.route, (s.phase + progress) % 1)
     return s.lat != null && s.lng != null ? [s.lat, s.lng] : null
   }
-  posRef.current = Object.fromEntries(mockStops.map((s) => [s.id, livePos(s)]))
+  posRef.current = Object.fromEntries(stops.map((s) => [s.id, livePos(s)]))
 
-  const selectedStop = selectedId ? mockStops.find((s) => s.id === selectedId) ?? null : null
+  const selectedStop = selectedId ? stops.find((s) => s.id === selectedId) ?? null : null
 
   // When selection changes (e.g. from a marker click), auto-scroll the list to its card
   useEffect(() => {
@@ -423,12 +645,23 @@ export default function LiveTrackingPage() {
     }
   }, [selectedId])
 
-  const driverOptions = Array.from(new Set(mockStops.map((s) => s.driver))).map((d) => ({ label: d, value: d }))
-  const vehicleOptions = Array.from(new Set(mockStops.map((s) => s.plate))).map((p) => ({ label: p, value: p }))
+  const driverOptions = Array.from(new Set(stops.map((s) => s.driver))).map((d) => ({ label: d, value: d }))
+  const vehicleOptions = Array.from(new Set(stops.map((s) => s.plate))).map((p) => ({ label: p, value: p }))
 
   // Stat counts derived from the data (kept in sync with the list/map)
-  const lateCount = mockStops.filter((s) => deriveStatus(s) === 'Late').length
-  const toCheckCount = mockStops.filter((s) => deriveStatus(s) === 'To Check').length
+  const lateCount = stops.filter((s) => deriveStatus(s) === 'Late').length
+  const toCheckCount = stops.filter((s) => deriveStatus(s) === 'To Check').length
+  const onTimeCount = stops.filter((s) => deriveStatus(s) === 'On Time').length
+  const notifiedCount = stops.filter((s) => deriveStatus(s) === 'Notified').length
+  const offlineCount = stops.filter((s) => !s.online).length
+
+  const testSummary = [
+    { label: 'On Time', color: STATUS_STYLE['On Time'].color, count: onTimeCount },
+    { label: 'Late', color: STATUS_STYLE.Late.color, count: lateCount },
+    { label: 'To Check', color: STATUS_STYLE['To Check'].color, count: toCheckCount },
+    { label: 'Notified', color: STATUS_STYLE.Notified.color, count: notifiedCount },
+    { label: 'Offline', color: '#8c8c8c', count: offlineCount },
+  ]
 
   const clearAllFilters = () => {
     setCustomerCode('')
@@ -439,7 +672,7 @@ export default function LiveTrackingPage() {
     setTripStatus(undefined)
   }
 
-  const filtered = mockStops.filter((s) => {
+  const filtered = stops.filter((s) => {
     if (filter === 'Online' && !s.online) return false
     if (filter === 'Offline' && s.online) return false
     if (search.trim()) {
@@ -772,6 +1005,42 @@ export default function LiveTrackingPage() {
           </div>
         </div>
       </div>
+
+      {testPanelVisible ? (
+        <TestConsole
+          pos={testPanelPos}
+          onDragStart={onTestPanelDragStart}
+          onClose={() => setTestPanelVisible(false)}
+          driverCount={driverCount}
+          maxDrivers={baseTrips.length}
+          onDriverCountChange={setDriverCount}
+          trips={visibleTrips}
+          overrides={statusOverrides}
+          onOverrideChange={setOverride}
+          onReset={resetOverrides}
+          bulkStatus={bulkStatus}
+          onBulkStatusChange={setBulkStatus}
+          onBulkApply={applyBulkStatus}
+          summary={testSummary}
+        />
+      ) : (
+        <Button
+          shape="circle"
+          size="large"
+          icon={<BugOutlined />}
+          onClick={() => setTestPanelVisible(true)}
+          style={{
+            position: 'fixed',
+            bottom: 24,
+            right: 24,
+            zIndex: 2000,
+            borderColor: '#ffd591',
+            color: '#d48806',
+            boxShadow: '0 6px 18px rgba(15,23,42,.18)',
+          }}
+          title="Show test console"
+        />
+      )}
     </div>
   )
 }
