@@ -1,7 +1,5 @@
-import { useState, useEffect, useRef } from 'react'
-import { MapContainer, TileLayer, Marker, Polyline, Tooltip as MapTooltip, useMap } from 'react-leaflet'
-import L from 'leaflet'
-import 'leaflet/dist/leaflet.css'
+import { useState, useEffect, useRef, useMemo } from 'react'
+import { GoogleMap, Marker, Polyline, InfoWindow, TrafficLayer, useJsApiLoader } from '@react-google-maps/api'
 import { Typography, Input, Button, Select, Popover, Switch, Slider } from 'antd'
 import {
   SearchOutlined,
@@ -14,12 +12,11 @@ import {
   CaretRightOutlined,
   PauseOutlined,
   ArrowRightOutlined,
-  FullscreenOutlined,
-  FullscreenExitOutlined,
   HolderOutlined,
   CloseOutlined,
   ReloadOutlined,
   BugOutlined,
+  EnvironmentOutlined,
 } from '@ant-design/icons'
 import {
   type VehicleStop,
@@ -27,7 +24,6 @@ import {
   type TripStatus,
   baseTrips,
   buildStops,
-  trafficSegments,
   TRAFFIC_COLOR,
   TRAFFIC_LABEL,
   DEFAULT_CENTER,
@@ -43,94 +39,65 @@ import {
 
 const { Text } = Typography
 
-// Teardrop pin with white steering-wheel icon (black default, blue when selected)
-function makePin(fill: string) {
-  return L.divIcon({
-    className: 'live-tracking-pin',
-    html: `
-      <svg width="34" height="42" viewBox="0 0 34 42" xmlns="http://www.w3.org/2000/svg">
-        <path d="M17 0C7.6 0 0 7.6 0 17c0 12.2 17 25 17 25s17-12.8 17-25C34 7.6 26.4 0 17 0Z" fill="${fill}"/>
-        <circle cx="17" cy="16" r="8.4" fill="none" stroke="#ffffff" stroke-width="1.7"/>
-        <circle cx="17" cy="16" r="2.1" fill="#ffffff"/>
-        <line x1="17" y1="16" x2="17" y2="7.6" stroke="#ffffff" stroke-width="1.7"/>
-        <line x1="17" y1="16" x2="10" y2="20.5" stroke="#ffffff" stroke-width="1.7"/>
-        <line x1="17" y1="16" x2="24" y2="20.5" stroke="#ffffff" stroke-width="1.7"/>
-      </svg>
-    `,
-    iconSize: [34, 42],
-    iconAnchor: [17, 42],
-  })
+// PRD §4.1.2 requires the real Google Maps traffic layer; set this in
+// .env.local (see the setup guide) — never commit a real key.
+const GOOGLE_MAPS_API_KEY = (import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined) ?? ''
+
+function svgDataUrl(svg: string): string {
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`
 }
-const carIcon = makePin('#1a1a1a')
-const carIconSelected = makePin('#1677ff')
+
+// Teardrop pin with white steering-wheel icon (black default, blue when selected)
+function makePinIcon(fill: string): google.maps.Icon {
+  const svg = `
+    <svg width="34" height="42" viewBox="0 0 34 42" xmlns="http://www.w3.org/2000/svg">
+      <path d="M17 0C7.6 0 0 7.6 0 17c0 12.2 17 25 17 25s17-12.8 17-25C34 7.6 26.4 0 17 0Z" fill="${fill}"/>
+      <circle cx="17" cy="16" r="8.4" fill="none" stroke="#ffffff" stroke-width="1.7"/>
+      <circle cx="17" cy="16" r="2.1" fill="#ffffff"/>
+      <line x1="17" y1="16" x2="17" y2="7.6" stroke="#ffffff" stroke-width="1.7"/>
+      <line x1="17" y1="16" x2="10" y2="20.5" stroke="#ffffff" stroke-width="1.7"/>
+      <line x1="17" y1="16" x2="24" y2="20.5" stroke="#ffffff" stroke-width="1.7"/>
+    </svg>
+  `
+  return {
+    url: svgDataUrl(svg),
+    scaledSize: new google.maps.Size(34, 42),
+    anchor: new google.maps.Point(17, 42),
+  }
+}
 
 /* ── Origin (pickup point) marker ── */
-const originIcon = L.divIcon({
-  className: 'live-tracking-origin',
-  html: `
-    <div style="display:flex;flex-direction:column;align-items:center;">
-      <div style="width:26px;height:26px;border-radius:50%;background:#16a34a;border:3px solid #fff;
-        box-shadow:0 3px 8px rgba(15,23,42,.3);display:flex;align-items:center;justify-content:center;">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="4" fill="#fff" stroke="none"/>
-        </svg>
-      </div>
-      <div style="width:2px;height:7px;background:#16a34a;"></div>
-    </div>`,
-  iconSize: [26, 35],
-  iconAnchor: [13, 35],
-})
-
-/* ── Destination (school) marker ── */
-const destinationIcon = L.divIcon({
-  className: 'live-tracking-dest',
-  html: `
-    <div style="display:flex;flex-direction:column;align-items:center;">
-      <div style="width:30px;height:30px;border-radius:9px;background:#0f172a;border:3px solid #fff;
-        box-shadow:0 3px 8px rgba(15,23,42,.3);display:flex;align-items:center;justify-content:center;">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M3 21h18"/>
-          <path d="M5 21V8l7-4 7 4v13"/>
-          <path d="M9 21v-5h6v5"/>
-        </svg>
-      </div>
-      <div style="width:2px;height:8px;background:#0f172a;"></div>
-    </div>`,
-  iconSize: [30, 40],
-  iconAnchor: [15, 40],
-})
-
-/* ── Imperatively drives the map when a card/marker is selected ── */
-function MapController({
-  selectedId,
-  posRef,
-}: {
-  selectedId: string | null
-  posRef: React.MutableRefObject<Record<string, [number, number] | null>>
-}) {
-  const map = useMap()
-  useEffect(() => {
-    if (!selectedId) return
-    const p = posRef.current[selectedId]
-    if (p) {
-      // Available driver, or To Check with a last-seen location → zoom in to icon
-      map.flyTo(p, FOCUS_ZOOM, { duration: 0.7 })
-    } else {
-      // To Check with no driver last seen → zoom out, no driver icon
-      map.flyTo(DEFAULT_CENTER, ZOOM_OUT, { duration: 0.7 })
-    }
-  }, [selectedId, map, posRef])
-  return null
+function makeOriginIcon(): google.maps.Icon {
+  const svg = `
+    <svg width="26" height="35" viewBox="0 0 26 35" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="13" cy="13" r="13" fill="#16a34a" stroke="#fff" stroke-width="3"/>
+      <circle cx="13" cy="13" r="4" fill="#fff"/>
+      <rect x="12" y="26" width="2" height="7" fill="#16a34a"/>
+    </svg>
+  `
+  return {
+    url: svgDataUrl(svg),
+    scaledSize: new google.maps.Size(26, 35),
+    anchor: new google.maps.Point(13, 35),
+  }
 }
 
-/* ── Recomputes tile layout after the map container resizes (e.g. full screen toggle) ── */
-function FullscreenSync({ isFullscreen }: { isFullscreen: boolean }) {
-  const map = useMap()
-  useEffect(() => {
-    const t = setTimeout(() => map.invalidateSize(), 250)
-    return () => clearTimeout(t)
-  }, [isFullscreen, map])
-  return null
+/* ── Destination (school) marker ── */
+function makeDestinationIcon(): google.maps.Icon {
+  const svg = `
+    <svg width="30" height="40" viewBox="0 0 30 40" xmlns="http://www.w3.org/2000/svg">
+      <rect x="0" y="0" width="30" height="30" rx="9" fill="#0f172a" stroke="#fff" stroke-width="3"/>
+      <path d="M6 27V14l9-5 9 5v13" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M4 27h22" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+      <path d="M12 27v-5h6v5" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <rect x="13" y="32" width="2" height="8" fill="#0f172a"/>
+    </svg>
+  `
+  return {
+    url: svgDataUrl(svg),
+    scaledSize: new google.maps.Size(30, 40),
+    anchor: new google.maps.Point(15, 40),
+  }
 }
 
 /* ── Test console: per-driver status override + helpers ── */
@@ -562,6 +529,145 @@ function DriverCard({
   )
 }
 
+/* ── Google Maps view: only mounted once an API key is configured, so the
+   loader script is never requested otherwise ── */
+function LiveMapView({
+  filtered,
+  selectedId,
+  selectedStop,
+  posRef,
+  showRoutes,
+  showTraffic,
+  onSelect,
+}: {
+  filtered: VehicleStop[]
+  selectedId: string | null
+  selectedStop: VehicleStop | null
+  posRef: React.MutableRefObject<Record<string, [number, number] | null>>
+  showRoutes: boolean
+  showTraffic: boolean
+  onSelect: (id: string) => void
+}) {
+  const { isLoaded, loadError } = useJsApiLoader({
+    id: 'google-map-script',
+    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+  })
+  const mapRef = useRef<google.maps.Map | null>(null)
+  const carIcon = useMemo(() => (isLoaded ? makePinIcon('#1a1a1a') : undefined), [isLoaded])
+  const carIconSelected = useMemo(() => (isLoaded ? makePinIcon('#1677ff') : undefined), [isLoaded])
+  const originIcon = useMemo(() => (isLoaded ? makeOriginIcon() : undefined), [isLoaded])
+  const destinationIcon = useMemo(() => (isLoaded ? makeDestinationIcon() : undefined), [isLoaded])
+
+  // Pan/zoom the map when a card/marker is selected (replaces Leaflet's MapController)
+  useEffect(() => {
+    if (!selectedId || !mapRef.current) return
+    const p = posRef.current[selectedId]
+    if (p) {
+      // Available driver, or To Check with a last-seen location → zoom in to icon
+      mapRef.current.panTo({ lat: p[0], lng: p[1] })
+      mapRef.current.setZoom(FOCUS_ZOOM)
+    } else {
+      // To Check with no driver last seen → zoom out, no driver icon
+      mapRef.current.panTo({ lat: DEFAULT_CENTER[0], lng: DEFAULT_CENTER[1] })
+      mapRef.current.setZoom(ZOOM_OUT)
+    }
+  }, [selectedId, posRef])
+
+  if (loadError) {
+    return (
+      <div style={{ height: '100%', minHeight: 600, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ff4d4f' }}>
+        Failed to load Google Maps: {loadError.message}
+      </div>
+    )
+  }
+  if (!isLoaded) {
+    return (
+      <div style={{ height: '100%', minHeight: 600, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8c8c8c' }}>
+        Loading Google Maps…
+      </div>
+    )
+  }
+
+  return (
+    <GoogleMap
+      center={{ lat: DEFAULT_CENTER[0], lng: DEFAULT_CENTER[1] }}
+      zoom={DEFAULT_ZOOM}
+      mapContainerStyle={{ height: '100%', minHeight: 600, width: '100%' }}
+      onLoad={(map) => { mapRef.current = map }}
+      options={{
+        fullscreenControl: true,
+        zoomControl: true,
+        streetViewControl: false,
+        mapTypeControl: false,
+      }}
+    >
+      {/* Real-time road conditions (traffic) — toggleable */}
+      {showTraffic && <TrafficLayer />}
+
+      {/* Driver routes to the destination — toggleable; selected one highlighted */}
+      {showRoutes &&
+        filtered
+          .filter((s) => s.route && s.route.length > 1)
+          .map((s) => {
+            const sel = selectedId === s.id
+            const dim = selectedId != null && !sel
+            return (
+              <Polyline
+                key={`route-${s.id}`}
+                path={(s.route as [number, number][]).map(([lat, lng]) => ({ lat, lng }))}
+                options={
+                  sel
+                    ? { strokeColor: '#1677ff', strokeWeight: 5, strokeOpacity: 0.95 }
+                    : { strokeColor: '#64748b', strokeWeight: 3, strokeOpacity: dim ? 0.1 : 0.4 }
+                }
+              />
+            )
+          })}
+
+      {/* Selected trip's origin (from) and destination (to) */}
+      {selectedStop?.from && (
+        <Marker
+          position={{ lat: selectedStop.from.lat, lng: selectedStop.from.lng }}
+          icon={originIcon}
+          title={`From: ${selectedStop.from.name}`}
+        />
+      )}
+      {selectedStop?.to && (
+        <Marker
+          position={{ lat: selectedStop.to.lat, lng: selectedStop.to.lng }}
+          icon={destinationIcon}
+          title={`To: ${selectedStop.to.name}`}
+        />
+      )}
+
+      {/* Driver markers — animated along route while simulating */}
+      {filtered
+        .map((stop) => ({ stop, pos: posRef.current[stop.id] }))
+        .filter((x) => x.pos != null)
+        .map(({ stop, pos }) => {
+          const [lat, lng] = pos as [number, number]
+          return (
+            <div key={stop.id}>
+              <Marker
+                position={{ lat, lng }}
+                icon={selectedId === stop.id ? carIconSelected : carIcon}
+                onClick={() => onSelect(stop.id)}
+              />
+              {selectedId === stop.id && (
+                <InfoWindow position={{ lat, lng }} options={{ disableAutoPan: true, pixelOffset: new google.maps.Size(0, -38) }}>
+                  <div style={{ fontSize: 12.5, whiteSpace: 'nowrap' }}>
+                    <strong>{stop.driver}</strong> · {stop.plate} · ETA{' '}
+                    {stop.online && stop.eta ? formatTimeAmPm(stop.eta) : '-'}
+                  </div>
+                </InfoWindow>
+              )}
+            </div>
+          )
+        })}
+    </GoogleMap>
+  )
+}
+
 export default function LiveTrackingPage() {
   const [filter, setFilter] = useState<'All' | 'Offline' | 'Online'>('All')
   const [search, setSearch] = useState('')
@@ -581,7 +687,6 @@ export default function LiveTrackingPage() {
   const [showTraffic, setShowTraffic] = useState(true)
   const [simulating, setSimulating] = useState(false)
   const [progress, setProgress] = useState(0)
-  const [isFullscreen, setIsFullscreen] = useState(false)
 
   // Test console — lets dev/QA dial in a specific test case (how many
   // drivers/trips are live, and what status each one is in) and see it
@@ -792,90 +897,48 @@ export default function LiveTrackingPage() {
             {/* Map */}
             <div
               style={{
-                position: isFullscreen ? 'fixed' : 'relative',
-                inset: isFullscreen ? 0 : undefined,
-                zIndex: isFullscreen ? 1000 : undefined,
-                borderRadius: isFullscreen ? 0 : 12,
+                position: 'relative',
+                borderRadius: 12,
                 overflow: 'hidden',
-                border: isFullscreen ? 'none' : '1px solid #f0f0f0',
-                flex: isFullscreen ? undefined : 1,
-                minHeight: isFullscreen ? '100vh' : 600,
+                border: '1px solid #f0f0f0',
+                flex: 1,
+                minHeight: 600,
               }}
             >
-              <MapContainer center={DEFAULT_CENTER} zoom={DEFAULT_ZOOM} style={{ height: '100%', minHeight: isFullscreen ? '100vh' : 600, width: '100%' }}>
-                <TileLayer
-                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              {!GOOGLE_MAPS_API_KEY ? (
+                <div
+                  style={{
+                    height: '100%',
+                    minHeight: 600,
+                    width: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                    background: '#f7f8fa',
+                    color: '#8c8c8c',
+                    textAlign: 'center',
+                    padding: 24,
+                  }}
+                >
+                  <EnvironmentOutlined style={{ fontSize: 32, color: '#bfbfbf' }} />
+                  <Text style={{ color: '#595959', fontWeight: 600 }}>Google Maps API key not configured</Text>
+                  <Text style={{ fontSize: 13, color: '#8c8c8c', maxWidth: 360 }}>
+                    Set <code>VITE_GOOGLE_MAPS_API_KEY</code> in <code>.env.local</code> (see <code>.env.example</code>) to load the live map and traffic layer.
+                  </Text>
+                </div>
+              ) : (
+                <LiveMapView
+                  filtered={filtered}
+                  selectedId={selectedId}
+                  selectedStop={selectedStop}
+                  posRef={posRef}
+                  showRoutes={showRoutes}
+                  showTraffic={showTraffic}
+                  onSelect={setSelectedId}
                 />
-                <MapController selectedId={selectedId} posRef={posRef} />
-                <FullscreenSync isFullscreen={isFullscreen} />
-
-                {/* Road conditions (traffic) — toggleable */}
-                {showTraffic &&
-                  trafficSegments.map((t) => (
-                    <Polyline
-                      key={t.id}
-                      positions={t.path}
-                      pathOptions={{ color: TRAFFIC_COLOR[t.level], weight: 7, opacity: 0.55, lineCap: 'round' }}
-                    />
-                  ))}
-
-                {/* Driver routes to the destination — toggleable; selected one highlighted */}
-                {showRoutes &&
-                  filtered
-                    .filter((s) => s.route && s.route.length > 1)
-                    .map((s) => {
-                      const sel = selectedId === s.id
-                      const dim = selectedId != null && !sel
-                      return (
-                        <Polyline
-                          key={`route-${s.id}`}
-                          positions={s.route as [number, number][]}
-                          pathOptions={
-                            sel
-                              ? { color: '#1677ff', weight: 5, opacity: 0.95 }
-                              : { color: '#64748b', weight: 3, opacity: dim ? 0.1 : 0.4, dashArray: '6 8' }
-                          }
-                        />
-                      )
-                    })}
-
-                {/* Selected trip's origin (from) and destination (to) */}
-                {selectedStop?.from && (
-                  <Marker position={[selectedStop.from.lat, selectedStop.from.lng]} icon={originIcon}>
-                    <MapTooltip direction="top" offset={[0, -30]} className="tracking2-tooltip">
-                      From: <strong>{selectedStop.from.name}</strong>
-                    </MapTooltip>
-                  </Marker>
-                )}
-                {selectedStop?.to && (
-                  <Marker position={[selectedStop.to.lat, selectedStop.to.lng]} icon={destinationIcon}>
-                    <MapTooltip direction="top" offset={[0, -38]} className="tracking2-tooltip">
-                      To: <strong>{selectedStop.to.name}</strong>
-                    </MapTooltip>
-                  </Marker>
-                )}
-
-                {/* Driver markers — animated along route while simulating */}
-                {filtered
-                  .map((stop) => ({ stop, pos: posRef.current[stop.id] }))
-                  .filter((x) => x.pos != null)
-                  .map(({ stop, pos }) => (
-                    <Marker
-                      key={stop.id}
-                      position={pos as [number, number]}
-                      icon={selectedId === stop.id ? carIconSelected : carIcon}
-                      eventHandlers={{ click: () => setSelectedId(stop.id) }}
-                    >
-                      {selectedId === stop.id && (
-                        <MapTooltip permanent direction="top" offset={[0, -38]} className="tracking2-tooltip">
-                          <strong>{stop.driver}</strong> · {stop.plate} · ETA{' '}
-                          {stop.online && stop.eta ? formatTimeAmPm(stop.eta) : '-'}
-                        </MapTooltip>
-                      )}
-                    </Marker>
-                  ))}
-              </MapContainer>
+              )}
 
               {/* Map controls: layer toggles + movement simulation */}
               <div
@@ -911,14 +974,6 @@ export default function LiveTrackingPage() {
                   block
                 >
                   {simulating ? 'Pause' : 'Simulate'}
-                </Button>
-                <Button
-                  size="small"
-                  icon={isFullscreen ? <FullscreenExitOutlined /> : <FullscreenOutlined />}
-                  onClick={() => setIsFullscreen((v) => !v)}
-                  block
-                >
-                  {isFullscreen ? 'Exit full screen' : 'Full screen'}
                 </Button>
               </div>
 
