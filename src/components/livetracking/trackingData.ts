@@ -212,8 +212,11 @@ export const routePath2: [number, number][] = [
   [1.3125, 103.7990],
 ]
 
-export const DEFAULT_CENTER: [number, number] = [1.3270, 103.7950]
-export const DEFAULT_ZOOM = 14
+// Default map view is zoomed out to show the tenant's whole country of
+// operation (Singapore) per PRD §4.1.2; FOCUS_ZOOM/ZOOM_OUT are used once a
+// trip card/marker is selected.
+export const DEFAULT_CENTER: [number, number] = [1.3521, 103.8198]
+export const DEFAULT_ZOOM = 11
 export const FOCUS_ZOOM = 16
 export const ZOOM_OUT = 12
 
@@ -233,10 +236,12 @@ export const TRAFFIC_COLOR: Record<TrafficLevel, string> = {
   heavy: '#ef4444',
 }
 
+// Labels match the PRD's Google-Maps-style traffic layer terminology
+// (green = clear, orange = slow moving, red = congested).
 export const TRAFFIC_LABEL: Record<TrafficLevel, string> = {
-  smooth: 'Smooth',
-  moderate: 'Moderate',
-  heavy: 'Heavy',
+  smooth: 'Clear',
+  moderate: 'Slow Moving',
+  heavy: 'Congested',
 }
 
 // Mock live traffic along the main corridors the fleet uses.

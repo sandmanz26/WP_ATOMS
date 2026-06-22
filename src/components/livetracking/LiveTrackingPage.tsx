@@ -14,6 +14,8 @@ import {
   CaretRightOutlined,
   PauseOutlined,
   ArrowRightOutlined,
+  FullscreenOutlined,
+  FullscreenExitOutlined,
 } from '@ant-design/icons'
 import {
   type VehicleStop,
@@ -113,6 +115,16 @@ function MapController({
   return null
 }
 
+/* ── Recomputes tile layout after the map container resizes (e.g. full screen toggle) ── */
+function FullscreenSync({ isFullscreen }: { isFullscreen: boolean }) {
+  const map = useMap()
+  useEffect(() => {
+    const t = setTimeout(() => map.invalidateSize(), 250)
+    return () => clearTimeout(t)
+  }, [isFullscreen, map])
+  return null
+}
+
 /* ── Stat card (Late / To Check) ── */
 function StatCard({
   icon,
@@ -133,39 +145,40 @@ function StatCard({
         flex: 1,
         display: 'flex',
         alignItems: 'center',
-        gap: 16,
+        gap: 10,
         background: '#fff',
         border: '1px solid #f0f0f0',
-        borderRadius: 12,
+        borderRadius: 10,
         boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
-        padding: '14px 16px',
+        padding: '8px 10px',
         minWidth: 0,
       }}
     >
       <div
         style={{
-          width: 52,
-          height: 52,
-          borderRadius: 12,
+          width: 32,
+          height: 32,
+          borderRadius: 8,
           background: iconBg,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           flexShrink: 0,
           color: '#fff',
-          fontSize: 22,
+          fontSize: 14,
         }}
       >
         {icon}
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <Text style={{ color: labelColor, fontSize: 13, fontWeight: 600, display: 'block' }}>{label}</Text>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-          <Text style={{ fontSize: 28, fontWeight: 700, color: '#1a1a1a', lineHeight: 1 }}>{count}</Text>
-          <Text style={{ fontSize: 13, color: '#8c8c8c' }}>Driver</Text>
+        <Text style={{ color: labelColor, fontSize: 11, fontWeight: 600, display: 'block', lineHeight: 1.3 }}>{label}</Text>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+          <Text style={{ fontSize: 18, fontWeight: 700, color: '#1a1a1a', lineHeight: 1.2 }}>{count}</Text>
+          <Text style={{ fontSize: 11, color: '#8c8c8c' }}>Driver</Text>
         </div>
       </div>
       <Button
+        size="small"
         icon={<SearchOutlined />}
         style={{ borderColor: '#e8e8e8', color: '#595959', flexShrink: 0 }}
       />
@@ -375,6 +388,7 @@ export default function LiveTrackingPage() {
   const [showTraffic, setShowTraffic] = useState(true)
   const [simulating, setSimulating] = useState(false)
   const [progress, setProgress] = useState(0)
+  const [isFullscreen, setIsFullscreen] = useState(false)
 
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({})
   // Latest live position per driver (animated when simulating, else static)
@@ -525,7 +539,7 @@ export default function LiveTrackingPage() {
           {/* ── Left column: stat cards + map ── */}
           <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
             {/* Stat cards */}
-            <div style={{ display: 'flex', gap: 16, marginBottom: 16 }}>
+            <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
               <StatCard
                 icon={<FileExclamationOutlined />}
                 iconBg="#f5a623"
@@ -543,13 +557,25 @@ export default function LiveTrackingPage() {
             </div>
 
             {/* Map */}
-            <div style={{ position: 'relative', borderRadius: 12, overflow: 'hidden', border: '1px solid #f0f0f0', flex: 1, minHeight: 600 }}>
-              <MapContainer center={DEFAULT_CENTER} zoom={DEFAULT_ZOOM} style={{ height: '100%', minHeight: 600, width: '100%' }}>
+            <div
+              style={{
+                position: isFullscreen ? 'fixed' : 'relative',
+                inset: isFullscreen ? 0 : undefined,
+                zIndex: isFullscreen ? 1000 : undefined,
+                borderRadius: isFullscreen ? 0 : 12,
+                overflow: 'hidden',
+                border: isFullscreen ? 'none' : '1px solid #f0f0f0',
+                flex: isFullscreen ? undefined : 1,
+                minHeight: isFullscreen ? '100vh' : 600,
+              }}
+            >
+              <MapContainer center={DEFAULT_CENTER} zoom={DEFAULT_ZOOM} style={{ height: '100%', minHeight: isFullscreen ? '100vh' : 600, width: '100%' }}>
                 <TileLayer
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                   attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 />
                 <MapController selectedId={selectedId} posRef={posRef} />
+                <FullscreenSync isFullscreen={isFullscreen} />
 
                 {/* Road conditions (traffic) — toggleable */}
                 {showTraffic &&
@@ -652,6 +678,14 @@ export default function LiveTrackingPage() {
                   block
                 >
                   {simulating ? 'Pause' : 'Simulate'}
+                </Button>
+                <Button
+                  size="small"
+                  icon={isFullscreen ? <FullscreenExitOutlined /> : <FullscreenOutlined />}
+                  onClick={() => setIsFullscreen((v) => !v)}
+                  block
+                >
+                  {isFullscreen ? 'Exit full screen' : 'Full screen'}
                 </Button>
               </div>
 
