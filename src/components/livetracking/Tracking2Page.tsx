@@ -48,12 +48,14 @@ const STATUS_COLOR: Record<TripStatus, string> = {
   'On Time': C.onTime,
   Late: C.late,
   'To Check': C.toCheck,
+  Notified: C.brand,
 }
 
 const STATUS_SOFT: Record<TripStatus, string> = {
   'On Time': '#eafaf0',
   Late: '#fef6e7',
   'To Check': '#fdecec',
+  Notified: '#eef2fb',
 }
 
 /* ── Circular status-colored bus marker (Westpoint fleet) ── */
@@ -173,7 +175,7 @@ function DriverCard({
   onSelect: () => void
   innerRef: (el: HTMLDivElement | null) => void
 }) {
-  const status = deriveStatus(stop.scheduled, stop.eta)
+  const status = deriveStatus(stop)
   const color = STATUS_COLOR[status]
   return (
     <div
@@ -293,7 +295,7 @@ function DriverCard({
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <WifiOutlined style={{ color: stop.online ? C.onTime : C.toCheck, fontSize: 13 }} />
           <Text style={{ fontSize: 11.5, color: C.faint }} ellipsis>
-            {stop.company}
+            {stop.fleetOwner}
           </Text>
         </div>
         <Text style={{ fontSize: 11.5, color: C.faint }}>{stop.lastOnline}</Text>
@@ -329,7 +331,7 @@ export default function Tracking2Page() {
   const counts = useMemo(() => {
     const c = { total: mockStops.length, onTime: 0, late: 0, toCheck: 0, offline: 0 }
     mockStops.forEach((s) => {
-      const st = deriveStatus(s.scheduled, s.eta)
+      const st = deriveStatus(s)
       if (st === 'On Time') c.onTime++
       else if (st === 'Late') c.late++
       else c.toCheck++
@@ -353,7 +355,7 @@ export default function Tracking2Page() {
   const filtered = mockStops.filter((s) => {
     if (availability === 'Online' && !s.online) return false
     if (availability === 'Offline' && s.online) return false
-    if (statusFilter && deriveStatus(s.scheduled, s.eta) !== statusFilter) return false
+    if (statusFilter && deriveStatus(s) !== statusFilter) return false
     if (search.trim()) {
       const q = search.toLowerCase()
       const hit =
@@ -363,13 +365,13 @@ export default function Tracking2Page() {
         s.label.toLowerCase().includes(q)
       if (!hit) return false
     }
-    if (customerCode.trim() && !s.company.toLowerCase().includes(customerCode.toLowerCase())) return false
-    if (fleetOwner.trim() && !s.company.toLowerCase().includes(fleetOwner.toLowerCase())) return false
+    if (customerCode.trim() && !s.customerCode.toLowerCase().includes(customerCode.toLowerCase())) return false
+    if (fleetOwner.trim() && !s.fleetOwner.toLowerCase().includes(fleetOwner.toLowerCase())) return false
     if (driverFilter && s.driver !== driverFilter) return false
     if (vehicleFilter && s.plate !== vehicleFilter) return false
     if (driverStatus === 'Online' && !s.online) return false
     if (driverStatus === 'Offline' && s.online) return false
-    if (tripStatus && deriveStatus(s.scheduled, s.eta) !== tripStatus) return false
+    if (tripStatus && deriveStatus(s) !== tripStatus) return false
     return true
   })
 
@@ -402,7 +404,7 @@ export default function Tracking2Page() {
           <Select
             value={tripStatus}
             onChange={setTripStatus}
-            options={[{ label: 'On Time', value: 'On Time' }, { label: 'Late', value: 'Late' }, { label: 'To Check', value: 'To Check' }]}
+            options={[{ label: 'On Time', value: 'On Time' }, { label: 'Late', value: 'Late' }, { label: 'To Check', value: 'To Check' }, { label: 'Notified', value: 'Notified' }]}
             style={{ width: '100%' }}
             allowClear
           />
@@ -498,7 +500,7 @@ export default function Tracking2Page() {
               .filter((s) => s.lat != null && s.lng != null)
               .map((s) => {
                 const sel = selectedId === s.id
-                const color = STATUS_COLOR[deriveStatus(s.scheduled, s.eta)]
+                const color = STATUS_COLOR[deriveStatus(s)]
                 return (
                   <Marker
                     key={s.id}

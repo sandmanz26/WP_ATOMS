@@ -28,6 +28,7 @@ import {
   deriveStatus,
   pointAlong,
   STATUS_STYLE,
+  formatTimeAmPm,
 } from './trackingData'
 
 const { Text } = Typography
@@ -217,8 +218,10 @@ function DriverCard({
   onSelect: () => void
   innerRef: (el: HTMLDivElement | null) => void
 }) {
-  const status = deriveStatus(stop.scheduled, stop.eta)
+  const status = deriveStatus(stop)
   const s = STATUS_STYLE[status]
+  // PRD §4.2.3/BR-002: status + ETA are hidden once the first point is registered
+  const showStatusAndEta = !stop.firstPointRegistered
   return (
     <div
       ref={innerRef}
@@ -233,20 +236,34 @@ function DriverCard({
         transition: 'background 0.15s, border-color 0.15s',
       }}
     >
-      {/* Top: tag + more */}
+      {/* Top: bus label + customer code + more */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span
-          style={{
-            background: '#e6f4ff',
-            color: '#1677ff',
-            fontSize: 12,
-            fontWeight: 500,
-            padding: '1px 8px',
-            borderRadius: 4,
-          }}
-        >
-          {stop.label}
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span
+            style={{
+              background: '#e6f4ff',
+              color: '#1677ff',
+              fontSize: 12,
+              fontWeight: 500,
+              padding: '1px 8px',
+              borderRadius: 4,
+            }}
+          >
+            {stop.label}
+          </span>
+          <span
+            style={{
+              background: '#f5f5f5',
+              color: '#595959',
+              fontSize: 12,
+              fontWeight: 500,
+              padding: '1px 8px',
+              borderRadius: 4,
+            }}
+          >
+            {stop.customerCode}
+          </span>
+        </div>
         <MoreOutlined style={{ color: '#bfbfbf', fontSize: 16, cursor: 'pointer' }} />
       </div>
 
@@ -269,44 +286,57 @@ function DriverCard({
         </Text>
       )}
 
-      {/* Scheduled time */}
+      {/* Trip Start Time (PRD §4.2.2) */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
         <ClockCircleOutlined style={{ color: '#8c8c8c', fontSize: 13 }} />
-        <Text style={{ fontSize: 13, color: '#8c8c8c' }}>{stop.scheduled}</Text>
+        <Text style={{ fontSize: 13, color: '#8c8c8c' }}>{formatTimeAmPm(stop.scheduled)}</Text>
       </div>
 
-      {/* ETA box */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          background: selected ? '#fff' : '#f7f8fa',
-          borderRadius: 8,
-          padding: '10px 12px',
-          marginTop: 10,
-        }}
-      >
-        <Text style={{ fontSize: 14, color: '#1a1a1a' }}>
-          ETA{' '}
-          <Text style={{ color: stop.eta ? '#1677ff' : '#8c8c8c', fontWeight: 700, fontSize: 16 }}>
-            {stop.eta ?? '-'}
-          </Text>
-        </Text>
-        <span
+      {/* ETA + Trip Status — hidden once first point is registered (BR-002) */}
+      {showStatusAndEta ? (
+        <div
           style={{
-            background: s.bg,
-            color: s.color,
-            border: `1px solid ${s.border}`,
-            fontSize: 12,
-            fontWeight: 500,
-            padding: '2px 10px',
-            borderRadius: 6,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            background: selected ? '#fff' : '#f7f8fa',
+            borderRadius: 8,
+            padding: '10px 12px',
+            marginTop: 10,
           }}
         >
-          {status}
-        </span>
-      </div>
+          <Text style={{ fontSize: 14, color: '#1a1a1a' }}>
+            ETA{' '}
+            <Text style={{ color: stop.online && stop.eta ? '#1677ff' : '#8c8c8c', fontWeight: 700, fontSize: 16 }}>
+              {stop.online && stop.eta ? formatTimeAmPm(stop.eta) : '-'}
+            </Text>
+          </Text>
+          <span
+            style={{
+              background: s.bg,
+              color: s.color,
+              border: `1px solid ${s.border}`,
+              fontSize: 12,
+              fontWeight: 500,
+              padding: '2px 10px',
+              borderRadius: 6,
+            }}
+          >
+            {status}
+          </span>
+        </div>
+      ) : (
+        <div
+          style={{
+            background: selected ? '#fff' : '#f7f8fa',
+            borderRadius: 8,
+            padding: '10px 12px',
+            marginTop: 10,
+          }}
+        >
+          <Text style={{ fontSize: 13, color: '#8c8c8c' }}>First point registered</Text>
+        </div>
+      )}
 
       {/* Driver + plate */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12 }}>
@@ -315,10 +345,12 @@ function DriverCard({
         <Text style={{ fontSize: 14, fontWeight: 600, color: '#1a1a1a', marginLeft: 'auto' }}>{stop.plate}</Text>
       </div>
 
-      {/* Company + last online */}
+      {/* Fleet Owner + last online (offline drivers only, per BR-012) */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
-        <Text style={{ fontSize: 12, color: '#bfbfbf' }}>{stop.company}</Text>
-        <Text style={{ fontSize: 12, color: '#bfbfbf' }}>{stop.lastOnline}</Text>
+        <Text style={{ fontSize: 12, color: '#bfbfbf' }}>{stop.fleetOwner}</Text>
+        {!stop.online && stop.lastOnline && (
+          <Text style={{ fontSize: 12, color: '#bfbfbf' }}>Last online {stop.lastOnline}</Text>
+        )}
       </div>
     </div>
   )
@@ -381,8 +413,8 @@ export default function LiveTrackingPage() {
   const vehicleOptions = Array.from(new Set(mockStops.map((s) => s.plate))).map((p) => ({ label: p, value: p }))
 
   // Stat counts derived from the data (kept in sync with the list/map)
-  const lateCount = mockStops.filter((s) => deriveStatus(s.scheduled, s.eta) === 'Late').length
-  const toCheckCount = mockStops.filter((s) => deriveStatus(s.scheduled, s.eta) === 'To Check').length
+  const lateCount = mockStops.filter((s) => deriveStatus(s) === 'Late').length
+  const toCheckCount = mockStops.filter((s) => deriveStatus(s) === 'To Check').length
 
   const clearAllFilters = () => {
     setCustomerCode('')
@@ -397,21 +429,22 @@ export default function LiveTrackingPage() {
     if (filter === 'Online' && !s.online) return false
     if (filter === 'Offline' && s.online) return false
     if (search.trim()) {
+      // PRD §4.4.2: search across Driver's name, Vehicle plate, Customer code, Bus label
       const q = search.toLowerCase()
       const hit =
         s.driver.toLowerCase().includes(q) ||
         s.plate.toLowerCase().includes(q) ||
-        s.destination.toLowerCase().includes(q) ||
+        s.customerCode.toLowerCase().includes(q) ||
         s.label.toLowerCase().includes(q)
       if (!hit) return false
     }
-    if (customerCode.trim() && !s.company.toLowerCase().includes(customerCode.toLowerCase())) return false
-    if (fleetOwner.trim() && !s.company.toLowerCase().includes(fleetOwner.toLowerCase())) return false
+    if (customerCode.trim() && !s.customerCode.toLowerCase().includes(customerCode.toLowerCase())) return false
+    if (fleetOwner.trim() && !s.fleetOwner.toLowerCase().includes(fleetOwner.toLowerCase())) return false
     if (driverFilter && s.driver !== driverFilter) return false
     if (vehicleFilter && s.plate !== vehicleFilter) return false
     if (driverStatus === 'Online' && !s.online) return false
     if (driverStatus === 'Offline' && s.online) return false
-    if (tripStatus && deriveStatus(s.scheduled, s.eta) !== tripStatus) return false
+    if (tripStatus && deriveStatus(s) !== tripStatus) return false
     return true
   })
 
@@ -465,6 +498,7 @@ export default function LiveTrackingPage() {
               { label: 'On Time', value: 'On Time' },
               { label: 'Late', value: 'Late' },
               { label: 'To Check', value: 'To Check' },
+              { label: 'Notified', value: 'Notified' },
             ]}
             style={{ width: '100%' }}
             allowClear
@@ -576,7 +610,8 @@ export default function LiveTrackingPage() {
                     >
                       {selectedId === stop.id && (
                         <MapTooltip permanent direction="top" offset={[0, -38]} className="tracking2-tooltip">
-                          <strong>{stop.driver}</strong> · {stop.plate} · ETA {stop.eta ?? '—'}
+                          <strong>{stop.driver}</strong> · {stop.plate} · ETA{' '}
+                          {stop.online && stop.eta ? formatTimeAmPm(stop.eta) : '-'}
                         </MapTooltip>
                       )}
                     </Marker>
