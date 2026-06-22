@@ -12,6 +12,7 @@ import {
   SettingOutlined,
 } from '@ant-design/icons'
 import type { AppPage } from '@/App'
+import { version as appVersion } from '../../../package.json'
 
 const { Sider, Content } = Layout
 const { Text } = Typography
@@ -226,6 +227,7 @@ export default function AppLayout({
             height: 48,
             display: 'flex',
             alignItems: 'center',
+            justifyContent: 'space-between',
             borderBottom: '1px solid #f0f0f0',
             background: '#fff',
             position: 'sticky',
@@ -236,6 +238,7 @@ export default function AppLayout({
           <Text style={{ fontSize: 13, color: '#8c8c8c' }}>
             / {breadcrumbLabel}
           </Text>
+          <Text style={{ fontSize: 12, color: '#bfbfbf' }}>v{appVersion}</Text>
         </div>
 
         <Content style={{ background: '#f5f5f5' }}>{children}</Content>
