@@ -371,6 +371,11 @@ function UrgencyTicker({
               <Text style={{ fontSize: 11, fontWeight: 600, color: accent }}>
                 {offline ? 'Offline' : `Late · ETA ${s.eta ? formatTimeAmPm(s.eta) : '-'}`}
               </Text>
+              {offline && s.lastOnline && (
+                <Text style={{ fontSize: 10.5, color: '#8c8c8c', display: 'block', marginTop: 1 }}>
+                  Last seen {s.lastOnline}
+                </Text>
+              )}
               <Button
                 size="small"
                 icon={<CheckOutlined style={{ fontSize: 10 }} />}
