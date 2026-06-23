@@ -17,6 +17,7 @@ import {
   ReloadOutlined,
   BugOutlined,
   EnvironmentOutlined,
+  CheckOutlined,
 } from '@ant-design/icons'
 import {
   type VehicleStop,
@@ -307,10 +308,12 @@ function UrgencyTicker({
   stops,
   selectedId,
   onSelect,
+  onTakeIt,
 }: {
   stops: VehicleStop[]
   selectedId: string | null
   onSelect: (id: string) => void
+  onTakeIt: (id: string) => void
 }) {
   if (stops.length === 0) return null
   return (
@@ -328,24 +331,27 @@ function UrgencyTicker({
         const accent = offline ? '#ff4d4f' : '#faad14'
         const selected = selectedId === s.id
         return (
-          <button
+          <div
             key={s.id}
+            role="button"
+            tabIndex={0}
             onClick={() => onSelect(s.id)}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onSelect(s.id) }}
             className={`urgency-card ${offline ? 'urgency-card-offline' : 'urgency-card-late'}`}
             style={{
               flexShrink: 0,
-              width: 150,
+              width: 158,
               textAlign: 'left',
               background: '#fff',
               border: `1px solid ${selected ? accent : '#f0f0f0'}`,
               borderRadius: 10,
               overflow: 'hidden',
               cursor: 'pointer',
-              padding: 0,
             }}
           >
-            <div style={{ height: 4, background: accent }} />
+            <div className="urgency-strip" style={{ height: 4, background: accent }} />
             <div style={{ padding: '7px 10px' }}>
+              <span className="urgency-ping" style={{ color: accent }} />
               <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                 {offline ? (
                   <WifiOutlined style={{ color: accent, fontSize: 12 }} />
@@ -363,8 +369,16 @@ function UrgencyTicker({
               <Text style={{ fontSize: 11, fontWeight: 600, color: accent }}>
                 {offline ? 'Offline' : `Late · ETA ${s.eta ? formatTimeAmPm(s.eta) : '-'}`}
               </Text>
+              <Button
+                size="small"
+                icon={<CheckOutlined style={{ fontSize: 10 }} />}
+                onClick={(e) => { e.stopPropagation(); onTakeIt(s.id) }}
+                style={{ width: '100%', marginTop: 6, fontSize: 11, height: 24 }}
+              >
+                Take it
+              </Button>
             </div>
-          </button>
+          </div>
         )
       })}
     </div>
@@ -807,8 +821,16 @@ function LiveMapView({
               {sel && (
                 <InfoWindow position={{ lat, lng }} options={{ disableAutoPan: true, pixelOffset: new google.maps.Size(0, -38) }}>
                   <div style={{ fontSize: 12.5, whiteSpace: 'nowrap' }}>
-                    <strong>{stop.driver}</strong> · {stop.plate} · ETA{' '}
-                    {stop.online && stop.eta ? formatTimeAmPm(stop.eta) : '-'}
+                    <strong>{stop.driver}</strong> · {stop.plate}
+                    {stop.online ? (
+                      <>
+                        {' '}· ETA {stop.eta ? formatTimeAmPm(stop.eta) : '-'}
+                      </>
+                    ) : (
+                      <div style={{ color: '#ff4d4f' }}>
+                        Offline · last seen{stop.lastOnline ? ` ${stop.lastOnline}` : ' position unknown'}
+                      </div>
+                    )}
                   </div>
                 </InfoWindow>
               )}
@@ -820,9 +842,15 @@ function LiveMapView({
 }
 
 export default function LiveTrackingPage() {
-  const [filter, setFilter] = useState<'All' | 'Offline' | 'Online'>('All')
+  const [filter, setFilter] = useState<'All' | 'Offline' | 'Online' | 'To Check'>('All')
   const [search, setSearch] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
+
+  // Trips an admin has "taken" off the urgency ticker to action — moves them
+  // into the "To Check" tab/queue so the ticker frees up for the next
+  // problem trip (PRD follow-up: ops handle ~40 drivers/day, need to triage fast)
+  const [takenIds, setTakenIds] = useState<Set<string>>(new Set())
+  const onTakeIt = (id: string) => setTakenIds((prev) => new Set(prev).add(id))
 
   // Filter popover state
   const [filterOpen, setFilterOpen] = useState(false)
@@ -909,7 +937,26 @@ export default function LiveTrackingPage() {
   // Trips needing attention right now — offline or running late — for the
   // urgency ticker above the map. Based on the full dataset (not `filtered`)
   // so a problem trip doesn't vanish just because of an active search/filter.
-  const urgentStops = stops.filter((s) => !s.online || deriveStatus(s) === 'Late')
+  // Once an admin hits "Take it" the trip moves to the "To Check" queue
+  // instead, freeing a slot in the ticker for the next problem trip.
+  const urgentStops = stops.filter((s) => (!s.online || deriveStatus(s) === 'Late') && !takenIds.has(s.id))
+
+  // Self-clean the "To Check" queue: once a taken trip is back online and on
+  // time it's no longer a problem, so drop it rather than leaving stale
+  // entries — keeps it as live a view as the rest of the screen.
+  useEffect(() => {
+    setTakenIds((prev) => {
+      if (prev.size === 0) return prev
+      const stillUrgent = new Set(stops.filter((s) => !s.online || deriveStatus(s) === 'Late').map((s) => s.id))
+      let changed = false
+      const next = new Set<string>()
+      prev.forEach((id) => {
+        if (stillUrgent.has(id)) next.add(id)
+        else changed = true
+      })
+      return changed ? next : prev
+    })
+  }, [stops])
 
   // When selection changes (e.g. from a marker click), auto-scroll the list to its card
   useEffect(() => {
@@ -948,6 +995,7 @@ export default function LiveTrackingPage() {
   const filtered = stops.filter((s) => {
     if (filter === 'Online' && !s.online) return false
     if (filter === 'Offline' && s.online) return false
+    if (filter === 'To Check' && !takenIds.has(s.id)) return false
     if (search.trim()) {
       // PRD §4.4.2: search across Driver's name, Vehicle plate, Customer code, Bus label
       const q = search.toLowerCase()
@@ -1062,7 +1110,7 @@ export default function LiveTrackingPage() {
               />
             </div>
 
-            <UrgencyTicker stops={urgentStops} selectedId={selectedId} onSelect={setSelectedId} />
+            <UrgencyTicker stops={urgentStops} selectedId={selectedId} onSelect={setSelectedId} onTakeIt={onTakeIt} />
 
             {/* Map */}
             <div
@@ -1208,6 +1256,9 @@ export default function LiveTrackingPage() {
               <Pill active={filter === 'All'} onClick={() => setFilter('All')}>All</Pill>
               <Pill active={filter === 'Offline'} onClick={() => setFilter('Offline')}>Offline</Pill>
               <Pill active={filter === 'Online'} onClick={() => setFilter('Online')}>Online</Pill>
+              <Pill active={filter === 'To Check'} onClick={() => setFilter('To Check')}>
+                To Check{takenIds.size > 0 ? ` (${takenIds.size})` : ''}
+              </Pill>
             </div>
 
             {/* Driver list */}
