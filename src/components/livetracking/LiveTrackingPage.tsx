@@ -316,15 +316,11 @@ function UrgencyTicker({
   return (
     <div
       style={{
-        position: 'absolute',
-        top: 12,
-        left: 12,
-        right: 192,
-        zIndex: 500,
         display: 'flex',
         gap: 8,
         overflowX: 'auto',
-        paddingBottom: 4,
+        marginBottom: 12,
+        paddingBottom: 2,
       }}
     >
       {stops.map((s) => {
@@ -335,7 +331,7 @@ function UrgencyTicker({
           <button
             key={s.id}
             onClick={() => onSelect(s.id)}
-            className="urgency-card"
+            className={`urgency-card ${offline ? 'urgency-card-offline' : 'urgency-card-late'}`}
             style={{
               flexShrink: 0,
               width: 150,
@@ -343,7 +339,6 @@ function UrgencyTicker({
               background: '#fff',
               border: `1px solid ${selected ? accent : '#f0f0f0'}`,
               borderRadius: 10,
-              boxShadow: '0 4px 14px rgba(15,23,42,.14)',
               overflow: 'hidden',
               cursor: 'pointer',
               padding: 0,
@@ -1067,6 +1062,8 @@ export default function LiveTrackingPage() {
               />
             </div>
 
+            <UrgencyTicker stops={urgentStops} selectedId={selectedId} onSelect={setSelectedId} />
+
             {/* Map */}
             <div
               style={{
@@ -1115,8 +1112,6 @@ export default function LiveTrackingPage() {
                   />
                 </MapErrorBoundary>
               )}
-
-              <UrgencyTicker stops={urgentStops} selectedId={selectedId} onSelect={setSelectedId} />
 
               {/* Map controls: layer toggles + movement simulation */}
               <div

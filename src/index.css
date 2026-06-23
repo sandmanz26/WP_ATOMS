@@ -74,6 +74,20 @@ body {
 .urgency-card {
   animation: urgency-card-in 0.22s ease-out;
 }
+@keyframes urgency-blink-red {
+  0%, 100% { box-shadow: 0 2px 6px rgba(15, 23, 42, 0.1); }
+  50% { box-shadow: 0 0 0 4px rgba(255, 77, 79, 0.32), 0 2px 6px rgba(15, 23, 42, 0.1); }
+}
+@keyframes urgency-blink-amber {
+  0%, 100% { box-shadow: 0 2px 6px rgba(15, 23, 42, 0.1); }
+  50% { box-shadow: 0 0 0 4px rgba(250, 173, 20, 0.32), 0 2px 6px rgba(15, 23, 42, 0.1); }
+}
+.urgency-card-offline {
+  animation: urgency-card-in 0.22s ease-out, urgency-blink-red 1.8s ease-in-out infinite;
+}
+.urgency-card-late {
+  animation: urgency-card-in 0.22s ease-out, urgency-blink-amber 1.8s ease-in-out infinite;
+}
 
 /* Tracking 2.0 — selected marker tooltip */
 .tracking2-tooltip.leaflet-tooltip {
