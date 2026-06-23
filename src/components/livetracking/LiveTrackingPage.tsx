@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo, Component, type ReactNode } from 'react'
 import { GoogleMap, Marker, Polyline, InfoWindow, TrafficLayer, useJsApiLoader } from '@react-google-maps/api'
 import { Typography, Input, Button, Select, Popover, Switch, Slider } from 'antd'
 import {
@@ -529,6 +529,31 @@ function DriverCard({
   )
 }
 
+/* ── Contains crashes from the Google Maps SDK (e.g. a degraded/auth-failed
+   map throwing on marker/polyline updates) to the map widget only, so a
+   single bad render there can't blank out the whole page ── */
+class MapErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
+  override state: { error: Error | null } = { error: null }
+
+  static getDerivedStateFromError(error: Error) {
+    return { error }
+  }
+
+  override render() {
+    if (this.state.error) {
+      return (
+        <div style={{ height: '100%', minHeight: 600, width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, color: '#ff4d4f', textAlign: 'center', padding: 24 }}>
+          <Text style={{ color: '#ff4d4f', fontWeight: 600 }}>Map failed to render</Text>
+          <Text style={{ fontSize: 12.5, color: '#8c8c8c', maxWidth: 360 }}>
+            {this.state.error.message || 'An unexpected error occurred in the Google Maps widget.'}
+          </Text>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
+
 /* ── Google Maps view: only mounted once an API key is configured, so the
    loader script is never requested otherwise ── */
 function LiveMapView({
@@ -929,15 +954,17 @@ export default function LiveTrackingPage() {
                   </Text>
                 </div>
               ) : (
-                <LiveMapView
-                  filtered={filtered}
-                  selectedId={selectedId}
-                  selectedStop={selectedStop}
-                  posRef={posRef}
-                  showRoutes={showRoutes}
-                  showTraffic={showTraffic}
-                  onSelect={setSelectedId}
-                />
+                <MapErrorBoundary>
+                  <LiveMapView
+                    filtered={filtered}
+                    selectedId={selectedId}
+                    selectedStop={selectedStop}
+                    posRef={posRef}
+                    showRoutes={showRoutes}
+                    showTraffic={showTraffic}
+                    onSelect={setSelectedId}
+                  />
+                </MapErrorBoundary>
               )}
 
               {/* Map controls: layer toggles + movement simulation */}
