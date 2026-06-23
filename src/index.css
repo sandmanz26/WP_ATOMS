@@ -60,6 +60,21 @@ body {
   background: #bfbfbf;
 }
 
+/* Live Tracking — urgency ticker card pop-in when a trip goes offline/late */
+@keyframes urgency-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.urgency-card {
+  animation: urgency-card-in 0.22s ease-out;
+}
+
 /* Tracking 2.0 — selected marker tooltip */
 .tracking2-tooltip.leaflet-tooltip {
   background: #0f172a;

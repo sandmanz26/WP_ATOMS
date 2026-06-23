@@ -50,21 +50,30 @@ function svgDataUrl(svg: string): string {
   return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`
 }
 
-// Teardrop pin with white steering-wheel icon (black default, blue when selected)
-function makePinIcon(fill: string): google.maps.Icon {
+// Teardrop pin with white steering-wheel icon (black default, blue when
+// selected); offline drivers get a red "no signal" badge so a sudden
+// disconnect is visible on the map, not just in the list.
+function makePinIcon(fill: string, offline = false): google.maps.Icon {
+  const width = offline ? 40 : 34
+  const badge = offline
+    ? `<circle cx="31" cy="8" r="7" fill="#ff4d4f" stroke="#fff" stroke-width="2"/>
+       <line x1="28" y1="5" x2="34" y2="11" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>
+       <line x1="34" y1="5" x2="28" y2="11" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>`
+    : ''
   const svg = `
-    <svg width="34" height="42" viewBox="0 0 34 42" xmlns="http://www.w3.org/2000/svg">
+    <svg width="${width}" height="42" viewBox="0 0 ${width} 42" xmlns="http://www.w3.org/2000/svg">
       <path d="M17 0C7.6 0 0 7.6 0 17c0 12.2 17 25 17 25s17-12.8 17-25C34 7.6 26.4 0 17 0Z" fill="${fill}"/>
       <circle cx="17" cy="16" r="8.4" fill="none" stroke="#ffffff" stroke-width="1.7"/>
       <circle cx="17" cy="16" r="2.1" fill="#ffffff"/>
       <line x1="17" y1="16" x2="17" y2="7.6" stroke="#ffffff" stroke-width="1.7"/>
       <line x1="17" y1="16" x2="10" y2="20.5" stroke="#ffffff" stroke-width="1.7"/>
       <line x1="17" y1="16" x2="24" y2="20.5" stroke="#ffffff" stroke-width="1.7"/>
+      ${badge}
     </svg>
   `
   return {
     url: svgDataUrl(svg),
-    scaledSize: new google.maps.Size(34, 42),
+    scaledSize: new google.maps.Size(width, 42),
     anchor: new google.maps.Point(17, 42),
   }
 }
@@ -286,6 +295,83 @@ function TestConsole({
           </div>
         ))}
       </div>
+    </div>
+  )
+}
+
+/* ── Urgency ticker: surfaces trips that need attention right now (offline
+   or running late) as a row of cards above the map — a card pops in the
+   moment a trip goes wrong and disappears the moment it's resolved, so
+   dispatchers don't have to keep scanning the full driver list. ── */
+function UrgencyTicker({
+  stops,
+  selectedId,
+  onSelect,
+}: {
+  stops: VehicleStop[]
+  selectedId: string | null
+  onSelect: (id: string) => void
+}) {
+  if (stops.length === 0) return null
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        top: 12,
+        left: 12,
+        right: 192,
+        zIndex: 500,
+        display: 'flex',
+        gap: 8,
+        overflowX: 'auto',
+        paddingBottom: 4,
+      }}
+    >
+      {stops.map((s) => {
+        const offline = !s.online
+        const accent = offline ? '#ff4d4f' : '#faad14'
+        const selected = selectedId === s.id
+        return (
+          <button
+            key={s.id}
+            onClick={() => onSelect(s.id)}
+            className="urgency-card"
+            style={{
+              flexShrink: 0,
+              width: 150,
+              textAlign: 'left',
+              background: '#fff',
+              border: `1px solid ${selected ? accent : '#f0f0f0'}`,
+              borderRadius: 10,
+              boxShadow: '0 4px 14px rgba(15,23,42,.14)',
+              overflow: 'hidden',
+              cursor: 'pointer',
+              padding: 0,
+            }}
+          >
+            <div style={{ height: 4, background: accent }} />
+            <div style={{ padding: '7px 10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                {offline ? (
+                  <WifiOutlined style={{ color: accent, fontSize: 12 }} />
+                ) : (
+                  <ClockCircleOutlined style={{ color: accent, fontSize: 12 }} />
+                )}
+                <Text style={{ fontSize: 12, fontWeight: 700, color: '#1a1a1a' }}>{s.label}</Text>
+              </div>
+              <Text
+                style={{ fontSize: 11, color: '#8c8c8c', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                title={s.driver}
+              >
+                {s.driver}
+              </Text>
+              <Text style={{ fontSize: 11, fontWeight: 600, color: accent }}>
+                {offline ? 'Offline' : `Late · ETA ${s.eta ? formatTimeAmPm(s.eta) : '-'}`}
+              </Text>
+            </div>
+          </button>
+        )
+      })}
     </div>
   )
 }
@@ -587,6 +673,8 @@ function LiveMapView({
   const mapRef = useRef<google.maps.Map | null>(null)
   const carIcon = useMemo(() => (isLoaded ? makePinIcon('#1a1a1a') : undefined), [isLoaded])
   const carIconSelected = useMemo(() => (isLoaded ? makePinIcon('#1677ff') : undefined), [isLoaded])
+  const carIconOffline = useMemo(() => (isLoaded ? makePinIcon('#1a1a1a', true) : undefined), [isLoaded])
+  const carIconOfflineSelected = useMemo(() => (isLoaded ? makePinIcon('#1677ff', true) : undefined), [isLoaded])
   const originIcon = useMemo(() => (isLoaded ? makeOriginIcon() : undefined), [isLoaded])
   const destinationIcon = useMemo(() => (isLoaded ? makeDestinationIcon() : undefined), [isLoaded])
 
@@ -710,14 +798,18 @@ function LiveMapView({
         .filter((x) => x.pos != null)
         .map(({ stop, pos }) => {
           const [lat, lng] = pos as [number, number]
+          const sel = selectedId === stop.id
+          const icon = stop.online
+            ? sel ? carIconSelected : carIcon
+            : sel ? carIconOfflineSelected : carIconOffline
           return (
             <div key={stop.id}>
               <Marker
                 position={{ lat, lng }}
-                icon={selectedId === stop.id ? carIconSelected : carIcon}
+                icon={icon}
                 onClick={() => onSelect(stop.id)}
               />
-              {selectedId === stop.id && (
+              {sel && (
                 <InfoWindow position={{ lat, lng }} options={{ disableAutoPan: true, pixelOffset: new google.maps.Size(0, -38) }}>
                   <div style={{ fontSize: 12.5, whiteSpace: 'nowrap' }}>
                     <strong>{stop.driver}</strong> · {stop.plate} · ETA{' '}
@@ -818,6 +910,11 @@ export default function LiveTrackingPage() {
   posRef.current = Object.fromEntries(stops.map((s) => [s.id, livePos(s)]))
 
   const selectedStop = selectedId ? stops.find((s) => s.id === selectedId) ?? null : null
+
+  // Trips needing attention right now — offline or running late — for the
+  // urgency ticker above the map. Based on the full dataset (not `filtered`)
+  // so a problem trip doesn't vanish just because of an active search/filter.
+  const urgentStops = stops.filter((s) => !s.online || deriveStatus(s) === 'Late')
 
   // When selection changes (e.g. from a marker click), auto-scroll the list to its card
   useEffect(() => {
@@ -1018,6 +1115,8 @@ export default function LiveTrackingPage() {
                   />
                 </MapErrorBoundary>
               )}
+
+              <UrgencyTicker stops={urgentStops} selectedId={selectedId} onSelect={setSelectedId} />
 
               {/* Map controls: layer toggles + movement simulation */}
               <div
