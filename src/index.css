@@ -132,6 +132,25 @@ body {
   75%, 100% { transform: scale(2.4); opacity: 0; }
 }
 
+/* Live Tracking — Google Maps InfoWindow (driver marker tooltip) restyle:
+   rounder bubble, softer shadow, no underline on the close icon row */
+.gm-style .gm-style-iw-c {
+  border-radius: 12px;
+  padding: 10px 12px !important;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18);
+}
+.gm-style .gm-style-iw-d {
+  overflow: visible !important;
+}
+.gm-style .gm-style-iw-tc::after {
+  background: #fff;
+  box-shadow: 0 2px 4px rgba(15, 23, 42, 0.08);
+}
+.gm-style .gm-ui-hover-effect {
+  top: 4px !important;
+  right: 4px !important;
+}
+
 /* Tracking 2.0 — selected marker tooltip */
 .tracking2-tooltip.leaflet-tooltip {
   background: #0f172a;

@@ -18,6 +18,8 @@ import {
   BugOutlined,
   EnvironmentOutlined,
   CheckOutlined,
+  MenuFoldOutlined,
+  MenuUnfoldOutlined,
 } from '@ant-design/icons'
 import {
   type VehicleStop,
@@ -493,6 +495,11 @@ function DriverCard({
 }) {
   const status = deriveStatus(stop)
   const s = STATUS_STYLE[status]
+  // deriveStatus() folds offline into 'To Check' (shared with Tracking 2.0,
+  // not to be changed here) — but the status switcher has a distinct
+  // "Offline" option, so the badge shown to the admin must say "Offline"
+  // too rather than silently relabelling it "To Check".
+  const statusLabel = stop.online ? status : 'Offline'
   // PRD §4.2.3/BR-002: status + ETA are hidden once the first point is registered
   const showStatusAndEta = !stop.firstPointRegistered
   return (
@@ -595,7 +602,7 @@ function DriverCard({
               borderRadius: 6,
             }}
           >
-            {status}
+            {statusLabel}
           </span>
         </div>
       ) : (
@@ -818,22 +825,62 @@ function LiveMapView({
                 icon={icon}
                 onClick={() => onSelect(stop.id)}
               />
-              {sel && (
-                <InfoWindow position={{ lat, lng }} options={{ disableAutoPan: true, pixelOffset: new google.maps.Size(0, -38) }}>
-                  <div style={{ fontSize: 12.5, whiteSpace: 'nowrap' }}>
-                    <strong>{stop.driver}</strong> · {stop.plate}
-                    {stop.online ? (
-                      <>
-                        {' '}· ETA {stop.eta ? formatTimeAmPm(stop.eta) : '-'}
-                      </>
-                    ) : (
-                      <div style={{ color: '#ff4d4f' }}>
-                        Offline · last seen{stop.lastOnline ? ` ${stop.lastOnline}` : ' position unknown'}
+              {sel && (() => {
+                // Same deriveStatus()/STATUS_STYLE source of truth as the
+                // driver list and the test switcher, so the badge here never
+                // drifts from what's shown anywhere else. deriveStatus()
+                // folds offline into 'To Check', so relabel it "Offline" —
+                // matching the switcher's own distinct option for it.
+                const tripStatus = deriveStatus(stop)
+                const tripStyle = STATUS_STYLE[tripStatus]
+                const tripStatusLabel = stop.online ? tripStatus : 'Offline'
+                return (
+                  <InfoWindow position={{ lat, lng }} options={{ disableAutoPan: true, pixelOffset: new google.maps.Size(0, -38) }}>
+                    <div style={{ minWidth: 188, fontSize: 12.5 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <WifiOutlined style={{ color: stop.online ? '#52c41a' : '#ff4d4f', fontSize: 13 }} />
+                        <strong style={{ fontSize: 13, whiteSpace: 'nowrap' }}>{stop.driver}</strong>
+                        <span style={{ marginLeft: 'auto', fontSize: 11.5, color: '#8c8c8c', whiteSpace: 'nowrap' }}>{stop.plate}</span>
                       </div>
-                    )}
-                  </div>
-                </InfoWindow>
-              )}
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          marginTop: 6,
+                          paddingTop: 6,
+                          borderTop: '1px solid #f0f0f0',
+                        }}
+                      >
+                        {stop.online ? (
+                          <Text style={{ fontSize: 12, color: '#8c8c8c' }}>
+                            ETA <strong style={{ color: '#1a1a1a' }}>{stop.eta ? formatTimeAmPm(stop.eta) : '-'}</strong>
+                          </Text>
+                        ) : (
+                          <Text style={{ fontSize: 12, color: '#ff4d4f', fontWeight: 600 }}>
+                            Offline · last seen{stop.lastOnline ? ` ${stop.lastOnline}` : ' position unknown'}
+                          </Text>
+                        )}
+                        <span
+                          style={{
+                            background: tripStyle.bg,
+                            color: tripStyle.color,
+                            border: `1px solid ${tripStyle.border}`,
+                            fontSize: 11,
+                            fontWeight: 500,
+                            padding: '1px 8px',
+                            borderRadius: 6,
+                            whiteSpace: 'nowrap',
+                            marginLeft: 8,
+                          }}
+                        >
+                          {tripStatusLabel}
+                        </span>
+                      </div>
+                    </div>
+                  </InfoWindow>
+                )
+              })()}
             </div>
           )
         })}
@@ -845,6 +892,10 @@ export default function LiveTrackingPage() {
   const [filter, setFilter] = useState<'All' | 'Offline' | 'Online' | 'To Check'>('All')
   const [search, setSearch] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  // Lets the driver list panel be hidden to free up width for the map —
+  // it's a fixed-width column, so on a narrow viewport it can otherwise
+  // crowd the map down to a sliver with no way to get it back
+  const [showDriverList, setShowDriverList] = useState(true)
 
   // Trips an admin has "taken" off the urgency ticker to action — moves them
   // into the "To Check" tab/queue so the ticker frees up for the next
@@ -909,6 +960,18 @@ export default function LiveTrackingPage() {
     })
 
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({})
+  // Driver list height tracks the left column's rendered height (stat cards
+  // + ticker + map) so it always reaches the same bottom edge as the map,
+  // instead of a hardcoded cap that leaves a gap when the map area grows.
+  const leftColRef = useRef<HTMLDivElement | null>(null)
+  const [leftColHeight, setLeftColHeight] = useState(600)
+  useEffect(() => {
+    if (!leftColRef.current) return
+    const el = leftColRef.current
+    const observer = new ResizeObserver(([entry]) => setLeftColHeight(entry.contentRect.height))
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
   // Latest live position per driver (animated when simulating, else static)
   const posRef = useRef<Record<string, [number, number] | null>>({})
 
@@ -1089,9 +1152,9 @@ export default function LiveTrackingPage() {
           padding: 20,
         }}
       >
-        <div style={{ display: 'flex', gap: 16, alignItems: 'stretch' }}>
+        <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
           {/* ── Left column: stat cards + map ── */}
-          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+          <div ref={leftColRef} style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
             {/* Stat cards */}
             <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
               <StatCard
@@ -1229,59 +1292,74 @@ export default function LiveTrackingPage() {
           </div>
 
           {/* ── Right column: search + pills + list ── */}
-          <div style={{ width: 360, flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
-            {/* Search + filter */}
-            <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-              <Input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
-                placeholder="input route code, bus label..."
-                style={{ flex: 1, borderRadius: 8 }}
-                allowClear
-              />
-              <Popover
-                content={filterContent}
-                trigger="click"
-                open={filterOpen}
-                onOpenChange={setFilterOpen}
-                placement="bottomRight"
-              >
-                <Button icon={<FilterOutlined />} style={{ borderColor: '#e8e8e8', color: '#595959' }} />
-              </Popover>
-            </div>
+          {showDriverList ? (
+            <div style={{ width: 360, flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
+              {/* Search + filter */}
+              <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                <Input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
+                  placeholder="input route code, bus label..."
+                  style={{ flex: 1, borderRadius: 8 }}
+                  allowClear
+                />
+                <Popover
+                  content={filterContent}
+                  trigger="click"
+                  open={filterOpen}
+                  onOpenChange={setFilterOpen}
+                  placement="bottomRight"
+                >
+                  <Button icon={<FilterOutlined />} style={{ borderColor: '#e8e8e8', color: '#595959' }} />
+                </Popover>
+                <Button
+                  icon={<MenuFoldOutlined />}
+                  onClick={() => setShowDriverList(false)}
+                  style={{ borderColor: '#e8e8e8', color: '#595959' }}
+                  title="Hide list"
+                />
+              </div>
 
-            {/* Filter pills */}
-            <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-              <Pill active={filter === 'All'} onClick={() => setFilter('All')}>All</Pill>
-              <Pill active={filter === 'Offline'} onClick={() => setFilter('Offline')}>Offline</Pill>
-              <Pill active={filter === 'Online'} onClick={() => setFilter('Online')}>Online</Pill>
-              <Pill active={filter === 'To Check'} onClick={() => setFilter('To Check')}>
-                To Check{takenIds.size > 0 ? ` (${takenIds.size})` : ''}
-              </Pill>
-            </div>
+              {/* Filter pills */}
+              <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                <Pill active={filter === 'All'} onClick={() => setFilter('All')}>All</Pill>
+                <Pill active={filter === 'Offline'} onClick={() => setFilter('Offline')}>Offline</Pill>
+                <Pill active={filter === 'Online'} onClick={() => setFilter('Online')}>Online</Pill>
+                <Pill active={filter === 'To Check'} onClick={() => setFilter('To Check')}>
+                  To Check{takenIds.size > 0 ? ` (${takenIds.size})` : ''}
+                </Pill>
+              </div>
 
-            {/* Driver list */}
-            <div style={{ flex: 1, overflowY: 'auto', maxHeight: 600, paddingRight: 2 }}>
-              {filtered.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '40px 0', color: '#bfbfbf', fontSize: 13 }}>
-                  No drivers found
-                </div>
-              ) : (
-                filtered.map((stop) => (
-                  <DriverCard
-                    key={stop.id}
-                    stop={stop}
-                    selected={selectedId === stop.id}
-                    onSelect={() => setSelectedId(stop.id)}
-                    innerRef={(el) => {
-                      cardRefs.current[stop.id] = el
-                    }}
-                  />
-                ))
-              )}
+              {/* Driver list */}
+              <div style={{ flex: 1, overflowY: 'auto', maxHeight: leftColHeight, paddingRight: 2 }}>
+                {filtered.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '40px 0', color: '#bfbfbf', fontSize: 13 }}>
+                    No drivers found
+                  </div>
+                ) : (
+                  filtered.map((stop) => (
+                    <DriverCard
+                      key={stop.id}
+                      stop={stop}
+                      selected={selectedId === stop.id}
+                      onSelect={() => setSelectedId(stop.id)}
+                      innerRef={(el) => {
+                        cardRefs.current[stop.id] = el
+                      }}
+                    />
+                  ))
+                )}
+              </div>
             </div>
-          </div>
+          ) : (
+            <Button
+              icon={<MenuUnfoldOutlined />}
+              onClick={() => setShowDriverList(true)}
+              style={{ flexShrink: 0, borderColor: '#e8e8e8', color: '#595959' }}
+              title="Show list"
+            />
+          )}
         </div>
       </div>
 
