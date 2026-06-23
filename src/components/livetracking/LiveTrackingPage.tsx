@@ -33,14 +33,17 @@ import {
   deriveStatus,
   toMinutes,
   pointAlong,
+  routeKey,
   STATUS_STYLE,
   formatTimeAmPm,
 } from './trackingData'
 
 const { Text } = Typography
 
-// PRD §4.1.2 requires the real Google Maps traffic layer; set this in
-// .env.local (see the setup guide) — never commit a real key.
+// PRD §4.1.2 requires the real Google Maps traffic layer, and routes follow
+// actual roads via the Directions API. Set this in .env.local (see the
+// setup guide) — never commit a real key. Needs "Maps JavaScript API" and
+// "Directions API" enabled.
 const GOOGLE_MAPS_API_KEY = (import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined) ?? ''
 
 function svgDataUrl(svg: string): string {
@@ -564,6 +567,7 @@ function LiveMapView({
   showRoutes,
   showTraffic,
   onSelect,
+  onRouteResolved,
 }: {
   filtered: VehicleStop[]
   selectedId: string | null
@@ -572,6 +576,7 @@ function LiveMapView({
   showRoutes: boolean
   showTraffic: boolean
   onSelect: (id: string) => void
+  onRouteResolved: (key: string, path: [number, number][]) => void
 }) {
   const { isLoaded, loadError } = useJsApiLoader({
     id: 'google-map-script',
@@ -582,6 +587,38 @@ function LiveMapView({
   const carIconSelected = useMemo(() => (isLoaded ? makePinIcon('#1677ff') : undefined), [isLoaded])
   const originIcon = useMemo(() => (isLoaded ? makeOriginIcon() : undefined), [isLoaded])
   const destinationIcon = useMemo(() => (isLoaded ? makeDestinationIcon() : undefined), [isLoaded])
+
+  // Fetch the real, road-following route for each distinct origin→destination
+  // leg via the Directions API (requires "Directions API" enabled on the
+  // Maps key) — replaces the synthetic curve as soon as it resolves. Keyed
+  // by leg so trips that share a pickup/destination only fetch once.
+  const requestedKeysRef = useRef<Set<string>>(new Set())
+  useEffect(() => {
+    if (!isLoaded) return
+    const service = new google.maps.DirectionsService()
+    filtered.forEach((s) => {
+      if (!s.from || !s.to) return
+      const key = routeKey(s.from, s.to)
+      if (requestedKeysRef.current.has(key)) return
+      requestedKeysRef.current.add(key)
+      service.route(
+        {
+          origin: { lat: s.from.lat, lng: s.from.lng },
+          destination: { lat: s.to.lat, lng: s.to.lng },
+          travelMode: google.maps.TravelMode.DRIVING,
+        },
+        (result, status) => {
+          if (status === google.maps.DirectionsStatus.OK && result) {
+            const path = result.routes[0].overview_path.map((p) => [p.lat(), p.lng()] as [number, number])
+            onRouteResolved(key, path)
+          } else {
+            // Leave the synthetic curve in place and allow a retry later
+            requestedKeysRef.current.delete(key)
+          }
+        }
+      )
+    })
+  }, [isLoaded, filtered, onRouteResolved])
 
   // Pan/zoom the map when a card/marker is selected (replaces Leaflet's MapController)
   useEffect(() => {
@@ -725,9 +762,21 @@ export default function LiveTrackingPage() {
     y: 96,
   })
 
+  // Real, road-following routes resolved from the Directions API, keyed by
+  // routeKey(from, to) — replaces the synthetic curve once available.
+  const [realRoutes, setRealRoutes] = useState<Record<string, [number, number][]>>({})
+  const onRouteResolved = (key: string, path: [number, number][]) =>
+    setRealRoutes((prev) => (prev[key] ? prev : { ...prev, [key]: path }))
+
   const visibleTrips = baseTrips.slice(0, driverCount)
   const workingTrips = visibleTrips.map((t) => applyOverride(t, statusOverrides[t.id] ?? 'auto'))
-  const stops = buildStops(workingTrips)
+  const stops = buildStops(workingTrips).map((s) => {
+    if (!s.from || !s.to) return s
+    const real = realRoutes[routeKey(s.from, s.to)]
+    if (!real) return s
+    const pos = pointAlong(real, s.phase)
+    return { ...s, route: real, lat: pos[0], lng: pos[1] }
+  })
 
   const setOverride = (id: string, v: StatusOverride) =>
     setStatusOverrides((prev) => ({ ...prev, [id]: v }))
@@ -963,6 +1012,7 @@ export default function LiveTrackingPage() {
                     showRoutes={showRoutes}
                     showTraffic={showTraffic}
                     onSelect={setSelectedId}
+                    onRouteResolved={onRouteResolved}
                   />
                 </MapErrorBoundary>
               )}

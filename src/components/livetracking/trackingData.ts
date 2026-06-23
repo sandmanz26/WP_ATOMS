@@ -86,6 +86,12 @@ export function buildRoute(from: TripPoint, to: TripPoint): [number, number][] {
   return pts
 }
 
+// Cache key for a from→to pair, used to dedupe Directions API requests and
+// to look up a resolved real route (several trips can share the same leg).
+export function routeKey(from: TripPoint, to: TripPoint): string {
+  return `${from.lat},${from.lng}|${to.lat},${to.lng}`
+}
+
 // Interpolate a position along a route at fraction t (0..1) — used by the
 // movement simulation.
 export function pointAlong(route: [number, number][], t: number): [number, number] {
