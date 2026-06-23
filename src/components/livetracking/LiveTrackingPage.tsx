@@ -259,6 +259,7 @@ function TestConsole({
             onChange={onBulkStatusChange}
             options={OVERRIDE_OPTIONS}
             style={{ flex: 1 }}
+            dropdownStyle={{ zIndex: 2100 }}
           />
           <Button size="small" onClick={onBulkApply}>Apply to all</Button>
         </div>
@@ -280,6 +281,7 @@ function TestConsole({
               onChange={(v) => onOverrideChange(t.id, v)}
               options={OVERRIDE_OPTIONS}
               style={{ width: 104, flexShrink: 0 }}
+              dropdownStyle={{ zIndex: 2100 }}
             />
           </div>
         ))}
