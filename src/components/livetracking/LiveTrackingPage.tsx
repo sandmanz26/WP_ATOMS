@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, Component, type ReactNode } from 'react'
 import { GoogleMap, Marker, Polyline, InfoWindow, TrafficLayer, useJsApiLoader } from '@react-google-maps/api'
-import { Typography, Input, Button, Select, Popover, Switch, Slider } from 'antd'
+import { Typography, Input, Button, Select, Popover, Switch, Slider, Tooltip } from 'antd'
 import {
   SearchOutlined,
   FilterOutlined,
@@ -21,6 +21,7 @@ import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   BgColorsOutlined,
+  PushpinOutlined,
 } from '@ant-design/icons'
 import {
   type VehicleStop,
@@ -493,11 +494,18 @@ function DriverCard({
   selected,
   onSelect,
   innerRef,
+  overridden,
+  onClearOverride,
 }: {
   stop: VehicleStop
   selected: boolean
   onSelect: () => void
   innerRef: (el: HTMLDivElement | null) => void
+  // Set when this trip's status was force-set via the Test Console switcher
+  // rather than computed live — surfaced here so ops scanning the list can
+  // tell at a glance which rows aren't trustworthy live data.
+  overridden: boolean
+  onClearOverride: () => void
 }) {
   const status = deriveStatus(stop)
   const s = STATUS_STYLE[status]
@@ -597,19 +605,32 @@ function DriverCard({
               {stop.online && stop.eta ? formatTimeAmPm(stop.eta) : '-'}
             </Text>
           </Text>
-          <span
-            style={{
-              background: s.bg,
-              color: s.color,
-              border: `1px solid ${s.border}`,
-              fontSize: 12,
-              fontWeight: 500,
-              padding: '2px 10px',
-              borderRadius: 6,
-            }}
-          >
-            {statusLabel}
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            {overridden && (
+              <Tooltip title="Status manually pinned via Test Console — not live. Click to revert to Auto.">
+                <PushpinOutlined
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onClearOverride()
+                  }}
+                  style={{ color: '#8c8c8c', fontSize: 13, cursor: 'pointer' }}
+                />
+              </Tooltip>
+            )}
+            <span
+              style={{
+                background: s.bg,
+                color: s.color,
+                border: `1px solid ${s.border}`,
+                fontSize: 12,
+                fontWeight: 500,
+                padding: '2px 10px',
+                borderRadius: 6,
+              }}
+            >
+              {statusLabel}
+            </span>
+          </div>
         </div>
       ) : (
         <div
@@ -1441,6 +1462,8 @@ export default function LiveTrackingPage() {
                       innerRef={(el) => {
                         cardRefs.current[stop.id] = el
                       }}
+                      overridden={(statusOverrides[stop.id] ?? 'auto') !== 'auto'}
+                      onClearOverride={() => setOverride(stop.id, 'auto')}
                     />
                   ))
                 )}
