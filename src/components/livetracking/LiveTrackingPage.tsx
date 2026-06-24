@@ -20,6 +20,7 @@ import {
   CheckOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
+  BgColorsOutlined,
 } from '@ant-design/icons'
 import {
   type VehicleStop,
@@ -666,6 +667,76 @@ class MapErrorBoundary extends Component<{ children: ReactNode }, { error: Error
   }
 }
 
+/* ── Map color themes — applied via the GoogleMap `styles` option. "Default"
+   sends an empty array (Google's stock look); the rest recolor roads,
+   water, land and POI so ops can switch to something easier on the eyes
+   for long shifts or low-light rooms ── */
+const MAP_THEMES = {
+  default: [],
+  silver: [
+    { elementType: 'geometry', stylers: [{ color: '#f5f5f5' }] },
+    { elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
+    { elementType: 'labels.text.fill', stylers: [{ color: '#616161' }] },
+    { elementType: 'labels.text.stroke', stylers: [{ color: '#f5f5f5' }] },
+    { featureType: 'administrative.land_parcel', elementType: 'labels.text.fill', stylers: [{ color: '#bdbdbd' }] },
+    { featureType: 'poi', elementType: 'geometry', stylers: [{ color: '#eeeeee' }] },
+    { featureType: 'poi', elementType: 'labels.text.fill', stylers: [{ color: '#757575' }] },
+    { featureType: 'poi.park', elementType: 'geometry', stylers: [{ color: '#e5e5e5' }] },
+    { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#ffffff' }] },
+    { featureType: 'road.arterial', elementType: 'labels.text.fill', stylers: [{ color: '#757575' }] },
+    { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#dadada' }] },
+    { featureType: 'road.highway', elementType: 'labels.text.fill', stylers: [{ color: '#616161' }] },
+    { featureType: 'road.local', elementType: 'labels.text.fill', stylers: [{ color: '#9e9e9e' }] },
+    { featureType: 'transit.line', elementType: 'geometry', stylers: [{ color: '#e5e5e5' }] },
+    { featureType: 'transit.station', elementType: 'geometry', stylers: [{ color: '#eeeeee' }] },
+    { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#c9c9c9' }] },
+  ],
+  night: [
+    { elementType: 'geometry', stylers: [{ color: '#212121' }] },
+    { elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
+    { elementType: 'labels.text.fill', stylers: [{ color: '#9e9e9e' }] },
+    { elementType: 'labels.text.stroke', stylers: [{ color: '#212121' }] },
+    { featureType: 'administrative', elementType: 'geometry', stylers: [{ color: '#757575' }] },
+    { featureType: 'administrative.country', elementType: 'labels.text.fill', stylers: [{ color: '#9e9e9e' }] },
+    { featureType: 'poi', elementType: 'labels.text.fill', stylers: [{ color: '#757575' }] },
+    { featureType: 'poi.park', elementType: 'geometry', stylers: [{ color: '#181818' }] },
+    { featureType: 'poi.park', elementType: 'labels.text.fill', stylers: [{ color: '#616161' }] },
+    { featureType: 'road', elementType: 'geometry.fill', stylers: [{ color: '#2c2c2c' }] },
+    { featureType: 'road', elementType: 'labels.text.fill', stylers: [{ color: '#8a8a8a' }] },
+    { featureType: 'road.arterial', elementType: 'geometry', stylers: [{ color: '#373737' }] },
+    { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#3c3c3c' }] },
+    { featureType: 'road.highway.controlled_access', elementType: 'geometry', stylers: [{ color: '#4e4e4e' }] },
+    { featureType: 'transit', elementType: 'labels.text.fill', stylers: [{ color: '#757575' }] },
+    { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#000000' }] },
+    { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: '#3d3d3d' }] },
+  ],
+  retro: [
+    { elementType: 'geometry', stylers: [{ color: '#ebe3cd' }] },
+    { elementType: 'labels.text.fill', stylers: [{ color: '#523735' }] },
+    { elementType: 'labels.text.stroke', stylers: [{ color: '#f5f1e6' }] },
+    { featureType: 'administrative', elementType: 'geometry.stroke', stylers: [{ color: '#c9b2a6' }] },
+    { featureType: 'landscape.natural', elementType: 'geometry', stylers: [{ color: '#dfd2ae' }] },
+    { featureType: 'poi', elementType: 'geometry', stylers: [{ color: '#dfd2ae' }] },
+    { featureType: 'poi.park', elementType: 'geometry.fill', stylers: [{ color: '#a5b076' }] },
+    { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#f5f1e6' }] },
+    { featureType: 'road.arterial', elementType: 'geometry', stylers: [{ color: '#fdfcf8' }] },
+    { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#f8c967' }] },
+    { featureType: 'road.highway', elementType: 'geometry.stroke', stylers: [{ color: '#e9bc62' }] },
+    { featureType: 'transit.line', elementType: 'geometry', stylers: [{ color: '#dfd2ae' }] },
+    { featureType: 'water', elementType: 'geometry.fill', stylers: [{ color: '#b9d3c2' }] },
+    { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: '#92998d' }] },
+  ],
+} as const satisfies Record<string, google.maps.MapTypeStyle[]>
+
+type MapTheme = keyof typeof MAP_THEMES
+
+const MAP_THEME_OPTIONS: { value: MapTheme; label: string }[] = [
+  { value: 'default', label: 'Default' },
+  { value: 'silver', label: 'Silver' },
+  { value: 'night', label: 'Night' },
+  { value: 'retro', label: 'Retro' },
+]
+
 /* ── Google Maps view: only mounted once an API key is configured, so the
    loader script is never requested otherwise ── */
 function LiveMapView({
@@ -675,6 +746,7 @@ function LiveMapView({
   posRef,
   showRoutes,
   showTraffic,
+  mapTheme,
   onSelect,
   onRouteResolved,
 }: {
@@ -684,6 +756,7 @@ function LiveMapView({
   posRef: React.MutableRefObject<Record<string, [number, number] | null>>
   showRoutes: boolean
   showTraffic: boolean
+  mapTheme: MapTheme
   onSelect: (id: string) => void
   onRouteResolved: (key: string, path: [number, number][]) => void
 }) {
@@ -772,6 +845,7 @@ function LiveMapView({
         zoomControl: true,
         streetViewControl: false,
         mapTypeControl: false,
+        styles: MAP_THEMES[mapTheme],
       }}
     >
       {/* Real-time road conditions (traffic) — toggleable */}
@@ -920,6 +994,7 @@ export default function LiveTrackingPage() {
   // Map layer toggles + movement simulation
   const [showRoutes, setShowRoutes] = useState(true)
   const [showTraffic, setShowTraffic] = useState(true)
+  const [mapTheme, setMapTheme] = useState<MapTheme>('default')
   const [simulating, setSimulating] = useState(false)
   const [progress, setProgress] = useState(0)
 
@@ -1223,6 +1298,7 @@ export default function LiveTrackingPage() {
                     posRef={posRef}
                     showRoutes={showRoutes}
                     showTraffic={showTraffic}
+                    mapTheme={mapTheme}
                     onSelect={setSelectedId}
                     onRouteResolved={onRouteResolved}
                   />
@@ -1247,6 +1323,19 @@ export default function LiveTrackingPage() {
                   minWidth: 168,
                 }}
               >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                  <Text style={{ fontSize: 13, color: '#595959' }}>
+                    <BgColorsOutlined style={{ marginRight: 6 }} />
+                    Map theme
+                  </Text>
+                  <Select
+                    size="small"
+                    value={mapTheme}
+                    onChange={setMapTheme}
+                    options={MAP_THEME_OPTIONS}
+                    style={{ width: 92 }}
+                  />
+                </div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
                   <Text style={{ fontSize: 13, color: '#595959' }}>Show routes</Text>
                   <Switch size="small" checked={showRoutes} onChange={setShowRoutes} />
