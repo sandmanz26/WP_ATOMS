@@ -953,8 +953,14 @@ function LiveMapView({
                         }}
                       >
                         {stop.online ? (
-                          <Text style={{ fontSize: 12, color: '#8c8c8c' }}>
-                            ETA <strong style={{ color: '#1a1a1a' }}>{stop.eta ? formatTimeAmPm(stop.eta) : '-'}</strong>
+                          <Text style={{ fontSize: 12, color: tripStatus === 'Late' ? '#ff4d4f' : '#8c8c8c' }}>
+                            ETA{' '}
+                            <strong style={{ color: tripStatus === 'Late' ? '#ff4d4f' : '#1a1a1a' }}>
+                              {stop.eta ? formatTimeAmPm(stop.eta) : '-'}
+                            </strong>
+                            {tripStatus === 'Late' && stop.eta && (
+                              <> · {toMinutes(stop.eta) - toMinutes(stop.scheduled)} min late</>
+                            )}
                           </Text>
                         ) : (
                           <Text style={{ fontSize: 12, color: '#ff4d4f', fontWeight: 600 }}>

@@ -150,6 +150,16 @@ body {
   top: 4px !important;
   right: 4px !important;
 }
+/* Google's redesigned InfoWindow chrome reserves a header row for a title
+   even when none is set (we don't use the `title` option) — collapse it so
+   our content isn't pushed down by a block of dead space */
+.gm-style .gm-style-iw-chr {
+  height: 0;
+}
+.gm-style .gm-style-iw-ch {
+  padding: 0 !important;
+  min-height: 0 !important;
+}
 
 /* Tracking 2.0 — selected marker tooltip */
 .tracking2-tooltip.leaflet-tooltip {
