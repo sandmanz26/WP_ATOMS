@@ -467,6 +467,166 @@ function UrgencyTicker({
           )
         }
 
+        // ── Stripe: left accent bar, notification-style aligned rows ──
+        if (design === 'stripe') {
+          return (
+            <div
+              key={s.id}
+              role="button"
+              tabIndex={0}
+              onClick={() => onSelect(s.id)}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onSelect(s.id) }}
+              className={cardCls}
+              style={{
+                flexShrink: 0,
+                width: 190,
+                display: 'flex',
+                textAlign: 'left',
+                background: '#fff',
+                border: `1px solid ${selected ? accent : '#f0f0f0'}`,
+                borderRadius: 10,
+                overflow: 'hidden',
+                cursor: 'pointer',
+              }}
+            >
+              <div className="urgency-strip" style={{ width: 4, background: accent, flexShrink: 0 }} />
+              <div style={{ padding: '8px 10px', flex: 1, minWidth: 0, position: 'relative' }}>
+                <span className="urgency-ping" style={{ color: accent }} />
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}>
+                    <StatusIcon style={{ color: accent, fontSize: 13 }} />
+                    <Text style={{ fontSize: 12.5, fontWeight: 700, color: '#1a1a1a' }}>{s.label}</Text>
+                  </div>
+                  <span
+                    style={{
+                      background: offline ? '#fff1f0' : '#fffbe6',
+                      color: accent,
+                      border: `1px solid ${offline ? '#ffccc7' : '#ffe58f'}`,
+                      fontSize: 10,
+                      fontWeight: 600,
+                      padding: '1px 7px',
+                      borderRadius: 5,
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {offline ? 'Offline' : 'Late'}
+                  </span>
+                </div>
+                <Text style={{ fontSize: 11, color: '#8c8c8c', display: 'block', marginTop: 4 }} ellipsis title={s.driver}>
+                  {s.driver}
+                </Text>
+                <Text style={{ fontSize: 11, fontWeight: 600, color: offline ? '#8c8c8c' : accent, display: 'block', marginTop: 1 }}>
+                  {offline
+                    ? (s.lastOnline ? `Last seen ${s.lastOnline}` : 'Position unknown')
+                    : `ETA ${s.eta ? formatTimeAmPm(s.eta) : '-'}`}
+                </Text>
+                {takeBtn}
+              </div>
+            </div>
+          )
+        }
+
+        // ── Solid: filled colored header band, status-forward and scannable ──
+        if (design === 'solid') {
+          return (
+            <div
+              key={s.id}
+              role="button"
+              tabIndex={0}
+              onClick={() => onSelect(s.id)}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onSelect(s.id) }}
+              className={cardCls}
+              style={{
+                flexShrink: 0,
+                width: 172,
+                textAlign: 'left',
+                background: '#fff',
+                border: `1px solid ${selected ? accent : '#f0f0f0'}`,
+                borderRadius: 10,
+                overflow: 'hidden',
+                cursor: 'pointer',
+                position: 'relative',
+              }}
+            >
+              <span className="urgency-ping" style={{ color: '#fff' }} />
+              <div
+                style={{
+                  background: accent,
+                  padding: '6px 10px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 8,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}>
+                  <StatusIcon style={{ color: '#fff', fontSize: 13 }} />
+                  <Text style={{ fontSize: 12.5, fontWeight: 700, color: '#fff' }}>{s.label}</Text>
+                </div>
+                <Text style={{ fontSize: 9.5, fontWeight: 700, color: '#fff', letterSpacing: 0.4, whiteSpace: 'nowrap' }}>
+                  {offline ? 'OFFLINE' : 'LATE'}
+                </Text>
+              </div>
+              <div style={{ padding: '8px 10px' }}>
+                <Text style={{ fontSize: 11, color: '#595959', display: 'block' }} ellipsis title={s.driver}>
+                  {s.driver}
+                </Text>
+                <Text style={{ fontSize: 11.5, fontWeight: 600, color: '#1a1a1a', display: 'block', marginTop: 1 }}>
+                  {offline
+                    ? (s.lastOnline ? `Last seen ${s.lastOnline}` : 'Position unknown')
+                    : `ETA ${s.eta ? formatTimeAmPm(s.eta) : '-'}`}
+                </Text>
+                {takeBtn}
+              </div>
+            </div>
+          )
+        }
+
+        // ── Compact: single short row, smallest vertical footprint ──
+        if (design === 'compact') {
+          return (
+            <div
+              key={s.id}
+              role="button"
+              tabIndex={0}
+              onClick={() => onSelect(s.id)}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onSelect(s.id) }}
+              className={cardCls}
+              style={{
+                flexShrink: 0,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                height: 42,
+                paddingRight: 8,
+                background: '#fff',
+                border: `1px solid ${selected ? accent : '#f0f0f0'}`,
+                borderRadius: 10,
+                overflow: 'hidden',
+                cursor: 'pointer',
+                position: 'relative',
+              }}
+            >
+              <div className="urgency-strip" style={{ width: 4, alignSelf: 'stretch', background: accent, flexShrink: 0 }} />
+              <StatusIcon style={{ color: accent, fontSize: 15, flexShrink: 0 }} />
+              <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.2, minWidth: 0 }}>
+                <Text style={{ fontSize: 12, fontWeight: 700, color: '#1a1a1a' }}>{s.label}</Text>
+                <Text style={{ fontSize: 10.5, fontWeight: 600, color: accent, whiteSpace: 'nowrap' }}>
+                  {offline ? 'Offline' : `ETA ${s.eta ? formatTimeAmPm(s.eta) : '-'}`}
+                </Text>
+              </div>
+              <Button
+                size="small"
+                icon={<CheckOutlined style={{ fontSize: 10 }} />}
+                onClick={(e) => { e.stopPropagation(); onTakeIt(s.id) }}
+                style={{ marginLeft: 4, fontSize: 11, height: 24, flexShrink: 0 }}
+              >
+                Take it
+              </Button>
+            </div>
+          )
+        }
+
         // ── Default: the original full card ──
         return (
           <div
@@ -884,25 +1044,32 @@ const MAP_THEME_OPTIONS: { value: MapTheme; label: string }[] = [
 /* ── Urgency ticker card layout variants, switchable from the map controls ──
    default = full card (label + driver + ETA + Take it)
    minimal = icon-first chip, the rest revealed on hover
-   tidy    = same info as default but in a cleaner, aligned layout */
-type CardDesign = 'default' | 'minimal' | 'tidy'
+   tidy    = same info as default but in a cleaner, aligned layout
+   stripe  = left accent bar, notification-style aligned rows
+   solid   = filled colored header band, status-forward and scannable
+   compact = single short row, smallest vertical footprint */
+type CardDesign = 'default' | 'minimal' | 'tidy' | 'stripe' | 'solid' | 'compact'
 
 const CARD_DESIGN_OPTIONS: { value: CardDesign; label: string }[] = [
   { value: 'default', label: 'Default' },
   { value: 'minimal', label: 'Minimal' },
   { value: 'tidy', label: 'Tidy' },
+  { value: 'stripe', label: 'Stripe' },
+  { value: 'solid', label: 'Solid' },
+  { value: 'compact', label: 'Compact' },
 ]
 
 /* ── Driver marker styles, switchable from the map controls ──
    vehicle = steering-wheel pin (familiar, online/offline aware)
    label   = pin showing the bus code so each marker is identifiable at a glance
    status  = colored dot conveying the trip's status (urgency) without a click */
-type MarkerStyle = 'vehicle' | 'label' | 'status'
+type MarkerStyle = 'vehicle' | 'label' | 'status' | 'bus'
 
 const MARKER_STYLE_OPTIONS: { value: MarkerStyle; label: string }[] = [
   { value: 'vehicle', label: 'Vehicle' },
   { value: 'label', label: 'Label' },
   { value: 'status', label: 'Status' },
+  { value: 'bus', label: 'Bus' },
 ]
 
 // Saturated, status-meaningful colors for the label/status marker styles —
@@ -962,6 +1129,47 @@ function makeStatusDotIcon(color: string, selected: boolean, offline: boolean): 
   return {
     url: svgDataUrl(svg),
     scaledSize: new google.maps.Size(size, size),
+    anchor: new google.maps.Point(c, c),
+  }
+}
+
+/* ── Marker: circular badge with a bus glyph, filled by trip-status color
+   (green on time, amber late, red offline/to-check) with a white ring and a
+   soft drop shadow; turns blue when selected. Reads as "a bus is here, and
+   here's how it's doing" at a glance without opening the tooltip. ── */
+function makeBusBadgeIcon(color: string, selected: boolean): google.maps.Icon {
+  const size = selected ? 44 : 36
+  const pad = 6 // breathing room so the drop shadow isn't clipped
+  const total = size + pad * 2
+  const c = total / 2
+  const r = size / 2 - (selected ? 2 : 1.5)
+  const fill = selected ? '#1677ff' : color
+  const sw = selected ? 3 : 2.5
+  const g = size * 0.56 // bus glyph box, centered in the circle
+  const scale = g / 24
+  const gx = c - g / 2
+  const gy = c - g / 2
+  const svg = `
+    <svg width="${total}" height="${total}" viewBox="0 0 ${total} ${total}" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <filter id="busShadow" x="-50%" y="-50%" width="200%" height="200%">
+          <feDropShadow dx="0" dy="1.5" stdDeviation="1.6" flood-color="rgba(15,23,42,0.35)"/>
+        </filter>
+      </defs>
+      <circle cx="${c}" cy="${c}" r="${r}" fill="${fill}" stroke="#ffffff" stroke-width="${sw}" filter="url(#busShadow)"/>
+      <g transform="translate(${gx},${gy}) scale(${scale})">
+        <rect x="4.5" y="3" width="15" height="13.5" rx="3" fill="#ffffff"/>
+        <rect x="6.3" y="5" width="11.4" height="4.4" rx="1.2" fill="${fill}"/>
+        <rect x="6" y="11.4" width="2.6" height="2.6" rx="0.7" fill="${fill}"/>
+        <rect x="15.4" y="11.4" width="2.6" height="2.6" rx="0.7" fill="${fill}"/>
+        <circle cx="8.3" cy="18.2" r="1.9" fill="#ffffff"/>
+        <circle cx="15.7" cy="18.2" r="1.9" fill="#ffffff"/>
+      </g>
+    </svg>
+  `
+  return {
+    url: svgDataUrl(svg),
+    scaledSize: new google.maps.Size(total, total),
     anchor: new google.maps.Point(c, c),
   }
 }
@@ -1132,9 +1340,11 @@ function LiveMapView({
               ? makeLabelIcon(stop.label, markerColor(stop), sel)
               : markerStyle === 'status'
                 ? makeStatusDotIcon(markerColor(stop), sel, !stop.online)
-                : stop.online
-                  ? sel ? carIconSelected : carIcon
-                  : sel ? carIconOfflineSelected : carIconOffline
+                : markerStyle === 'bus'
+                  ? makeBusBadgeIcon(markerColor(stop), sel)
+                  : stop.online
+                    ? sel ? carIconSelected : carIcon
+                    : sel ? carIconOfflineSelected : carIconOffline
           return (
             <div key={stop.id}>
               <Marker
