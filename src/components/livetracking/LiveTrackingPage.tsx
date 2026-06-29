@@ -1262,23 +1262,26 @@ export default function LiveTrackingPage() {
         <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
           {/* ── Left column: stat cards + map ── */}
           <div ref={leftColRef} style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-            {/* Stat cards */}
-            <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
-              <StatCard
-                icon={<FileExclamationOutlined />}
-                iconBg="#f5a623"
-                label="Late"
-                labelColor="#fa541c"
-                count={lateCount}
-              />
-              <StatCard
-                icon={<FileSearchOutlined />}
-                iconBg="#f5222d"
-                label="To Check"
-                labelColor="#1a1a1a"
-                count={toCheckCount}
-              />
-            </div>
+            {/* Stat cards (Late / To Check) hidden for now per request — keep
+                the markup so it can be brought back without rebuilding it. */}
+            {false && (
+              <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
+                <StatCard
+                  icon={<FileExclamationOutlined />}
+                  iconBg="#f5a623"
+                  label="Late"
+                  labelColor="#fa541c"
+                  count={lateCount}
+                />
+                <StatCard
+                  icon={<FileSearchOutlined />}
+                  iconBg="#f5222d"
+                  label="To Check"
+                  labelColor="#1a1a1a"
+                  count={toCheckCount}
+                />
+              </div>
+            )}
 
             <UrgencyTicker stops={urgentStops} selectedId={selectedId} onSelect={setSelectedId} onTakeIt={onTakeIt} />
 
