@@ -22,6 +22,7 @@ import {
   MenuUnfoldOutlined,
   BgColorsOutlined,
   PushpinOutlined,
+  AppstoreOutlined,
 } from '@ant-design/icons'
 import {
   type VehicleStop,
@@ -311,11 +312,13 @@ function TestConsole({
 function UrgencyTicker({
   stops,
   selectedId,
+  design,
   onSelect,
   onTakeIt,
 }: {
   stops: VehicleStop[]
   selectedId: string | null
+  design: CardDesign
   onSelect: (id: string) => void
   onTakeIt: (id: string) => void
 }) {
@@ -334,6 +337,137 @@ function UrgencyTicker({
         const offline = !s.online
         const accent = offline ? '#ff4d4f' : '#faad14'
         const selected = selectedId === s.id
+        const cardCls = `urgency-card ${offline ? 'urgency-card-offline' : 'urgency-card-late'}`
+        const StatusIcon = offline ? WifiOutlined : ClockCircleOutlined
+        const takeBtn = (
+          <Button
+            size="small"
+            icon={<CheckOutlined style={{ fontSize: 10 }} />}
+            onClick={(e) => { e.stopPropagation(); onTakeIt(s.id) }}
+            style={{ width: '100%', marginTop: 6, fontSize: 11, height: 24 }}
+          >
+            Take it
+          </Button>
+        )
+
+        // ── Minimal: an icon-first chip; the details + Take it live in a
+        //    hover popover so the strip stays compact ──
+        if (design === 'minimal') {
+          const popContent = (
+            <div style={{ width: 168 }} onClick={(e) => e.stopPropagation()}>
+              <Text style={{ fontSize: 12, fontWeight: 600, display: 'block' }}>
+                {s.label} · {s.driver}
+              </Text>
+              <Text style={{ fontSize: 11.5, fontWeight: 600, color: accent, display: 'block', marginTop: 2 }}>
+                {offline ? 'Offline' : `Late · ETA ${s.eta ? formatTimeAmPm(s.eta) : '-'}`}
+              </Text>
+              {offline && s.lastOnline && (
+                <Text style={{ fontSize: 10.5, color: '#8c8c8c', display: 'block', marginTop: 1 }}>
+                  Last seen {s.lastOnline}
+                </Text>
+              )}
+              {takeBtn}
+            </div>
+          )
+          return (
+            <Popover key={s.id} content={popContent} trigger="hover" placement="bottom" mouseEnterDelay={0.05}>
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => onSelect(s.id)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onSelect(s.id) }}
+                className={cardCls}
+                style={{
+                  flexShrink: 0,
+                  width: 56,
+                  height: 56,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 3,
+                  background: '#fff',
+                  border: `1px solid ${selected ? accent : '#f0f0f0'}`,
+                  borderRadius: 10,
+                  overflow: 'hidden',
+                  cursor: 'pointer',
+                  position: 'relative',
+                }}
+              >
+                <div className="urgency-strip" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 4, background: accent }} />
+                <span className="urgency-ping" style={{ color: accent }} />
+                <StatusIcon style={{ color: accent, fontSize: 17, marginTop: 4 }} />
+                <Text style={{ fontSize: 10.5, fontWeight: 700, color: '#1a1a1a', lineHeight: 1 }}>{s.label}</Text>
+              </div>
+            </Popover>
+          )
+        }
+
+        // ── Tidy: same info as default but in an aligned header/body layout ──
+        if (design === 'tidy') {
+          return (
+            <div
+              key={s.id}
+              role="button"
+              tabIndex={0}
+              onClick={() => onSelect(s.id)}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onSelect(s.id) }}
+              className={cardCls}
+              style={{
+                flexShrink: 0,
+                width: 184,
+                textAlign: 'left',
+                background: '#fff',
+                border: `1px solid ${selected ? accent : '#f0f0f0'}`,
+                borderRadius: 10,
+                overflow: 'hidden',
+                cursor: 'pointer',
+              }}
+            >
+              <div className="urgency-strip" style={{ height: 4, background: accent }} />
+              <div style={{ padding: '8px 10px' }}>
+                <span className="urgency-ping" style={{ color: accent }} />
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <StatusIcon style={{ color: accent, fontSize: 13 }} />
+                    <Text style={{ fontSize: 12.5, fontWeight: 700, color: '#1a1a1a' }}>{s.label}</Text>
+                  </div>
+                  <span
+                    style={{
+                      background: offline ? '#fff1f0' : '#fffbe6',
+                      color: accent,
+                      border: `1px solid ${offline ? '#ffccc7' : '#ffe58f'}`,
+                      fontSize: 10,
+                      fontWeight: 600,
+                      padding: '1px 7px',
+                      borderRadius: 5,
+                    }}
+                  >
+                    {offline ? 'Offline' : 'Late'}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 6, gap: 8 }}>
+                  <Text style={{ fontSize: 11, color: '#8c8c8c', flex: 1, minWidth: 0 }} ellipsis title={s.driver}>
+                    {s.driver}
+                  </Text>
+                  {!offline && (
+                    <Text style={{ fontSize: 11, fontWeight: 600, color: accent, whiteSpace: 'nowrap' }}>
+                      ETA {s.eta ? formatTimeAmPm(s.eta) : '-'}
+                    </Text>
+                  )}
+                </div>
+                {offline && s.lastOnline && (
+                  <Text style={{ fontSize: 10.5, color: '#8c8c8c', display: 'block', marginTop: 2 }}>
+                    Last seen {s.lastOnline}
+                  </Text>
+                )}
+                {takeBtn}
+              </div>
+            </div>
+          )
+        }
+
+        // ── Default: the original full card ──
         return (
           <div
             key={s.id}
@@ -341,7 +475,7 @@ function UrgencyTicker({
             tabIndex={0}
             onClick={() => onSelect(s.id)}
             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onSelect(s.id) }}
-            className={`urgency-card ${offline ? 'urgency-card-offline' : 'urgency-card-late'}`}
+            className={cardCls}
             style={{
               flexShrink: 0,
               width: 158,
@@ -357,11 +491,7 @@ function UrgencyTicker({
             <div style={{ padding: '7px 10px' }}>
               <span className="urgency-ping" style={{ color: accent }} />
               <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                {offline ? (
-                  <WifiOutlined style={{ color: accent, fontSize: 12 }} />
-                ) : (
-                  <ClockCircleOutlined style={{ color: accent, fontSize: 12 }} />
-                )}
+                <StatusIcon style={{ color: accent, fontSize: 12 }} />
                 <Text style={{ fontSize: 12, fontWeight: 700, color: '#1a1a1a' }}>{s.label}</Text>
               </div>
               <Text
@@ -378,14 +508,7 @@ function UrgencyTicker({
                   Last seen {s.lastOnline}
                 </Text>
               )}
-              <Button
-                size="small"
-                icon={<CheckOutlined style={{ fontSize: 10 }} />}
-                onClick={(e) => { e.stopPropagation(); onTakeIt(s.id) }}
-                style={{ width: '100%', marginTop: 6, fontSize: 11, height: 24 }}
-              >
-                Take it
-              </Button>
+              {takeBtn}
             </div>
           </div>
         )
@@ -758,6 +881,91 @@ const MAP_THEME_OPTIONS: { value: MapTheme; label: string }[] = [
   { value: 'retro', label: 'Retro' },
 ]
 
+/* ── Urgency ticker card layout variants, switchable from the map controls ──
+   default = full card (label + driver + ETA + Take it)
+   minimal = icon-first chip, the rest revealed on hover
+   tidy    = same info as default but in a cleaner, aligned layout */
+type CardDesign = 'default' | 'minimal' | 'tidy'
+
+const CARD_DESIGN_OPTIONS: { value: CardDesign; label: string }[] = [
+  { value: 'default', label: 'Default' },
+  { value: 'minimal', label: 'Minimal' },
+  { value: 'tidy', label: 'Tidy' },
+]
+
+/* ── Driver marker styles, switchable from the map controls ──
+   vehicle = steering-wheel pin (familiar, online/offline aware)
+   label   = pin showing the bus code so each marker is identifiable at a glance
+   status  = colored dot conveying the trip's status (urgency) without a click */
+type MarkerStyle = 'vehicle' | 'label' | 'status'
+
+const MARKER_STYLE_OPTIONS: { value: MarkerStyle; label: string }[] = [
+  { value: 'vehicle', label: 'Vehicle' },
+  { value: 'label', label: 'Label' },
+  { value: 'status', label: 'Status' },
+]
+
+// Saturated, status-meaningful colors for the label/status marker styles —
+// offline always reads red since its live position is stale.
+function markerColor(stop: VehicleStop): string {
+  if (!stop.online) return '#ff4d4f'
+  switch (deriveStatus(stop)) {
+    case 'On Time':
+      return '#16a34a'
+    case 'Late':
+      return '#faad14'
+    case 'Notified':
+      return '#1677ff'
+    default:
+      return '#ff4d4f' // To Check
+  }
+}
+
+/* ── Marker: rounded "tag" showing the bus code, color-coded by status ── */
+function makeLabelIcon(label: string, color: string, selected: boolean): google.maps.Icon {
+  const w = Math.max(46, 16 + label.length * 8.4)
+  const h = 24
+  const totalH = h + 8
+  const stroke = selected ? '#1677ff' : '#ffffff'
+  const sw = selected ? 3 : 2
+  const cx = w / 2
+  const svg = `
+    <svg width="${w}" height="${totalH}" viewBox="0 0 ${w} ${totalH}" xmlns="http://www.w3.org/2000/svg">
+      <path d="M${cx - 7} ${h - 2} L${cx} ${totalH - 1} L${cx + 7} ${h - 2} Z" fill="${color}" stroke="${stroke}" stroke-width="${sw}"/>
+      <rect x="${sw / 2}" y="${sw / 2}" width="${w - sw}" height="${h}" rx="7" fill="${color}" stroke="${stroke}" stroke-width="${sw}"/>
+      <text x="${cx}" y="${h / 2 + 4.5}" text-anchor="middle" font-family="-apple-system,Segoe UI,Roboto,sans-serif" font-size="12" font-weight="700" fill="#ffffff">${label}</text>
+    </svg>
+  `
+  return {
+    url: svgDataUrl(svg),
+    scaledSize: new google.maps.Size(w, totalH),
+    anchor: new google.maps.Point(cx, totalH),
+  }
+}
+
+/* ── Marker: status dot — solid colored circle (online) or hollow with a slash
+   (offline, position is stale) ── */
+function makeStatusDotIcon(color: string, selected: boolean, offline: boolean): google.maps.Icon {
+  const size = selected ? 30 : 24
+  const c = size / 2
+  const r = c - 3
+  const ring = selected ? '#1677ff' : '#ffffff'
+  const inner = offline
+    ? `<line x1="${c - r * 0.5}" y1="${c - r * 0.5}" x2="${c + r * 0.5}" y2="${c + r * 0.5}" stroke="${color}" stroke-width="2.4" stroke-linecap="round"/>`
+    : `<circle cx="${c}" cy="${c}" r="${r * 0.34}" fill="#ffffff"/>`
+  const svg = `
+    <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="${c}" cy="${c}" r="${r}" fill="${offline ? '#ffffff' : color}" stroke="${offline ? color : ring}" stroke-width="${selected ? 3 : 2.4}"/>
+      ${inner}
+    </svg>
+  `
+  return {
+    url: svgDataUrl(svg),
+    scaledSize: new google.maps.Size(size, size),
+    anchor: new google.maps.Point(c, c),
+  }
+}
+
 /* ── Google Maps view: only mounted once an API key is configured, so the
    loader script is never requested otherwise ── */
 function LiveMapView({
@@ -768,6 +976,7 @@ function LiveMapView({
   showRoutes,
   showTraffic,
   mapTheme,
+  markerStyle,
   onSelect,
   onRouteResolved,
 }: {
@@ -778,6 +987,7 @@ function LiveMapView({
   showRoutes: boolean
   showTraffic: boolean
   mapTheme: MapTheme
+  markerStyle: MarkerStyle
   onSelect: (id: string) => void
   onRouteResolved: (key: string, path: [number, number][]) => void
 }) {
@@ -915,9 +1125,16 @@ function LiveMapView({
         .map(({ stop, pos }) => {
           const [lat, lng] = pos as [number, number]
           const sel = selectedId === stop.id
-          const icon = stop.online
-            ? sel ? carIconSelected : carIcon
-            : sel ? carIconOfflineSelected : carIconOffline
+          // Vehicle style reuses the four memoized steering-wheel pins; label
+          // and status styles are cheap per-marker SVGs colored by trip status.
+          const icon =
+            markerStyle === 'label'
+              ? makeLabelIcon(stop.label, markerColor(stop), sel)
+              : markerStyle === 'status'
+                ? makeStatusDotIcon(markerColor(stop), sel, !stop.online)
+                : stop.online
+                  ? sel ? carIconSelected : carIcon
+                  : sel ? carIconOfflineSelected : carIconOffline
           return (
             <div key={stop.id}>
               <Marker
@@ -1022,6 +1239,8 @@ export default function LiveTrackingPage() {
   const [showRoutes, setShowRoutes] = useState(true)
   const [showTraffic, setShowTraffic] = useState(true)
   const [mapTheme, setMapTheme] = useState<MapTheme>('default')
+  const [cardDesign, setCardDesign] = useState<CardDesign>('default')
+  const [markerStyle, setMarkerStyle] = useState<MarkerStyle>('vehicle')
   const [simulating, setSimulating] = useState(false)
   const [progress, setProgress] = useState(0)
 
@@ -1283,7 +1502,7 @@ export default function LiveTrackingPage() {
               </div>
             )}
 
-            <UrgencyTicker stops={urgentStops} selectedId={selectedId} onSelect={setSelectedId} onTakeIt={onTakeIt} />
+            <UrgencyTicker stops={urgentStops} selectedId={selectedId} design={cardDesign} onSelect={setSelectedId} onTakeIt={onTakeIt} />
 
             {/* Map */}
             <div
@@ -1329,6 +1548,7 @@ export default function LiveTrackingPage() {
                     showRoutes={showRoutes}
                     showTraffic={showTraffic}
                     mapTheme={mapTheme}
+                    markerStyle={markerStyle}
                     onSelect={setSelectedId}
                     onRouteResolved={onRouteResolved}
                   />
@@ -1363,6 +1583,32 @@ export default function LiveTrackingPage() {
                     value={mapTheme}
                     onChange={setMapTheme}
                     options={MAP_THEME_OPTIONS}
+                    style={{ width: 92 }}
+                  />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                  <Text style={{ fontSize: 13, color: '#595959' }}>
+                    <AppstoreOutlined style={{ marginRight: 6 }} />
+                    Card style
+                  </Text>
+                  <Select
+                    size="small"
+                    value={cardDesign}
+                    onChange={setCardDesign}
+                    options={CARD_DESIGN_OPTIONS}
+                    style={{ width: 92 }}
+                  />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                  <Text style={{ fontSize: 13, color: '#595959' }}>
+                    <EnvironmentOutlined style={{ marginRight: 6 }} />
+                    Marker style
+                  </Text>
+                  <Select
+                    size="small"
+                    value={markerStyle}
+                    onChange={setMarkerStyle}
+                    options={MARKER_STYLE_OPTIONS}
                     style={{ width: 92 }}
                   />
                 </div>
