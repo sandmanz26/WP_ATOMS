@@ -153,6 +153,16 @@ body {
   display: none !important;
 }
 
+/* Live Tracking — "Offline/Late" filter tab pulse: a soft red halo that
+   breathes so an offline or late trip nags the dispatcher to check it */
+@keyframes tab-urgent-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 77, 79, 0); }
+  50% { box-shadow: 0 0 0 4px rgba(255, 77, 79, 0.18); }
+}
+.tab-urgent-pulse {
+  animation: tab-urgent-pulse 1.3s ease-in-out infinite;
+}
+
 /* Tracking 2.0 — selected marker tooltip */
 .tracking2-tooltip.leaflet-tooltip {
   background: #0f172a;

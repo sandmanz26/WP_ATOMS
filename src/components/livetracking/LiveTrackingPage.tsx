@@ -203,6 +203,8 @@ function TestConsole({
   onCardDesignChange,
   markerStyle,
   onMarkerStyleChange,
+  tabStyle,
+  onTabStyleChange,
   showUrgencyTicker,
   onShowUrgencyTickerChange,
   showRoutes,
@@ -232,6 +234,8 @@ function TestConsole({
   onCardDesignChange: (v: CardDesign) => void
   markerStyle: MarkerStyle
   onMarkerStyleChange: (v: MarkerStyle) => void
+  tabStyle: TabStyle
+  onTabStyleChange: (v: TabStyle) => void
   showUrgencyTicker: boolean
   onShowUrgencyTickerChange: (v: boolean) => void
   showRoutes: boolean
@@ -296,6 +300,13 @@ function TestConsole({
               Card style
             </Text>
             <Select size="small" value={cardDesign} onChange={onCardDesignChange} options={CARD_DESIGN_OPTIONS} style={{ width: 96 }} dropdownStyle={{ zIndex: 2100 }} />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <Text style={{ fontSize: 13, color: '#595959' }}>
+              <AppstoreOutlined style={{ marginRight: 6 }} />
+              Tab style
+            </Text>
+            <Select size="small" value={tabStyle} onChange={onTabStyleChange} options={TAB_STYLE_OPTIONS} style={{ width: 96 }} dropdownStyle={{ zIndex: 2100 }} />
           </div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
             <Text style={{ fontSize: 13, color: '#595959' }}>Show urgency cards</Text>
@@ -811,26 +822,176 @@ function StatCard({
   )
 }
 
-/* ── Filter pill ── */
-function Pill({ active, children, onClick }: { active: boolean; children: React.ReactNode; onClick: () => void }) {
+/* ── Filter tab bar — switchable visual styles, switchable from the Test
+   Console. The "Offline/Late" tab carries a live counter + pulse so an
+   offline or late trip pulls the dispatcher's eye and gets checked. ── */
+type FilterKey = 'All' | 'Offline' | 'Online' | 'To Check'
+type TabStyle = 'default' | 'segment' | 'color'
+
+const TAB_STYLE_OPTIONS: { value: TabStyle; label: string }[] = [
+  { value: 'default', label: 'Default' },
+  { value: 'segment', label: 'Segment' },
+  { value: 'color', label: 'Color' },
+]
+
+type TabItem = { key: FilterKey; label: string; count?: number; urgent?: boolean }
+
+const TAB_COLORS: Record<FilterKey, { c: string; soft: string; border: string }> = {
+  All: { c: '#1677ff', soft: '#e6f4ff', border: '#91caff' },
+  Offline: { c: '#ff4d4f', soft: '#fff1f0', border: '#ffccc7' },
+  Online: { c: '#16a34a', soft: '#f6ffed', border: '#b7eb8f' },
+  'To Check': { c: '#faad14', soft: '#fffbe6', border: '#ffe58f' },
+}
+
+function CountBadge({ count, active, urgent }: { count: number; active: boolean; urgent?: boolean }) {
   return (
-    <button
-      onClick={onClick}
+    <span
       style={{
-        flex: 1,
-        padding: '7px 0',
-        borderRadius: 18,
-        border: active ? 'none' : '1px solid #e8e8e8',
-        background: active ? '#1677ff' : '#fff',
-        color: active ? '#fff' : '#595959',
-        fontSize: 13,
-        fontWeight: 500,
-        cursor: 'pointer',
-        transition: 'all 0.15s',
+        marginLeft: 6,
+        minWidth: 16,
+        height: 16,
+        padding: '0 5px',
+        borderRadius: 8,
+        fontSize: 10.5,
+        fontWeight: 700,
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: active ? 'rgba(255,255,255,0.28)' : urgent ? '#ff4d4f' : '#bfbfbf',
+        color: '#fff',
+        flexShrink: 0,
       }}
     >
-      {children}
-    </button>
+      {count}
+    </span>
+  )
+}
+
+function FilterTabs({
+  tabStyle,
+  value,
+  onChange,
+  items,
+}: {
+  tabStyle: TabStyle
+  value: FilterKey
+  onChange: (key: FilterKey) => void
+  items: TabItem[]
+}) {
+  // Segment style — one connected track, active segment lifts as a white card.
+  if (tabStyle === 'segment') {
+    return (
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 2, background: '#f5f5f5', borderRadius: 10, padding: 3, marginBottom: 12 }}>
+        {items.map((it) => {
+          const active = value === it.key
+          const urgent = it.urgent && (it.count ?? 0) > 0
+          return (
+            <button
+              key={it.key}
+              onClick={() => onChange(it.key)}
+              className={urgent ? 'tab-urgent-pulse' : undefined}
+              style={{
+                flex: '1 1 auto',
+                padding: '6px 10px',
+                border: 'none',
+                borderRadius: 8,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                background: active ? '#fff' : 'transparent',
+                boxShadow: active ? '0 1px 3px rgba(0,0,0,0.12)' : 'none',
+                color: urgent ? '#ff4d4f' : active ? '#1a1a1a' : '#8c8c8c',
+                fontSize: 12.5,
+                fontWeight: active || urgent ? 600 : 500,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all .15s',
+              }}
+            >
+              {it.label}
+              {(it.count ?? 0) > 0 && <CountBadge count={it.count!} active={false} urgent={it.urgent} />}
+            </button>
+          )
+        })}
+      </div>
+    )
+  }
+
+  // Color style — each tab carries its own status hue, so Offline/Late reads
+  // red and urgent at a glance even before you read it.
+  if (tabStyle === 'color') {
+    return (
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+        {items.map((it) => {
+          const active = value === it.key
+          const urgent = it.urgent && (it.count ?? 0) > 0
+          const { c, soft, border } = TAB_COLORS[it.key]
+          return (
+            <button
+              key={it.key}
+              onClick={() => onChange(it.key)}
+              className={urgent ? 'tab-urgent-pulse' : undefined}
+              style={{
+                flex: '1 1 auto',
+                padding: '7px 12px',
+                borderRadius: 18,
+                whiteSpace: 'nowrap',
+                border: `1px solid ${active || urgent ? c : border}`,
+                background: active ? c : urgent ? soft : '#fff',
+                color: active ? '#fff' : urgent ? c : '#595959',
+                fontSize: 12.5,
+                fontWeight: urgent ? 600 : 500,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all .15s',
+              }}
+            >
+              {it.label}
+              {(it.count ?? 0) > 0 && <CountBadge count={it.count!} active={active} urgent={it.urgent} />}
+            </button>
+          )
+        })}
+      </div>
+    )
+  }
+
+  // Default — improved outline pills; the urgent tab switches to a red accent.
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+      {items.map((it) => {
+        const active = value === it.key
+        const urgent = it.urgent && (it.count ?? 0) > 0
+        const accent = urgent ? '#ff4d4f' : '#1677ff'
+        return (
+          <button
+            key={it.key}
+            onClick={() => onChange(it.key)}
+            className={urgent ? 'tab-urgent-pulse' : undefined}
+            style={{
+              flex: '1 1 auto',
+              padding: '7px 12px',
+              borderRadius: 18,
+              whiteSpace: 'nowrap',
+              border: active ? 'none' : `1px solid ${urgent ? '#ffccc7' : '#e8e8e8'}`,
+              background: active ? accent : '#fff',
+              color: active ? '#fff' : urgent ? '#ff4d4f' : '#595959',
+              fontSize: 13,
+              fontWeight: urgent ? 600 : 500,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'all .15s',
+            }}
+          >
+            {it.label}
+            {(it.count ?? 0) > 0 && <CountBadge count={it.count!} active={active} urgent={it.urgent} />}
+          </button>
+        )
+      })}
+    </div>
   )
 }
 
@@ -1701,6 +1862,7 @@ export default function LiveTrackingPage() {
   const [mapTheme, setMapTheme] = useState<MapTheme>('silver')
   const [cardDesign, setCardDesign] = useState<CardDesign>('default')
   const [markerStyle, setMarkerStyle] = useState<MarkerStyle>('bus')
+  const [tabStyle, setTabStyle] = useState<TabStyle>('default')
   // Urgency ticker is hidden by default to keep the view clean; toggled on
   // from the Test Console "Map & display" section when needed.
   const [showUrgencyTicker, setShowUrgencyTicker] = useState(false)
@@ -1832,9 +1994,14 @@ export default function LiveTrackingPage() {
     setTripStatus(undefined)
   }
 
+  // The "Offline/Late" tab groups everything that needs attention — offline
+  // trips and on-time-but-running-late trips — matching the urgency ticker set.
+  const isOfflineOrLate = (s: VehicleStop) => !s.online || deriveStatus(s) === 'Late'
+  const offlineLateCount = stops.filter(isOfflineOrLate).length
+
   const filtered = stops.filter((s) => {
     if (filter === 'Online' && !s.online) return false
-    if (filter === 'Offline' && s.online) return false
+    if (filter === 'Offline' && !isOfflineOrLate(s)) return false
     if (filter === 'To Check' && !takenIds.has(s.id)) return false
     if (search.trim()) {
       // PRD §4.4.2: search across Driver's name, Vehicle plate, Customer code, Bus label
@@ -2146,15 +2313,18 @@ export default function LiveTrackingPage() {
                 />
               </div>
 
-              {/* Filter pills */}
-              <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-                <Pill active={filter === 'All'} onClick={() => setFilter('All')}>All</Pill>
-                <Pill active={filter === 'Offline'} onClick={() => setFilter('Offline')}>Offline</Pill>
-                <Pill active={filter === 'Online'} onClick={() => setFilter('Online')}>Online</Pill>
-                <Pill active={filter === 'To Check'} onClick={() => setFilter('To Check')}>
-                  To Check{takenIds.size > 0 ? ` (${takenIds.size})` : ''}
-                </Pill>
-              </div>
+              {/* Filter tabs (style switchable from the Test Console) */}
+              <FilterTabs
+                tabStyle={tabStyle}
+                value={filter}
+                onChange={setFilter}
+                items={[
+                  { key: 'All', label: 'All' },
+                  { key: 'Offline', label: 'Offline/Late', count: offlineLateCount, urgent: true },
+                  { key: 'Online', label: 'Online' },
+                  { key: 'To Check', label: 'To Check', count: takenIds.size },
+                ]}
+              />
 
               {/* Driver list */}
               <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, paddingRight: 2 }}>
@@ -2230,6 +2400,8 @@ export default function LiveTrackingPage() {
           onCardDesignChange={setCardDesign}
           markerStyle={markerStyle}
           onMarkerStyleChange={setMarkerStyle}
+          tabStyle={tabStyle}
+          onTabStyleChange={setTabStyle}
           showUrgencyTicker={showUrgencyTicker}
           onShowUrgencyTickerChange={setShowUrgencyTicker}
           showRoutes={showRoutes}
