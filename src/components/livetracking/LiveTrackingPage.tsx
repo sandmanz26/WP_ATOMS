@@ -493,7 +493,6 @@ function UrgencyTicker({
             >
               <div className="urgency-strip" style={{ height: 4, background: accent }} />
               <div style={{ padding: '8px 10px' }}>
-                <span className="urgency-ping" style={{ color: accent }} />
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                     <StatusIcon style={{ color: accent, fontSize: 13 }} />
@@ -558,7 +557,6 @@ function UrgencyTicker({
             >
               <div className="urgency-strip" style={{ width: 4, background: accent, flexShrink: 0 }} />
               <div style={{ padding: '8px 10px', flex: 1, minWidth: 0, position: 'relative' }}>
-                <span className="urgency-ping" style={{ color: accent }} />
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}>
                     <StatusIcon style={{ color: accent, fontSize: 13 }} />
@@ -615,7 +613,6 @@ function UrgencyTicker({
                 position: 'relative',
               }}
             >
-              <span className="urgency-ping" style={{ color: '#fff' }} />
               <div
                 style={{
                   background: accent,
