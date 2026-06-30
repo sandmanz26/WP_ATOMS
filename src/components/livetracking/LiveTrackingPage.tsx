@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, Component, type ReactNode } from 'react'
 import { GoogleMap, Marker, Polyline, InfoWindow, TrafficLayer, useJsApiLoader } from '@react-google-maps/api'
-import { Typography, Input, Button, Select, Popover, Switch, Slider, Tooltip } from 'antd'
+import { Typography, Input, Button, Select, Popover, Switch, Slider, Tooltip, Checkbox } from 'antd'
 import {
   SearchOutlined,
   FilterOutlined,
@@ -23,6 +23,7 @@ import {
   BgColorsOutlined,
   PushpinOutlined,
   AppstoreOutlined,
+  SortAscendingOutlined,
 } from '@ant-design/icons'
 import {
   type VehicleStop,
@@ -844,6 +845,54 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 /* ── Driver list card ── */
+/* ── Driver list sorting ── */
+type SortKey = 'default' | 'status' | 'eta' | 'label' | 'driver'
+
+const SORT_OPTIONS: { key: SortKey; label: string }[] = [
+  { key: 'default', label: 'Default order' },
+  { key: 'status', label: 'Status (urgent first)' },
+  { key: 'eta', label: 'ETA (earliest first)' },
+  { key: 'label', label: 'Bus label (A–Z)' },
+  { key: 'driver', label: 'Driver name (A–Z)' },
+]
+
+// Lower rank = more urgent, so it sorts to the top.
+function statusRank(s: VehicleStop): number {
+  if (!s.online) return 0
+  switch (deriveStatus(s)) {
+    case 'Late': return 1
+    case 'To Check': return 2
+    case 'Notified': return 3
+    default: return 4 // On Time
+  }
+}
+
+/* ── Which fields each driver card shows — user-controlled from the filter
+   popover so the list can be made as dense or as detailed as needed ── */
+type CardFields = {
+  route: boolean
+  startTime: boolean
+  etaStatus: boolean
+  driverPlate: boolean
+  fleetOwner: boolean
+}
+
+const DEFAULT_CARD_FIELDS: CardFields = {
+  route: true,
+  startTime: true,
+  etaStatus: true,
+  driverPlate: true,
+  fleetOwner: true,
+}
+
+const CARD_FIELD_OPTIONS: { key: keyof CardFields; label: string }[] = [
+  { key: 'route', label: 'Route' },
+  { key: 'startTime', label: 'Trip start time' },
+  { key: 'etaStatus', label: 'ETA & status' },
+  { key: 'driverPlate', label: 'Driver & plate' },
+  { key: 'fleetOwner', label: 'Fleet owner' },
+]
+
 function DriverCard({
   stop,
   selected,
@@ -851,6 +900,7 @@ function DriverCard({
   innerRef,
   overridden,
   onClearOverride,
+  fields,
 }: {
   stop: VehicleStop
   selected: boolean
@@ -861,6 +911,7 @@ function DriverCard({
   // tell at a glance which rows aren't trustworthy live data.
   overridden: boolean
   onClearOverride: () => void
+  fields: CardFields
 }) {
   const status = deriveStatus(stop)
   const s = STATUS_STYLE[status]
@@ -917,7 +968,7 @@ function DriverCard({
       </div>
 
       {/* Trip: from → to */}
-      {stop.from && stop.to ? (
+      {fields.route && (stop.from && stop.to ? (
         <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#16a34a', flexShrink: 0 }} />
           <Text style={{ fontSize: 12.5, color: '#595959' }} ellipsis>{stop.from.name}</Text>
@@ -933,16 +984,18 @@ function DriverCard({
         <Text style={{ display: 'block', fontWeight: 600, fontSize: 15, color: selected ? '#1677ff' : '#1a1a1a', marginTop: 6 }}>
           {stop.destination}
         </Text>
-      )}
+      ))}
 
       {/* Trip Start Time (PRD §4.2.2) */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
-        <ClockCircleOutlined style={{ color: '#8c8c8c', fontSize: 13 }} />
-        <Text style={{ fontSize: 13, color: '#8c8c8c' }}>{formatTimeAmPm(stop.scheduled)}</Text>
-      </div>
+      {fields.startTime && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
+          <ClockCircleOutlined style={{ color: '#8c8c8c', fontSize: 13 }} />
+          <Text style={{ fontSize: 13, color: '#8c8c8c' }}>{formatTimeAmPm(stop.scheduled)}</Text>
+        </div>
+      )}
 
       {/* ETA + Trip Status — hidden once first point is registered (BR-002) */}
-      {showStatusAndEta ? (
+      {fields.etaStatus && (showStatusAndEta ? (
         <div
           style={{
             display: 'flex',
@@ -998,20 +1051,118 @@ function DriverCard({
         >
           <Text style={{ fontSize: 13, color: '#8c8c8c' }}>First point registered</Text>
         </div>
-      )}
+      ))}
 
       {/* Driver + plate */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12 }}>
-        <WifiOutlined style={{ color: stop.online ? '#52c41a' : '#ff4d4f', fontSize: 15 }} />
-        <Text style={{ fontSize: 14, fontWeight: 600, color: '#1a1a1a' }}>{stop.driver}</Text>
-        <Text style={{ fontSize: 14, fontWeight: 600, color: '#1a1a1a', marginLeft: 'auto' }}>{stop.plate}</Text>
-      </div>
+      {fields.driverPlate && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12 }}>
+          <WifiOutlined style={{ color: stop.online ? '#52c41a' : '#ff4d4f', fontSize: 15 }} />
+          <Text style={{ fontSize: 14, fontWeight: 600, color: '#1a1a1a' }}>{stop.driver}</Text>
+          <Text style={{ fontSize: 14, fontWeight: 600, color: '#1a1a1a', marginLeft: 'auto' }}>{stop.plate}</Text>
+        </div>
+      )}
 
       {/* Fleet Owner + last online (offline drivers only, per BR-012) */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
-        <Text style={{ fontSize: 12, color: '#bfbfbf' }}>{stop.fleetOwner}</Text>
-        {!stop.online && stop.lastOnline && (
-          <Text style={{ fontSize: 12, color: '#bfbfbf' }}>Last online {stop.lastOnline}</Text>
+      {fields.fleetOwner && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
+          <Text style={{ fontSize: 12, color: '#bfbfbf' }}>{stop.fleetOwner}</Text>
+          {!stop.online && stop.lastOnline && (
+            <Text style={{ fontSize: 12, color: '#bfbfbf' }}>Last online {stop.lastOnline}</Text>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ── Small labelled block used inside the detail bottom sheet ── */
+function DetailItem({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div style={{ minWidth: 0 }}>
+      <Text style={{ fontSize: 10.5, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.4, display: 'block', marginBottom: 4 }}>
+        {label}
+      </Text>
+      <div style={{ fontSize: 13, color: '#1a1a1a' }}>{children}</div>
+    </div>
+  )
+}
+
+/* ── Detail bottom sheet: slides up below the map/list when a trip is
+   selected (from a card or a map marker) and shows the full trip detail ── */
+function TripDetailSheet({ stop, onClose }: { stop: VehicleStop; onClose: () => void }) {
+  const status = deriveStatus(stop)
+  const s = STATUS_STYLE[status]
+  const statusLabel = stop.online ? status : 'Offline'
+  const lateMin = stop.online && status === 'Late' && stop.eta ? toMinutes(stop.eta) - toMinutes(stop.scheduled) : 0
+  return (
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', padding: '14px 18px', overflowY: 'auto' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <WifiOutlined style={{ color: stop.online ? '#52c41a' : '#ff4d4f', fontSize: 16 }} />
+        <span style={{ background: '#e6f4ff', color: '#1677ff', fontSize: 12.5, fontWeight: 600, padding: '2px 9px', borderRadius: 5 }}>{stop.label}</span>
+        <span style={{ background: '#f5f5f5', color: '#595959', fontSize: 12.5, fontWeight: 500, padding: '2px 9px', borderRadius: 5 }}>{stop.customerCode}</span>
+        <span
+          style={{
+            background: s.bg,
+            color: s.color,
+            border: `1px solid ${s.border}`,
+            fontSize: 12,
+            fontWeight: 600,
+            padding: '2px 10px',
+            borderRadius: 6,
+          }}
+        >
+          {statusLabel}
+        </span>
+        <Button type="text" icon={<CloseOutlined />} onClick={onClose} title="Close" style={{ marginLeft: 'auto', color: '#8c8c8c' }} />
+      </div>
+
+      {/* Body — info groups laid out across the wide sheet */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '18px 40px', marginTop: 16 }}>
+        <DetailItem label="Route">
+          {stop.from && stop.to ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, maxWidth: 360 }}>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#16a34a', flexShrink: 0 }} />
+              <Text style={{ fontSize: 13, color: '#595959' }} ellipsis>{stop.from.name}</Text>
+              <ArrowRightOutlined style={{ color: '#bfbfbf', fontSize: 12, flexShrink: 0 }} />
+              <Text style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1a' }} ellipsis>{stop.to.name}</Text>
+            </div>
+          ) : (
+            <Text style={{ fontSize: 13, fontWeight: 600 }}>{stop.destination}</Text>
+          )}
+        </DetailItem>
+
+        <DetailItem label="Trip start">
+          {formatTimeAmPm(stop.scheduled)}
+        </DetailItem>
+
+        <DetailItem label="ETA">
+          {stop.online && stop.eta ? (
+            <span style={{ color: status === 'Late' ? '#ff4d4f' : '#1677ff', fontWeight: 700 }}>
+              {formatTimeAmPm(stop.eta)}
+              {lateMin > 0 && <span style={{ fontWeight: 500 }}> · {lateMin} min late</span>}
+            </span>
+          ) : (
+            <span style={{ color: '#8c8c8c' }}>—</span>
+          )}
+        </DetailItem>
+
+        <DetailItem label="Driver">
+          <span style={{ fontWeight: 600 }}>{stop.driver}</span>
+        </DetailItem>
+
+        <DetailItem label="Vehicle">
+          <span style={{ fontWeight: 600 }}>{stop.plate}</span>
+        </DetailItem>
+
+        <DetailItem label="Fleet owner">
+          {stop.fleetOwner}
+        </DetailItem>
+
+        {!stop.online && (
+          <DetailItem label="Last online">
+            <span style={{ color: '#ff4d4f', fontWeight: 600 }}>{stop.lastOnline ?? 'Position unknown'}</span>
+          </DetailItem>
         )}
       </div>
     </div>
@@ -1031,7 +1182,7 @@ class MapErrorBoundary extends Component<{ children: ReactNode }, { error: Error
   override render() {
     if (this.state.error) {
       return (
-        <div style={{ height: '100%', minHeight: 600, width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, color: '#ff4d4f', textAlign: 'center', padding: 24 }}>
+        <div style={{ height: '100%', minHeight: 0, width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, color: '#ff4d4f', textAlign: 'center', padding: 24 }}>
           <Text style={{ color: '#ff4d4f', fontWeight: 600 }}>Map failed to render</Text>
           <Text style={{ fontSize: 12.5, color: '#8c8c8c', maxWidth: 360 }}>
             {this.state.error.message || 'An unexpected error occurred in the Google Maps widget.'}
@@ -1334,14 +1485,14 @@ function LiveMapView({
 
   if (loadError) {
     return (
-      <div style={{ height: '100%', minHeight: 600, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ff4d4f' }}>
+      <div style={{ height: '100%', minHeight: 0, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ff4d4f' }}>
         Failed to load Google Maps: {loadError.message}
       </div>
     )
   }
   if (!isLoaded) {
     return (
-      <div style={{ height: '100%', minHeight: 600, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8c8c8c' }}>
+      <div style={{ height: '100%', minHeight: 0, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8c8c8c' }}>
         Loading Google Maps…
       </div>
     )
@@ -1351,7 +1502,7 @@ function LiveMapView({
     <GoogleMap
       center={{ lat: DEFAULT_CENTER[0], lng: DEFAULT_CENTER[1] }}
       zoom={DEFAULT_ZOOM}
-      mapContainerStyle={{ height: '100%', minHeight: 600, width: '100%' }}
+      mapContainerStyle={{ height: '100%', minHeight: 0, width: '100%' }}
       onLoad={(map) => { mapRef.current = map }}
       options={{
         fullscreenControl: true,
@@ -1534,6 +1685,9 @@ export default function LiveTrackingPage() {
 
   // Filter popover state
   const [filterOpen, setFilterOpen] = useState(false)
+  const [sortOpen, setSortOpen] = useState(false)
+  const [sortBy, setSortBy] = useState<SortKey>('default')
+  const [cardFields, setCardFields] = useState<CardFields>(DEFAULT_CARD_FIELDS)
   const [customerCode, setCustomerCode] = useState('')
   const [fleetOwner, setFleetOwner] = useState('')
   const [driverFilter, setDriverFilter] = useState<string | undefined>()
@@ -1595,18 +1749,6 @@ export default function LiveTrackingPage() {
     })
 
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({})
-  // Driver list height tracks the left column's rendered height (stat cards
-  // + ticker + map) so it always reaches the same bottom edge as the map,
-  // instead of a hardcoded cap that leaves a gap when the map area grows.
-  const leftColRef = useRef<HTMLDivElement | null>(null)
-  const [leftColHeight, setLeftColHeight] = useState(600)
-  useEffect(() => {
-    if (!leftColRef.current) return
-    const el = leftColRef.current
-    const observer = new ResizeObserver(([entry]) => setLeftColHeight(entry.contentRect.height))
-    observer.observe(el)
-    return () => observer.disconnect()
-  }, [])
   // Latest live position per driver (animated when simulating, else static)
   const posRef = useRef<Record<string, [number, number] | null>>({})
 
@@ -1714,6 +1856,46 @@ export default function LiveTrackingPage() {
     return true
   })
 
+  const sorted = sortBy === 'default' ? filtered : [...filtered].sort((a, b) => {
+    switch (sortBy) {
+      case 'status': return statusRank(a) - statusRank(b)
+      case 'eta': {
+        const av = a.online && a.eta ? toMinutes(a.eta) : Infinity
+        const bv = b.online && b.eta ? toMinutes(b.eta) : Infinity
+        return av - bv
+      }
+      case 'label': return a.label.localeCompare(b.label)
+      case 'driver': return a.driver.localeCompare(b.driver)
+      default: return 0
+    }
+  })
+
+  const sortContent = (
+    <div style={{ width: 196 }}>
+      {SORT_OPTIONS.map((o) => (
+        <div
+          key={o.key}
+          onClick={() => { setSortBy(o.key); setSortOpen(false) }}
+          style={{
+            padding: '7px 10px',
+            borderRadius: 6,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 8,
+            background: sortBy === o.key ? '#e6f4ff' : 'transparent',
+            color: sortBy === o.key ? '#1677ff' : '#595959',
+            fontSize: 13,
+          }}
+        >
+          {o.label}
+          {sortBy === o.key && <CheckOutlined style={{ fontSize: 12 }} />}
+        </div>
+      ))}
+    </div>
+  )
+
   const filterContent = (
     <div style={{ width: 820, padding: 8 }}>
       <Text style={{ fontSize: 16, fontWeight: 600, display: 'block', marginBottom: 20 }}>Filter</Text>
@@ -1771,6 +1953,24 @@ export default function LiveTrackingPage() {
           />
         </Field>
       </div>
+
+      {/* Card field visibility — lets the user control how much detail each
+          card in the vertical list shows */}
+      <div style={{ marginTop: 18, paddingTop: 16, borderTop: '1px solid #f0f0f0' }}>
+        <Text style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 10 }}>Show in card</Text>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 24px' }}>
+          {CARD_FIELD_OPTIONS.map((f) => (
+            <Checkbox
+              key={f.key}
+              checked={cardFields[f.key]}
+              onChange={(e) => setCardFields((prev) => ({ ...prev, [f.key]: e.target.checked }))}
+            >
+              {f.label}
+            </Checkbox>
+          ))}
+        </div>
+      </div>
+
       <Button style={{ marginTop: 20 }} onClick={clearAllFilters}>
         Clear all filters
       </Button>
@@ -1785,11 +1985,14 @@ export default function LiveTrackingPage() {
           border: '1px solid #e8e8e8',
           borderRadius: 14,
           padding: 16,
+          display: 'flex',
+          flexDirection: 'column',
+          height: 'calc(100vh - 96px)',
         }}
       >
-        <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+        <div style={{ display: 'flex', gap: 16, flex: 1, minHeight: 0 }}>
           {/* ── Left column: stat cards + map ── */}
-          <div ref={leftColRef} style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
             {/* Stat cards (Late / To Check) hidden for now per request — keep
                 the markup so it can be brought back without rebuilding it. */}
             {false && (
@@ -1823,14 +2026,14 @@ export default function LiveTrackingPage() {
                 overflow: 'hidden',
                 border: '1px solid #f0f0f0',
                 flex: 1,
-                minHeight: 600,
+                minHeight: 0,
               }}
             >
               {!GOOGLE_MAPS_API_KEY ? (
                 <div
                   style={{
                     height: '100%',
-                    minHeight: 600,
+                    minHeight: 0,
                     width: '100%',
                     display: 'flex',
                     flexDirection: 'column',
@@ -1899,7 +2102,7 @@ export default function LiveTrackingPage() {
 
           {/* ── Right column: search + pills + list ── */}
           {showDriverList ? (
-            <div style={{ width: 360, flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
+            <div style={{ width: 360, flexShrink: 0, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
               {/* Search + filter */}
               <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
                 <Input
@@ -1910,6 +2113,22 @@ export default function LiveTrackingPage() {
                   style={{ flex: 1, borderRadius: 8 }}
                   allowClear
                 />
+                <Popover
+                  content={sortContent}
+                  trigger="click"
+                  open={sortOpen}
+                  onOpenChange={setSortOpen}
+                  placement="bottomRight"
+                >
+                  <Button
+                    icon={<SortAscendingOutlined />}
+                    style={{
+                      borderColor: sortBy !== 'default' ? '#1677ff' : '#e8e8e8',
+                      color: sortBy !== 'default' ? '#1677ff' : '#595959',
+                    }}
+                    title="Sort"
+                  />
+                </Popover>
                 <Popover
                   content={filterContent}
                   trigger="click"
@@ -1938,13 +2157,13 @@ export default function LiveTrackingPage() {
               </div>
 
               {/* Driver list */}
-              <div style={{ flex: 1, overflowY: 'auto', maxHeight: leftColHeight, paddingRight: 2 }}>
-                {filtered.length === 0 ? (
+              <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, paddingRight: 2 }}>
+                {sorted.length === 0 ? (
                   <div style={{ textAlign: 'center', padding: '40px 0', color: '#bfbfbf', fontSize: 13 }}>
                     No drivers found
                   </div>
                 ) : (
-                  filtered.map((stop) => (
+                  sorted.map((stop) => (
                     <DriverCard
                       key={stop.id}
                       stop={stop}
@@ -1955,6 +2174,7 @@ export default function LiveTrackingPage() {
                       }}
                       overridden={(statusOverrides[stop.id] ?? 'auto') !== 'auto'}
                       onClearOverride={() => setOverride(stop.id, 'auto')}
+                      fields={cardFields}
                     />
                   ))
                 )}
@@ -1967,6 +2187,23 @@ export default function LiveTrackingPage() {
               style={{ flexShrink: 0, borderColor: '#e8e8e8', color: '#595959' }}
               title="Show list"
             />
+          )}
+        </div>
+
+        {/* Detail bottom sheet — pushes the map/list up when a card or marker
+            is selected, and shows the selected trip's full detail */}
+        <div
+          style={{
+            height: selectedStop ? 260 : 0,
+            overflow: 'hidden',
+            transition: 'height 0.25s ease, margin-top 0.25s ease',
+            marginTop: selectedStop ? 12 : 0,
+            borderTop: selectedStop ? '1px solid #f0f0f0' : 'none',
+            flexShrink: 0,
+          }}
+        >
+          {selectedStop && (
+            <TripDetailSheet stop={selectedStop} onClose={() => setSelectedId(null)} />
           )}
         </div>
       </div>
