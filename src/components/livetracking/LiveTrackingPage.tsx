@@ -1253,6 +1253,7 @@ function LiveMapView({
   mapTheme,
   markerStyle,
   onSelect,
+  onClose,
   onRouteResolved,
 }: {
   filtered: VehicleStop[]
@@ -1264,6 +1265,7 @@ function LiveMapView({
   mapTheme: MapTheme
   markerStyle: MarkerStyle
   onSelect: (id: string) => void
+  onClose: () => void
   onRouteResolved: (key: string, path: [number, number][]) => void
 }) {
   const { isLoaded, loadError } = useJsApiLoader({
@@ -1429,9 +1431,31 @@ function LiveMapView({
                 const tripStyle = STATUS_STYLE[tripStatus]
                 const tripStatusLabel = stop.online ? tripStatus : 'Offline'
                 return (
-                  <InfoWindow position={{ lat, lng }} options={{ disableAutoPan: true, pixelOffset: new google.maps.Size(0, -38) }}>
-                    <div style={{ minWidth: 188, fontSize: 12.5 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <InfoWindow position={{ lat, lng }} onCloseClick={onClose} options={{ disableAutoPan: true, pixelOffset: new google.maps.Size(0, -38) }}>
+                    <div style={{ minWidth: 188, fontSize: 12.5, position: 'relative' }}>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onClose() }}
+                        aria-label="Close"
+                        style={{
+                          position: 'absolute',
+                          top: -4,
+                          right: -4,
+                          width: 20,
+                          height: 20,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          border: 'none',
+                          background: 'transparent',
+                          color: '#bfbfbf',
+                          cursor: 'pointer',
+                          padding: 0,
+                          borderRadius: 4,
+                        }}
+                      >
+                        <CloseOutlined style={{ fontSize: 12 }} />
+                      </button>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, paddingRight: 18 }}>
                         <WifiOutlined style={{ color: stop.online ? '#52c41a' : '#ff4d4f', fontSize: 13 }} />
                         <strong style={{ fontSize: 13, whiteSpace: 'nowrap' }}>{stop.driver}</strong>
                         <span style={{ marginLeft: 'auto', fontSize: 11.5, color: '#8c8c8c', whiteSpace: 'nowrap' }}>{stop.plate}</span>
@@ -1827,6 +1851,7 @@ export default function LiveTrackingPage() {
                     mapTheme={mapTheme}
                     markerStyle={markerStyle}
                     onSelect={setSelectedId}
+                    onClose={() => setSelectedId(null)}
                     onRouteResolved={onRouteResolved}
                   />
                 </MapErrorBoundary>
