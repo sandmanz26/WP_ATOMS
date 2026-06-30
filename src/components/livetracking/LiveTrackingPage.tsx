@@ -1752,7 +1752,7 @@ export default function LiveTrackingPage() {
           background: '#fff',
           border: '1px solid #e8e8e8',
           borderRadius: 14,
-          padding: 20,
+          padding: 16,
         }}
       >
         <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
