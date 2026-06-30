@@ -202,6 +202,8 @@ function TestConsole({
   onCardDesignChange,
   markerStyle,
   onMarkerStyleChange,
+  showUrgencyTicker,
+  onShowUrgencyTickerChange,
   showRoutes,
   onShowRoutesChange,
   showTraffic,
@@ -229,6 +231,8 @@ function TestConsole({
   onCardDesignChange: (v: CardDesign) => void
   markerStyle: MarkerStyle
   onMarkerStyleChange: (v: MarkerStyle) => void
+  showUrgencyTicker: boolean
+  onShowUrgencyTickerChange: (v: boolean) => void
   showRoutes: boolean
   onShowRoutesChange: (v: boolean) => void
   showTraffic: boolean
@@ -291,6 +295,10 @@ function TestConsole({
               Card style
             </Text>
             <Select size="small" value={cardDesign} onChange={onCardDesignChange} options={CARD_DESIGN_OPTIONS} style={{ width: 96 }} dropdownStyle={{ zIndex: 2100 }} />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <Text style={{ fontSize: 13, color: '#595959' }}>Show urgency cards</Text>
+            <Switch size="small" checked={showUrgencyTicker} onChange={onShowUrgencyTickerChange} />
           </div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
             <Text style={{ fontSize: 13, color: '#595959' }}>
@@ -1539,6 +1547,9 @@ export default function LiveTrackingPage() {
   const [mapTheme, setMapTheme] = useState<MapTheme>('default')
   const [cardDesign, setCardDesign] = useState<CardDesign>('default')
   const [markerStyle, setMarkerStyle] = useState<MarkerStyle>('vehicle')
+  // Urgency ticker is hidden by default to keep the view clean; toggled on
+  // from the Test Console "Map & display" section when needed.
+  const [showUrgencyTicker, setShowUrgencyTicker] = useState(false)
   const [simulating, setSimulating] = useState(false)
   const [progress, setProgress] = useState(0)
 
@@ -1800,7 +1811,9 @@ export default function LiveTrackingPage() {
               </div>
             )}
 
-            <UrgencyTicker stops={urgentStops} selectedId={selectedId} design={cardDesign} onSelect={setSelectedId} onTakeIt={onTakeIt} />
+            {showUrgencyTicker && (
+              <UrgencyTicker stops={urgentStops} selectedId={selectedId} design={cardDesign} onSelect={setSelectedId} onTakeIt={onTakeIt} />
+            )}
 
             {/* Map */}
             <div
@@ -1980,6 +1993,8 @@ export default function LiveTrackingPage() {
           onCardDesignChange={setCardDesign}
           markerStyle={markerStyle}
           onMarkerStyleChange={setMarkerStyle}
+          showUrgencyTicker={showUrgencyTicker}
+          onShowUrgencyTickerChange={setShowUrgencyTicker}
           showRoutes={showRoutes}
           onShowRoutesChange={setShowRoutes}
           showTraffic={showTraffic}
