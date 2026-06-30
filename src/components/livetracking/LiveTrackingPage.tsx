@@ -196,6 +196,18 @@ function TestConsole({
   onBulkStatusChange,
   onBulkApply,
   summary,
+  mapTheme,
+  onMapThemeChange,
+  cardDesign,
+  onCardDesignChange,
+  markerStyle,
+  onMarkerStyleChange,
+  showRoutes,
+  onShowRoutesChange,
+  showTraffic,
+  onShowTrafficChange,
+  simulating,
+  onToggleSimulate,
 }: {
   pos: { x: number; y: number }
   onDragStart: (e: React.MouseEvent) => void
@@ -211,6 +223,18 @@ function TestConsole({
   onBulkStatusChange: (v: StatusOverride) => void
   onBulkApply: () => void
   summary: { label: string; color: string; count: number }[]
+  mapTheme: MapTheme
+  onMapThemeChange: (v: MapTheme) => void
+  cardDesign: CardDesign
+  onCardDesignChange: (v: CardDesign) => void
+  markerStyle: MarkerStyle
+  onMarkerStyleChange: (v: MarkerStyle) => void
+  showRoutes: boolean
+  onShowRoutesChange: (v: boolean) => void
+  showTraffic: boolean
+  onShowTrafficChange: (v: boolean) => void
+  simulating: boolean
+  onToggleSimulate: () => void
 }) {
   return (
     <div
@@ -251,6 +275,49 @@ function TestConsole({
       </div>
 
       <div style={{ padding: '10px 12px', overflowY: 'auto', flex: 1 }}>
+        {/* Map & display controls — merged in from the old floating map panel
+            so all of the page's knobs live in one place */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12, paddingBottom: 12, borderBottom: '1px solid #f0f0f0' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <Text style={{ fontSize: 13, color: '#595959' }}>
+              <BgColorsOutlined style={{ marginRight: 6 }} />
+              Map theme
+            </Text>
+            <Select size="small" value={mapTheme} onChange={onMapThemeChange} options={MAP_THEME_OPTIONS} style={{ width: 96 }} dropdownStyle={{ zIndex: 2100 }} />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <Text style={{ fontSize: 13, color: '#595959' }}>
+              <AppstoreOutlined style={{ marginRight: 6 }} />
+              Card style
+            </Text>
+            <Select size="small" value={cardDesign} onChange={onCardDesignChange} options={CARD_DESIGN_OPTIONS} style={{ width: 96 }} dropdownStyle={{ zIndex: 2100 }} />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <Text style={{ fontSize: 13, color: '#595959' }}>
+              <EnvironmentOutlined style={{ marginRight: 6 }} />
+              Marker style
+            </Text>
+            <Select size="small" value={markerStyle} onChange={onMarkerStyleChange} options={MARKER_STYLE_OPTIONS} style={{ width: 96 }} dropdownStyle={{ zIndex: 2100 }} />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <Text style={{ fontSize: 13, color: '#595959' }}>Show routes</Text>
+            <Switch size="small" checked={showRoutes} onChange={onShowRoutesChange} />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <Text style={{ fontSize: 13, color: '#595959' }}>Show traffic</Text>
+            <Switch size="small" checked={showTraffic} onChange={onShowTrafficChange} />
+          </div>
+          <Button
+            size="small"
+            type={simulating ? 'primary' : 'default'}
+            icon={simulating ? <PauseOutlined /> : <CaretRightOutlined />}
+            onClick={onToggleSimulate}
+            block
+          >
+            {simulating ? 'Pause' : 'Simulate'}
+          </Button>
+        </div>
+
         {/* Live sync summary — same `stops` array feeds the map markers, the
             driver list and these counts, so this is always what's on screen */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
@@ -1765,82 +1832,6 @@ export default function LiveTrackingPage() {
                 </MapErrorBoundary>
               )}
 
-              {/* Map controls: layer toggles + movement simulation */}
-              <div
-                style={{
-                  position: 'absolute',
-                  top: 12,
-                  right: 12,
-                  zIndex: 500,
-                  background: 'rgba(255,255,255,.96)',
-                  border: '1px solid #f0f0f0',
-                  borderRadius: 10,
-                  padding: '10px 12px',
-                  boxShadow: '0 4px 14px rgba(15,23,42,.12)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 8,
-                  minWidth: 168,
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                  <Text style={{ fontSize: 13, color: '#595959' }}>
-                    <BgColorsOutlined style={{ marginRight: 6 }} />
-                    Map theme
-                  </Text>
-                  <Select
-                    size="small"
-                    value={mapTheme}
-                    onChange={setMapTheme}
-                    options={MAP_THEME_OPTIONS}
-                    style={{ width: 92 }}
-                  />
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                  <Text style={{ fontSize: 13, color: '#595959' }}>
-                    <AppstoreOutlined style={{ marginRight: 6 }} />
-                    Card style
-                  </Text>
-                  <Select
-                    size="small"
-                    value={cardDesign}
-                    onChange={setCardDesign}
-                    options={CARD_DESIGN_OPTIONS}
-                    style={{ width: 92 }}
-                  />
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                  <Text style={{ fontSize: 13, color: '#595959' }}>
-                    <EnvironmentOutlined style={{ marginRight: 6 }} />
-                    Marker style
-                  </Text>
-                  <Select
-                    size="small"
-                    value={markerStyle}
-                    onChange={setMarkerStyle}
-                    options={MARKER_STYLE_OPTIONS}
-                    style={{ width: 92 }}
-                  />
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                  <Text style={{ fontSize: 13, color: '#595959' }}>Show routes</Text>
-                  <Switch size="small" checked={showRoutes} onChange={setShowRoutes} />
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                  <Text style={{ fontSize: 13, color: '#595959' }}>Show traffic</Text>
-                  <Switch size="small" checked={showTraffic} onChange={setShowTraffic} />
-                </div>
-                <Button
-                  size="small"
-                  type={simulating ? 'primary' : 'default'}
-                  icon={simulating ? <PauseOutlined /> : <CaretRightOutlined />}
-                  onClick={() => setSimulating((v) => !v)}
-                  block
-                >
-                  {simulating ? 'Pause' : 'Simulate'}
-                </Button>
-              </div>
-
               {/* Traffic legend */}
               <div
                 style={{
@@ -1961,6 +1952,18 @@ export default function LiveTrackingPage() {
           onBulkStatusChange={setBulkStatus}
           onBulkApply={applyBulkStatus}
           summary={testSummary}
+          mapTheme={mapTheme}
+          onMapThemeChange={setMapTheme}
+          cardDesign={cardDesign}
+          onCardDesignChange={setCardDesign}
+          markerStyle={markerStyle}
+          onMarkerStyleChange={setMarkerStyle}
+          showRoutes={showRoutes}
+          onShowRoutesChange={setShowRoutes}
+          showTraffic={showTraffic}
+          onShowTrafficChange={setShowTraffic}
+          simulating={simulating}
+          onToggleSimulate={() => setSimulating((v) => !v)}
         />
       ) : (
         <Button
