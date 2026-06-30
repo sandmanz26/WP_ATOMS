@@ -1372,8 +1372,8 @@ function LiveMapView({
                 path={(s.route as [number, number][]).map(([lat, lng]) => ({ lat, lng }))}
                 options={
                   sel
-                    ? { strokeColor: '#1677ff', strokeWeight: 5, strokeOpacity: 0.95 }
-                    : { strokeColor: '#64748b', strokeWeight: 3, strokeOpacity: dim ? 0.1 : 0.4 }
+                    ? { strokeColor: '#1677ff', strokeWeight: 7.5, strokeOpacity: 0.95 }
+                    : { strokeColor: '#64748b', strokeWeight: 4.5, strokeOpacity: dim ? 0.1 : 0.4 }
                 }
               />
             )
