@@ -1698,9 +1698,9 @@ export default function LiveTrackingPage() {
   // Map layer toggles + movement simulation
   const [showRoutes, setShowRoutes] = useState(true)
   const [showTraffic, setShowTraffic] = useState(true)
-  const [mapTheme, setMapTheme] = useState<MapTheme>('default')
+  const [mapTheme, setMapTheme] = useState<MapTheme>('silver')
   const [cardDesign, setCardDesign] = useState<CardDesign>('default')
-  const [markerStyle, setMarkerStyle] = useState<MarkerStyle>('vehicle')
+  const [markerStyle, setMarkerStyle] = useState<MarkerStyle>('bus')
   // Urgency ticker is hidden by default to keep the view clean; toggled on
   // from the Test Console "Map & display" section when needed.
   const [showUrgencyTicker, setShowUrgencyTicker] = useState(false)
