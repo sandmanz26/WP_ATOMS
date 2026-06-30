@@ -2194,7 +2194,7 @@ export default function LiveTrackingPage() {
             is selected, and shows the selected trip's full detail */}
         <div
           style={{
-            height: selectedStop ? 260 : 0,
+            height: selectedStop ? 136 : 0,
             overflow: 'hidden',
             transition: 'height 0.25s ease, margin-top 0.25s ease',
             marginTop: selectedStop ? 12 : 0,
