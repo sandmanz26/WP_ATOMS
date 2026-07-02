@@ -8,6 +8,7 @@ import EditGroupPage from '@/components/contracts/edit/EditGroupPage'
 import LiveTrackingPage from '@/components/livetracking/LiveTrackingPage'
 import LiveTrackingLegacyPage from '@/components/livetracking/LiveTrackingLegacyPage'
 import Tracking2Page from '@/components/livetracking/Tracking2Page'
+import TestingPage from '@/components/testing/TestingPage'
 
 export type AppPage =
   | { type: 'listing' }
@@ -18,6 +19,7 @@ export type AppPage =
   | { type: 'live-tracking' }
   | { type: 'live-tracking-legacy' }
   | { type: 'tracking-2' }
+  | { type: 'testing' }
 
 export default function App() {
   const [page, setPage] = useState<AppPage>({ type: 'listing' })
@@ -49,6 +51,14 @@ export default function App() {
     return (
       <AppLayout activeKey="tracking-2" breadcrumbLabel="Tracking 2.0" onNavigate={navigate}>
         <Tracking2Page />
+      </AppLayout>
+    )
+  }
+
+  if (page.type === 'testing') {
+    return (
+      <AppLayout activeKey="testing" breadcrumbLabel="Testing" onNavigate={navigate}>
+        <TestingPage />
       </AppLayout>
     )
   }

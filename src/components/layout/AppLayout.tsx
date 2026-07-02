@@ -10,6 +10,7 @@ import {
   DownOutlined,
   RightOutlined,
   SettingOutlined,
+  ExperimentOutlined,
 } from '@ant-design/icons'
 import type { AppPage } from '@/App'
 import { version as appVersion } from '../../../package.json'
@@ -119,6 +120,12 @@ export default function AppLayout({
           },
         ]
       : []),
+    {
+      key: 'testing',
+      icon: <ExperimentOutlined style={{ fontSize: 16, color: '#595959' }} />,
+      label: 'Testing',
+      onClick: () => onNavigate?.({ type: 'testing' }),
+    },
   ]
 
   return (
