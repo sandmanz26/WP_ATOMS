@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Typography, Select, Input, Button, Divider } from 'antd'
+import { Typography, Select, Input, Button, Modal } from 'antd'
 import { PlusOutlined, MinusCircleOutlined } from '@ant-design/icons'
 
 const { Text, Title } = Typography
@@ -29,21 +29,23 @@ const COUNTRY_CODES = [
 
 type ManualNumber = { code: string; number: string }
 
-/* ── Section wrapper: bold label + optional helper notes ── */
-function FieldBlock({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+/* ── Horizontal row: label (+ Optional) on the left, field(s) on the right ── */
+function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div style={{ marginBottom: 8 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-        <Text style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1a' }}>{label}</Text>
-        <span style={{ fontSize: 11, color: '#8c8c8c', background: '#f5f5f5', padding: '1px 8px', borderRadius: 4 }}>Optional</span>
+    <div style={{ display: 'flex', gap: 20, marginBottom: 22, alignItems: 'flex-start' }}>
+      <div style={{ width: 128, flexShrink: 0, paddingTop: 6 }}>
+        <Text style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1a', display: 'block' }}>{label}</Text>
+        <span style={{ fontSize: 11, color: '#8c8c8c', background: '#f5f5f5', padding: '1px 8px', borderRadius: 4, display: 'inline-block', marginTop: 4 }}>
+          Optional
+        </span>
       </div>
-      {hint && <Text style={{ fontSize: 12, color: '#8c8c8c', display: 'block', marginBottom: 8 }}>{hint}</Text>}
-      {children}
+      <div style={{ flex: 1, minWidth: 0 }}>{children}</div>
     </div>
   )
 }
 
 export default function TestingPage() {
+  const [open, setOpen] = useState(false)
   const [picNumbers, setPicNumbers] = useState<string[]>([])
   const [manualNumbers, setManualNumbers] = useState<ManualNumber[]>([])
   const [picEmails, setPicEmails] = useState<string[]>([])
@@ -102,6 +104,7 @@ export default function TestingPage() {
         manual: manualCcEmails.filter((e) => e.trim()),
       },
     })
+    setOpen(false)
   }
 
   return (
@@ -115,106 +118,11 @@ export default function TestingPage() {
           maxWidth: 720,
         }}
       >
-        <Title level={4} style={{ marginTop: 0, marginBottom: 4 }}>Contact form</Title>
-        <Text style={{ fontSize: 13, color: '#8c8c8c' }}>
-          A sandbox form to try the contact / email fields. All fields are optional.
+        <Title level={4} style={{ marginTop: 0, marginBottom: 4 }}>Testing</Title>
+        <Text style={{ fontSize: 13, color: '#8c8c8c', display: 'block', marginBottom: 16 }}>
+          Open the contact / email form in a modal.
         </Text>
-
-        <Divider style={{ margin: '20px 0' }} />
-
-        {/* ── Contact Number ── */}
-        <FieldBlock
-          label="Contact Number"
-          hint="Options are the PIC contact numbers from the customers module. You can select more than one."
-        >
-          <Select
-            mode="multiple"
-            value={picNumbers}
-            onChange={setPicNumbers}
-            options={PIC_CONTACT_NUMBERS.map((n) => ({ label: n, value: n }))}
-            placeholder="Select PIC contact number(s)"
-            style={{ width: '100%' }}
-            allowClear
-          />
-        </FieldBlock>
-
-        <div style={{ marginBottom: 20 }}>
-          <Text style={{ fontSize: 12, color: '#8c8c8c', display: 'block', marginBottom: 8 }}>
-            Or manually add other mobile numbers (country code defaults to Singapore +65). You can add more than one.
-          </Text>
-          {manualNumbers.map((row, i) => (
-            <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-              <Select
-                value={row.code}
-                onChange={(code) => updateNumber(i, { code })}
-                options={COUNTRY_CODES}
-                style={{ width: 110, flexShrink: 0 }}
-              />
-              <Input
-                value={row.number}
-                onChange={(e) => updateNumber(i, { number: e.target.value })}
-                placeholder="Mobile number"
-                style={{ flex: 1 }}
-              />
-              <Button type="text" icon={<MinusCircleOutlined />} onClick={() => removeNumber(i)} />
-            </div>
-          ))}
-          <Button type="dashed" icon={<PlusOutlined />} onClick={addNumber} style={{ width: '100%' }}>
-            Add mobile number
-          </Button>
-        </div>
-
-        <Divider style={{ margin: '20px 0' }} />
-
-        {/* ── Email ── */}
-        <FieldBlock
-          label="Email"
-          hint="Options are the PIC emails from the customers module. You can select more than one."
-        >
-          <Select
-            mode="multiple"
-            value={picEmails}
-            onChange={setPicEmails}
-            options={PIC_EMAILS.map((e) => ({ label: e, value: e }))}
-            placeholder="Select PIC email(s)"
-            style={{ width: '100%' }}
-            allowClear
-          />
-        </FieldBlock>
-        <div style={{ marginBottom: 20 }}>
-          <Text style={{ fontSize: 12, color: '#8c8c8c', display: 'block', marginBottom: 8 }}>
-            Or manually add other emails not in the dropdown. You can add more than one.
-          </Text>
-          {manualEmailList(manualEmails, setManualEmails)}
-        </div>
-
-        <Divider style={{ margin: '20px 0' }} />
-
-        {/* ── Email Cc ── */}
-        <FieldBlock
-          label="Email Cc"
-          hint="Options are the PIC emails from the customers module. You can select more than one."
-        >
-          <Select
-            mode="multiple"
-            value={picCcEmails}
-            onChange={setPicCcEmails}
-            options={PIC_EMAILS.map((e) => ({ label: e, value: e }))}
-            placeholder="Select PIC email(s) to Cc"
-            style={{ width: '100%' }}
-            allowClear
-          />
-        </FieldBlock>
-        <div style={{ marginBottom: 20 }}>
-          <Text style={{ fontSize: 12, color: '#8c8c8c', display: 'block', marginBottom: 8 }}>
-            Or manually add other Cc emails not in the dropdown. You can add more than one.
-          </Text>
-          {manualEmailList(manualCcEmails, setManualCcEmails)}
-        </div>
-
-        <Divider style={{ margin: '20px 0' }} />
-
-        <Button type="primary" onClick={onSubmit}>Submit</Button>
+        <Button type="primary" onClick={() => setOpen(true)}>Open form</Button>
 
         {submitted && (
           <div style={{ marginTop: 20 }}>
@@ -235,6 +143,88 @@ export default function TestingPage() {
           </div>
         )}
       </div>
+
+      <Modal
+        title="Contact form"
+        open={open}
+        onCancel={() => setOpen(false)}
+        onOk={onSubmit}
+        okText="Submit"
+        width={760}
+        destroyOnHidden={false}
+      >
+        <div style={{ paddingTop: 12 }}>
+          {/* ── Contact Number ── */}
+          <Row label="Contact Number">
+            <Select
+              mode="multiple"
+              value={picNumbers}
+              onChange={setPicNumbers}
+              options={PIC_CONTACT_NUMBERS.map((n) => ({ label: n, value: n }))}
+              placeholder="Select PIC contact number(s) from customers"
+              style={{ width: '100%' }}
+              allowClear
+            />
+            <Text style={{ fontSize: 12, color: '#8c8c8c', display: 'block', margin: '8px 0' }}>
+              Or manually add other mobile numbers (defaults to +65):
+            </Text>
+            {manualNumbers.map((row, i) => (
+              <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                <Select
+                  value={row.code}
+                  onChange={(code) => updateNumber(i, { code })}
+                  options={COUNTRY_CODES}
+                  style={{ width: 110, flexShrink: 0 }}
+                />
+                <Input
+                  value={row.number}
+                  onChange={(e) => updateNumber(i, { number: e.target.value })}
+                  placeholder="Mobile number"
+                  style={{ flex: 1 }}
+                />
+                <Button type="text" icon={<MinusCircleOutlined />} onClick={() => removeNumber(i)} />
+              </div>
+            ))}
+            <Button type="dashed" icon={<PlusOutlined />} onClick={addNumber} style={{ width: '100%' }}>
+              Add mobile number
+            </Button>
+          </Row>
+
+          {/* ── Email ── */}
+          <Row label="Email">
+            <Select
+              mode="multiple"
+              value={picEmails}
+              onChange={setPicEmails}
+              options={PIC_EMAILS.map((e) => ({ label: e, value: e }))}
+              placeholder="Select PIC email(s) from customers"
+              style={{ width: '100%' }}
+              allowClear
+            />
+            <Text style={{ fontSize: 12, color: '#8c8c8c', display: 'block', margin: '8px 0' }}>
+              Or manually add other emails:
+            </Text>
+            {manualEmailList(manualEmails, setManualEmails)}
+          </Row>
+
+          {/* ── Email Cc ── */}
+          <Row label="Email Cc">
+            <Select
+              mode="multiple"
+              value={picCcEmails}
+              onChange={setPicCcEmails}
+              options={PIC_EMAILS.map((e) => ({ label: e, value: e }))}
+              placeholder="Select PIC email(s) to Cc"
+              style={{ width: '100%' }}
+              allowClear
+            />
+            <Text style={{ fontSize: 12, color: '#8c8c8c', display: 'block', margin: '8px 0' }}>
+              Or manually add other Cc emails:
+            </Text>
+            {manualEmailList(manualCcEmails, setManualCcEmails)}
+          </Row>
+        </div>
+      </Modal>
     </div>
   )
 }
