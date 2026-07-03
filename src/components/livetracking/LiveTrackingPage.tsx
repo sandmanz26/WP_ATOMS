@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, Component, type ReactNode } from 'react'
 import { GoogleMap, Marker, Polyline, InfoWindow, TrafficLayer, useJsApiLoader } from '@react-google-maps/api'
-import { Typography, Input, Button, Select, Popover, Switch, Slider, Tooltip, Checkbox } from 'antd'
+import { Typography, Input, Button, Select, Popover, Switch, Slider, Tooltip, Checkbox, Drawer } from 'antd'
 import {
   SearchOutlined,
   FilterOutlined,
@@ -203,6 +203,8 @@ function TestConsole({
   onCardDesignChange,
   markerStyle,
   onMarkerStyleChange,
+  listCardStyle,
+  onListCardStyleChange,
   tabStyle,
   onTabStyleChange,
   showUrgencyTicker,
@@ -234,6 +236,8 @@ function TestConsole({
   onCardDesignChange: (v: CardDesign) => void
   markerStyle: MarkerStyle
   onMarkerStyleChange: (v: MarkerStyle) => void
+  listCardStyle: ListCardStyle
+  onListCardStyleChange: (v: ListCardStyle) => void
   tabStyle: TabStyle
   onTabStyleChange: (v: TabStyle) => void
   showUrgencyTicker: boolean
@@ -297,9 +301,16 @@ function TestConsole({
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
             <Text style={{ fontSize: 13, color: '#595959' }}>
               <AppstoreOutlined style={{ marginRight: 6 }} />
-              Card style
+              Urgent card variation
             </Text>
             <Select size="small" value={cardDesign} onChange={onCardDesignChange} options={CARD_DESIGN_OPTIONS} style={{ width: 96 }} dropdownStyle={{ zIndex: 2100 }} />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <Text style={{ fontSize: 13, color: '#595959' }}>
+              <AppstoreOutlined style={{ marginRight: 6 }} />
+              Vertical card variation
+            </Text>
+            <Select size="small" value={listCardStyle} onChange={onListCardStyleChange} options={LIST_CARD_STYLE_OPTIONS} style={{ width: 96 }} dropdownStyle={{ zIndex: 2100 }} />
           </div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
             <Text style={{ fontSize: 13, color: '#595959' }}>
@@ -1054,6 +1065,119 @@ const CARD_FIELD_OPTIONS: { key: keyof CardFields; label: string }[] = [
   { key: 'fleetOwner', label: 'Fleet owner' },
 ]
 
+/* ── Vertical driver-list card variations (the cards next to the map). Every
+   variation shows the route code, trip start time, the driver's first name and
+   the vehicle plate, with a status-colour accent — switchable from the Test
+   Console. "detailed" reuses the fuller DriverCard below. ── */
+type ListCardStyle = 'detailed' | 'compact' | 'split' | 'minimal'
+
+const LIST_CARD_STYLE_OPTIONS: { value: ListCardStyle; label: string }[] = [
+  { value: 'detailed', label: 'Detailed' },
+  { value: 'compact', label: 'Compact' },
+  { value: 'split', label: 'Split' },
+  { value: 'minimal', label: 'Minimal' },
+]
+
+function firstName(full: string): string {
+  return full.trim().split(/\s+/)[0]
+}
+
+function listCardColor(stop: VehicleStop): string {
+  if (!stop.online) return '#ff4d4f'
+  switch (deriveStatus(stop)) {
+    case 'Late': return '#faad14'
+    case 'Notified': return '#1677ff'
+    case 'To Check': return '#ff4d4f'
+    default: return '#16a34a'
+  }
+}
+
+function ListCard({
+  stop,
+  selected,
+  onSelect,
+  variant,
+}: {
+  stop: VehicleStop
+  selected: boolean
+  onSelect: () => void
+  variant: Exclude<ListCardStyle, 'detailed'>
+}) {
+  const color = listCardColor(stop)
+  const name = firstName(stop.driver)
+  const start = formatTimeAmPm(stop.scheduled)
+  const border = selected ? '#1677ff' : '#f0f0f0'
+  const routeChip = (
+    <span style={{ background: '#e6f4ff', color: '#1677ff', fontSize: 12, fontWeight: 600, padding: '1px 8px', borderRadius: 4 }}>
+      {stop.label}
+    </span>
+  )
+
+  if (variant === 'split') {
+    return (
+      <div
+        onClick={onSelect}
+        style={{ display: 'flex', background: selected ? '#e6f4ff' : '#fff', border: `1px solid ${border}`, borderRadius: 10, marginBottom: 12, cursor: 'pointer', overflow: 'hidden' }}
+      >
+        <span style={{ width: 4, background: color, flexShrink: 0 }} />
+        <div style={{ flex: 1, padding: '12px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+          <div style={{ minWidth: 0 }}>
+            {routeChip}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 8 }}>
+              <ClockCircleOutlined style={{ fontSize: 12, color: '#8c8c8c' }} />
+              <Text style={{ fontSize: 12.5, color: '#8c8c8c' }}>{start}</Text>
+            </div>
+          </div>
+          <div style={{ textAlign: 'right', flexShrink: 0, borderLeft: '1px solid #f0f0f0', paddingLeft: 12 }}>
+            <Text style={{ fontSize: 14, fontWeight: 600, color: '#1a1a1a', display: 'block' }}>{name}</Text>
+            <Text style={{ fontSize: 12.5, color: '#8c8c8c' }}>{stop.plate}</Text>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (variant === 'minimal') {
+    return (
+      <div
+        onClick={onSelect}
+        style={{ display: 'flex', alignItems: 'center', gap: 10, background: selected ? '#e6f4ff' : '#fff', border: `1px solid ${border}`, borderRadius: 10, padding: '10px 12px', marginBottom: 8, cursor: 'pointer' }}
+      >
+        <span style={{ width: 8, height: 8, borderRadius: '50%', background: color, flexShrink: 0 }} />
+        {routeChip}
+        <Text style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1a', minWidth: 0 }} ellipsis>{name}</Text>
+        <div style={{ marginLeft: 'auto', textAlign: 'right', flexShrink: 0 }}>
+          <Text style={{ fontSize: 12.5, fontWeight: 600, color: '#1a1a1a', display: 'block' }}>{stop.plate}</Text>
+          <Text style={{ fontSize: 11, color: '#8c8c8c' }}>{start}</Text>
+        </div>
+      </div>
+    )
+  }
+
+  // compact
+  return (
+    <div
+      onClick={onSelect}
+      style={{ display: 'flex', background: selected ? '#e6f4ff' : '#fff', border: `1px solid ${border}`, borderRadius: 10, marginBottom: 12, cursor: 'pointer', overflow: 'hidden' }}
+    >
+      <span style={{ width: 4, background: color, flexShrink: 0 }} />
+      <div style={{ flex: 1, padding: '12px 14px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          {routeChip}
+          <Text style={{ fontSize: 13.5, fontWeight: 600, color: '#1a1a1a' }}>{stop.plate}</Text>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <ClockCircleOutlined style={{ fontSize: 12, color: '#8c8c8c' }} />
+            <Text style={{ fontSize: 12.5, color: '#8c8c8c' }}>{start}</Text>
+          </div>
+          <Text style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1a' }}>{name}</Text>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function DriverCard({
   stop,
   selected,
@@ -1244,88 +1368,6 @@ function DetailItem({ label, children }: { label: string; children: React.ReactN
         {label}
       </Text>
       <div style={{ fontSize: 13, color: '#1a1a1a' }}>{children}</div>
-    </div>
-  )
-}
-
-/* ── Detail bottom sheet: slides up below the map/list when a trip is
-   selected (from a card or a map marker) and shows the full trip detail ── */
-function TripDetailSheet({ stop, onClose }: { stop: VehicleStop; onClose: () => void }) {
-  const status = deriveStatus(stop)
-  const s = STATUS_STYLE[status]
-  const statusLabel = stop.online ? status : 'Offline'
-  const lateMin = stop.online && status === 'Late' && stop.eta ? toMinutes(stop.eta) - toMinutes(stop.scheduled) : 0
-  return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', padding: '14px 18px', overflowY: 'auto' }}>
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <WifiOutlined style={{ color: stop.online ? '#52c41a' : '#ff4d4f', fontSize: 16 }} />
-        <span style={{ background: '#e6f4ff', color: '#1677ff', fontSize: 12.5, fontWeight: 600, padding: '2px 9px', borderRadius: 5 }}>{stop.label}</span>
-        <span style={{ background: '#f5f5f5', color: '#595959', fontSize: 12.5, fontWeight: 500, padding: '2px 9px', borderRadius: 5 }}>{stop.customerCode}</span>
-        <span
-          style={{
-            background: s.bg,
-            color: s.color,
-            border: `1px solid ${s.border}`,
-            fontSize: 12,
-            fontWeight: 600,
-            padding: '2px 10px',
-            borderRadius: 6,
-          }}
-        >
-          {statusLabel}
-        </span>
-        <Button type="text" icon={<CloseOutlined />} onClick={onClose} title="Close" style={{ marginLeft: 'auto', color: '#8c8c8c' }} />
-      </div>
-
-      {/* Body — info groups laid out across the wide sheet */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '18px 40px', marginTop: 16 }}>
-        <DetailItem label="Route">
-          {stop.from && stop.to ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, maxWidth: 360 }}>
-              <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#16a34a', flexShrink: 0 }} />
-              <Text style={{ fontSize: 13, color: '#595959' }} ellipsis>{stop.from.name}</Text>
-              <ArrowRightOutlined style={{ color: '#bfbfbf', fontSize: 12, flexShrink: 0 }} />
-              <Text style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1a' }} ellipsis>{stop.to.name}</Text>
-            </div>
-          ) : (
-            <Text style={{ fontSize: 13, fontWeight: 600 }}>{stop.destination}</Text>
-          )}
-        </DetailItem>
-
-        <DetailItem label="Trip start">
-          {formatTimeAmPm(stop.scheduled)}
-        </DetailItem>
-
-        <DetailItem label="ETA">
-          {stop.online && stop.eta ? (
-            <span style={{ color: status === 'Late' ? '#ff4d4f' : '#1677ff', fontWeight: 700 }}>
-              {formatTimeAmPm(stop.eta)}
-              {lateMin > 0 && <span style={{ fontWeight: 500 }}> · {lateMin} min late</span>}
-            </span>
-          ) : (
-            <span style={{ color: '#8c8c8c' }}>—</span>
-          )}
-        </DetailItem>
-
-        <DetailItem label="Driver">
-          <span style={{ fontWeight: 600 }}>{stop.driver}</span>
-        </DetailItem>
-
-        <DetailItem label="Vehicle">
-          <span style={{ fontWeight: 600 }}>{stop.plate}</span>
-        </DetailItem>
-
-        <DetailItem label="Fleet owner">
-          {stop.fleetOwner}
-        </DetailItem>
-
-        {!stop.online && (
-          <DetailItem label="Last online">
-            <span style={{ color: '#ff4d4f', fontWeight: 600 }}>{stop.lastOnline ?? 'Position unknown'}</span>
-          </DetailItem>
-        )}
-      </div>
     </div>
   )
 }
@@ -1863,6 +1905,7 @@ export default function LiveTrackingPage() {
   const [cardDesign, setCardDesign] = useState<CardDesign>('default')
   const [markerStyle, setMarkerStyle] = useState<MarkerStyle>('bus')
   const [tabStyle, setTabStyle] = useState<TabStyle>('default')
+  const [listCardStyle, setListCardStyle] = useState<ListCardStyle>('detailed')
   // Urgency ticker is hidden by default to keep the view clean; toggled on
   // from the Test Console "Map & display" section when needed.
   const [showUrgencyTicker, setShowUrgencyTicker] = useState(false)
@@ -2333,20 +2376,30 @@ export default function LiveTrackingPage() {
                     No drivers found
                   </div>
                 ) : (
-                  sorted.map((stop) => (
-                    <DriverCard
-                      key={stop.id}
-                      stop={stop}
-                      selected={selectedId === stop.id}
-                      onSelect={() => setSelectedId(stop.id)}
-                      innerRef={(el) => {
-                        cardRefs.current[stop.id] = el
-                      }}
-                      overridden={(statusOverrides[stop.id] ?? 'auto') !== 'auto'}
-                      onClearOverride={() => setOverride(stop.id, 'auto')}
-                      fields={cardFields}
-                    />
-                  ))
+                  sorted.map((stop) =>
+                    listCardStyle === 'detailed' ? (
+                      <DriverCard
+                        key={stop.id}
+                        stop={stop}
+                        selected={selectedId === stop.id}
+                        onSelect={() => setSelectedId(stop.id)}
+                        innerRef={(el) => {
+                          cardRefs.current[stop.id] = el
+                        }}
+                        overridden={(statusOverrides[stop.id] ?? 'auto') !== 'auto'}
+                        onClearOverride={() => setOverride(stop.id, 'auto')}
+                        fields={cardFields}
+                      />
+                    ) : (
+                      <ListCard
+                        key={stop.id}
+                        stop={stop}
+                        selected={selectedId === stop.id}
+                        onSelect={() => setSelectedId(stop.id)}
+                        variant={listCardStyle}
+                      />
+                    ),
+                  )
                 )}
               </div>
             </div>
@@ -2360,23 +2413,66 @@ export default function LiveTrackingPage() {
           )}
         </div>
 
-        {/* Detail bottom sheet — pushes the map/list up when a card or marker
-            is selected, and shows the selected trip's full detail */}
-        <div
-          style={{
-            height: selectedStop ? 136 : 0,
-            overflow: 'hidden',
-            transition: 'height 0.25s ease, margin-top 0.25s ease',
-            marginTop: selectedStop ? 12 : 0,
-            borderTop: selectedStop ? '1px solid #f0f0f0' : 'none',
-            flexShrink: 0,
-          }}
-        >
-          {selectedStop && (
-            <TripDetailSheet stop={selectedStop} onClose={() => setSelectedId(null)} />
-          )}
-        </div>
       </div>
+
+      {/* Detail drawer — opens from the right when a card or marker is
+          selected, showing the selected trip's full detail */}
+      <Drawer
+        title="Trip detail"
+        placement="right"
+        width={380}
+        open={!!selectedStop}
+        onClose={() => setSelectedId(null)}
+      >
+        {selectedStop && (() => {
+          const st = selectedStop
+          const status = deriveStatus(st)
+          const style = STATUS_STYLE[status]
+          const statusLabel = st.online ? status : 'Offline'
+          const lateMin = st.online && status === 'Late' && st.eta ? toMinutes(st.eta) - toMinutes(st.scheduled) : 0
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <WifiOutlined style={{ color: st.online ? '#52c41a' : '#ff4d4f', fontSize: 16 }} />
+                <span style={{ background: '#e6f4ff', color: '#1677ff', fontSize: 12.5, fontWeight: 600, padding: '2px 9px', borderRadius: 5 }}>{st.label}</span>
+                <span style={{ background: '#f5f5f5', color: '#595959', fontSize: 12.5, fontWeight: 500, padding: '2px 9px', borderRadius: 5 }}>{st.customerCode}</span>
+                <span style={{ marginLeft: 'auto', background: style.bg, color: style.color, border: `1px solid ${style.border}`, fontSize: 12, fontWeight: 600, padding: '2px 10px', borderRadius: 6 }}>{statusLabel}</span>
+              </div>
+              <DetailItem label="Route">
+                {st.from && st.to ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#16a34a', flexShrink: 0 }} />
+                    <Text style={{ fontSize: 13, color: '#595959' }} ellipsis>{st.from.name}</Text>
+                    <ArrowRightOutlined style={{ color: '#bfbfbf', fontSize: 12, flexShrink: 0 }} />
+                    <Text style={{ fontSize: 13, fontWeight: 600 }} ellipsis>{st.to.name}</Text>
+                  </div>
+                ) : (
+                  <Text style={{ fontSize: 13, fontWeight: 600 }}>{st.destination}</Text>
+                )}
+              </DetailItem>
+              <DetailItem label="Trip start">{formatTimeAmPm(st.scheduled)}</DetailItem>
+              <DetailItem label="ETA">
+                {st.online && st.eta ? (
+                  <span style={{ color: status === 'Late' ? '#ff4d4f' : '#1677ff', fontWeight: 700 }}>
+                    {formatTimeAmPm(st.eta)}
+                    {lateMin > 0 && <span style={{ fontWeight: 500 }}> · {lateMin} min late</span>}
+                  </span>
+                ) : (
+                  <span style={{ color: '#8c8c8c' }}>—</span>
+                )}
+              </DetailItem>
+              <DetailItem label="Driver">{st.driver}</DetailItem>
+              <DetailItem label="Vehicle">{st.plate}</DetailItem>
+              <DetailItem label="Fleet owner">{st.fleetOwner}</DetailItem>
+              {!st.online && (
+                <DetailItem label="Last online">
+                  <span style={{ color: '#ff4d4f', fontWeight: 600 }}>{st.lastOnline ?? 'Position unknown'}</span>
+                </DetailItem>
+              )}
+            </div>
+          )
+        })()}
+      </Drawer>
 
       {testPanelVisible ? (
         <TestConsole
@@ -2400,6 +2496,8 @@ export default function LiveTrackingPage() {
           onCardDesignChange={setCardDesign}
           markerStyle={markerStyle}
           onMarkerStyleChange={setMarkerStyle}
+          listCardStyle={listCardStyle}
+          onListCardStyleChange={setListCardStyle}
           tabStyle={tabStyle}
           onTabStyleChange={setTabStyle}
           showUrgencyTicker={showUrgencyTicker}
