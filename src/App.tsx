@@ -7,6 +7,7 @@ import EditPricePage from '@/components/contracts/edit/EditPricePage'
 import EditGroupPage from '@/components/contracts/edit/EditGroupPage'
 import LiveTrackingPage from '@/components/livetracking/LiveTrackingPage'
 import LiveTrackingLegacyPage from '@/components/livetracking/LiveTrackingLegacyPage'
+import LiveTrackingTestingPage from '@/components/livetracking/LiveTrackingTestingPage'
 import Tracking2Page from '@/components/livetracking/Tracking2Page'
 import TestingPage from '@/components/testing/TestingPage'
 
@@ -18,6 +19,7 @@ export type AppPage =
   | { type: 'edit-group'; contractId: string }
   | { type: 'live-tracking' }
   | { type: 'live-tracking-legacy' }
+  | { type: 'live-tracking-testing' }
   | { type: 'tracking-2' }
   | { type: 'testing' }
 
@@ -43,6 +45,14 @@ export default function App() {
     return (
       <AppLayout activeKey="live-tracking-legacy" breadcrumbLabel="Live Tracking Legacy" onNavigate={navigate}>
         <LiveTrackingLegacyPage />
+      </AppLayout>
+    )
+  }
+
+  if (page.type === 'live-tracking-testing') {
+    return (
+      <AppLayout activeKey="live-tracking-testing" breadcrumbLabel="Live Tracking Testing" onNavigate={navigate}>
+        <LiveTrackingTestingPage />
       </AppLayout>
     )
   }

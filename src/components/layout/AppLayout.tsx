@@ -112,6 +112,13 @@ export default function AppLayout({
             onClick: () => onNavigate?.({ type: 'live-tracking-legacy' }),
           },
           {
+            key: 'live-tracking-testing',
+            label: (
+              <Text style={{ fontSize: 13, paddingLeft: 8 }}>Live Tracking Testing</Text>
+            ),
+            onClick: () => onNavigate?.({ type: 'live-tracking-testing' }),
+          },
+          {
             key: 'tracking-2',
             label: (
               <Text style={{ fontSize: 13, paddingLeft: 8 }}>Tracking 2.0</Text>
@@ -220,7 +227,7 @@ export default function AppLayout({
             gap: 8,
           }}
         >
-          {activeKey === 'live-tracking' || activeKey === 'live-tracking-legacy' || activeKey === 'tracking-2' ? (
+          {activeKey === 'live-tracking' || activeKey === 'live-tracking-legacy' || activeKey === 'live-tracking-testing' || activeKey === 'tracking-2' ? (
             <EnvironmentOutlined style={{ color: '#1677ff', fontSize: 14 }} />
           ) : (
             <TeamOutlined style={{ color: '#1677ff', fontSize: 14 }} />
