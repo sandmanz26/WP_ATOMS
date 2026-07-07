@@ -208,6 +208,8 @@ function TestConsole({
   onListCardStyleChange,
   tabStyle,
   onTabStyleChange,
+  doubleHighlight,
+  onDoubleHighlightChange,
   showUrgencyTicker,
   onShowUrgencyTickerChange,
   showRoutes,
@@ -241,6 +243,8 @@ function TestConsole({
   onListCardStyleChange: (v: ListCardStyle) => void
   tabStyle: TabStyle
   onTabStyleChange: (v: TabStyle) => void
+  doubleHighlight: boolean
+  onDoubleHighlightChange: (v: boolean) => void
   showUrgencyTicker: boolean
   onShowUrgencyTickerChange: (v: boolean) => void
   showRoutes: boolean
@@ -319,6 +323,10 @@ function TestConsole({
               Tab style
             </Text>
             <Select size="small" value={tabStyle} onChange={onTabStyleChange} options={TAB_STYLE_OPTIONS} style={{ width: 96 }} dropdownStyle={{ zIndex: 2100 }} />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <Text style={{ fontSize: 13, color: '#595959' }}>Double highlight</Text>
+            <Switch size="small" checked={doubleHighlight} onChange={onDoubleHighlightChange} />
           </div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
             <Text style={{ fontSize: 13, color: '#595959' }}>Show urgency cards</Text>
@@ -1003,6 +1011,217 @@ function FilterTabs({
           </button>
         )
       })}
+    </div>
+  )
+}
+
+/* ── Double highlight — two levels of highlights over the trip list.
+   Level 1: Immediate attention / At risk / Stable. Selecting one filters
+   the cards and reveals its level-2 highlights, which refine further.
+   NOTE: the real definitions depend on trip status + schedule margin/slack
+   and are still being worked out by the requester — everything below
+   derived from `dhDemo*` is deterministic PLACEHOLDER logic so the UI can
+   be exercised now, and swapped for the real calculation later. ── */
+type DhLevel1 = 'immediate' | 'risk' | 'stable'
+type DhLevel2 =
+  | 'cur-first' | 'cur-other' | 'next' | 'offline'
+  | 'will-first' | 'will-other' | 'no-slack'
+
+const DH_L1_META: { key: DhLevel1; label: string; color: string; soft: string; border: string }[] = [
+  { key: 'immediate', label: 'Immediate attention', color: '#ff4d4f', soft: '#fff1f0', border: '#ffccc7' },
+  { key: 'risk', label: 'At risk', color: '#faad14', soft: '#fffbe6', border: '#ffe58f' },
+  { key: 'stable', label: 'Stable', color: '#16a34a', soft: '#f6ffed', border: '#b7eb8f' },
+]
+
+const DH_L2_META: Record<Exclude<DhLevel1, 'stable'>, { key: DhLevel2; label: string }[]> = {
+  immediate: [
+    { key: 'cur-first', label: 'Current trip delayed (first point)' },
+    { key: 'cur-other', label: 'Current trip delayed (other points)' },
+    { key: 'next', label: 'Next trip delayed' },
+    { key: 'offline', label: 'Driver offline' },
+  ],
+  risk: [
+    { key: 'will-first', label: 'Current trip will be delayed (first point)' },
+    { key: 'will-other', label: 'Current trip will be delayed (other points)' },
+    { key: 'no-slack', label: 'No schedule slack' },
+  ],
+}
+
+interface DhInfo {
+  l1: DhLevel1
+  l2: DhLevel2 | null
+  currentDelayMin: number
+  nextTripDelayMin: number
+  predictedDelayMin: number
+  slackMin: number
+}
+
+// Stable pseudo-random per trip so the demo numbers don't jump between renders
+function dhHash(id: string): number {
+  let h = 0
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) % 997
+  return h
+}
+
+function dhInfo(stop: VehicleStop): DhInfo {
+  const h = dhHash(stop.id)
+  const currentDelayMin =
+    stop.online && stop.eta ? Math.max(0, toMinutes(stop.eta) - toMinutes(stop.scheduled)) : 0
+  // PLACEHOLDER schedule slack: real value = margin between this trip's
+  // planned end and the next trip's start, from the scheduling data
+  const slackMin = (h % 13) * 5 - 15 - currentDelayMin
+  const nextTripDelayMin = Math.max(0, -slackMin)
+  // PLACEHOLDER prediction: real value comes from ETA projection vs schedule
+  const predictedDelayMin = stop.online && currentDelayMin === 0 && h % 4 === 0 ? (h % 3) * 5 + 5 : 0
+  // "First point" vs "other points": early in the route ≈ still heading to
+  // the first pickup (placeholder — real flag comes from point registration)
+  const atFirstPoint = stop.phase < 0.45
+
+  if (!stop.online) {
+    return { l1: 'immediate', l2: 'offline', currentDelayMin, nextTripDelayMin, predictedDelayMin, slackMin }
+  }
+  if (currentDelayMin > 0) {
+    return { l1: 'immediate', l2: atFirstPoint ? 'cur-first' : 'cur-other', currentDelayMin, nextTripDelayMin, predictedDelayMin, slackMin }
+  }
+  if (nextTripDelayMin > 0) {
+    return { l1: 'immediate', l2: 'next', currentDelayMin, nextTripDelayMin, predictedDelayMin, slackMin }
+  }
+  if (predictedDelayMin > 0) {
+    return { l1: 'risk', l2: atFirstPoint ? 'will-first' : 'will-other', currentDelayMin, nextTripDelayMin, predictedDelayMin, slackMin }
+  }
+  if (slackMin <= 5) {
+    return { l1: 'risk', l2: 'no-slack', currentDelayMin, nextTripDelayMin, predictedDelayMin, slackMin }
+  }
+  return { l1: 'stable', l2: null, currentDelayMin, nextTripDelayMin, predictedDelayMin, slackMin }
+}
+
+function slackChipColors(slackMin: number): { color: string; bg: string; border: string } {
+  if (slackMin < 0) return { color: '#ff4d4f', bg: '#fff1f0', border: '#ffccc7' }
+  if (slackMin <= 5) return { color: '#d48806', bg: '#fffbe6', border: '#ffe58f' }
+  return { color: '#16a34a', bg: '#f6ffed', border: '#b7eb8f' }
+}
+
+/* ── Double-highlight trip card: basic info + slack minutes; delay figures
+   appear only when the trip is under Immediate attention / At risk ── */
+function DhCard({
+  stop,
+  info,
+  selected,
+  onSelect,
+  innerRef,
+}: {
+  stop: VehicleStop
+  info: DhInfo
+  selected: boolean
+  onSelect: () => void
+  innerRef: (el: HTMLDivElement | null) => void
+}) {
+  const accent = info.l1 === 'immediate' ? '#ff4d4f' : info.l1 === 'risk' ? '#faad14' : '#16a34a'
+  // Trip status per the requirement: on time / will be late / late / offline…
+  const baseStatus = deriveStatus(stop)
+  const statusLabel = !stop.online
+    ? 'Offline'
+    : info.currentDelayMin > 0
+      ? 'Late'
+      : info.predictedDelayMin > 0
+        ? 'Will be late'
+        : baseStatus
+  const statusStyle =
+    statusLabel === 'Will be late'
+      ? { color: '#d48806', bg: '#fffbe6', border: '#ffe58f' }
+      : statusLabel === 'Offline'
+        ? { color: STATUS_STYLE['To Check'].color, bg: STATUS_STYLE['To Check'].bg, border: STATUS_STYLE['To Check'].border }
+        : { color: STATUS_STYLE[baseStatus].color, bg: STATUS_STYLE[baseStatus].bg, border: STATUS_STYLE[baseStatus].border }
+  const slack = slackChipColors(info.slackMin)
+  const showDelays = info.l1 !== 'stable'
+  return (
+    <div
+      ref={innerRef}
+      role="button"
+      tabIndex={0}
+      onClick={onSelect}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onSelect() }}
+      style={{
+        display: 'flex',
+        background: selected ? '#e6f4ff' : '#fff',
+        border: `1px solid ${selected ? '#1677ff' : '#f0f0f0'}`,
+        borderRadius: 10,
+        marginBottom: 10,
+        cursor: 'pointer',
+        overflow: 'hidden',
+        transition: 'background .15s, border-color .15s',
+      }}
+    >
+      <span style={{ width: 4, background: accent, flexShrink: 0 }} />
+      <div style={{ flex: 1, minWidth: 0, padding: '10px 12px' }}>
+        {/* Basic info: route code + start time + trip status */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+          <span style={{ background: '#e6f4ff', color: '#1677ff', fontSize: 12, fontWeight: 600, padding: '1px 8px', borderRadius: 4, whiteSpace: 'nowrap' }}>
+            {stop.label}
+          </span>
+          <ClockCircleOutlined style={{ fontSize: 11.5, color: '#8c8c8c', flexShrink: 0 }} />
+          <Text style={{ fontSize: 12.5, color: '#8c8c8c', whiteSpace: 'nowrap' }}>{formatTimeAmPm(stop.scheduled)}</Text>
+          <span
+            style={{
+              marginLeft: 'auto',
+              background: statusStyle.bg,
+              color: statusStyle.color,
+              border: `1px solid ${statusStyle.border}`,
+              fontSize: 11,
+              fontWeight: 500,
+              padding: '1px 8px',
+              borderRadius: 6,
+              whiteSpace: 'nowrap',
+              flexShrink: 0,
+            }}
+          >
+            {statusLabel}
+          </span>
+        </div>
+
+        {/* Driver (first name) + driver status + plate */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 7, minWidth: 0 }}>
+          <WifiOutlined style={{ color: stop.online ? '#52c41a' : '#ff4d4f', fontSize: 13, flexShrink: 0 }} />
+          <Text style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1a', minWidth: 0 }} ellipsis>{firstName(stop.driver)}</Text>
+          <Text style={{ fontSize: 11.5, color: stop.online ? '#16a34a' : '#ff4d4f', flexShrink: 0 }}>
+            {stop.online ? 'Online' : 'Offline'}
+          </Text>
+          <Text style={{ fontSize: 12.5, color: '#8c8c8c', marginLeft: 'auto', whiteSpace: 'nowrap', flexShrink: 0 }}>{stop.plate}</Text>
+        </div>
+
+        {/* Schedule slack in minutes (+30 min / 0 min / -10 min) */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+          <span
+            style={{
+              background: slack.bg,
+              color: slack.color,
+              border: `1px solid ${slack.border}`,
+              fontSize: 11,
+              fontWeight: 600,
+              padding: '1px 8px',
+              borderRadius: 6,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            Slack {info.slackMin > 0 ? `+${info.slackMin}` : info.slackMin} min
+          </span>
+          {/* Delay figures only when under Immediate attention / At risk */}
+          {showDelays && (
+            <>
+              {(info.currentDelayMin > 0 || info.predictedDelayMin > 0) && (
+                <Text style={{ fontSize: 11.5, color: '#ff4d4f', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                  Current trip {info.currentDelayMin > 0 ? `+${info.currentDelayMin}` : `~+${info.predictedDelayMin}`} min
+                </Text>
+              )}
+              {info.nextTripDelayMin > 0 && (
+                <Text style={{ fontSize: 11.5, color: '#d48806', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                  Next trip +{info.nextTripDelayMin} min
+                </Text>
+              )}
+            </>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
@@ -1981,6 +2200,11 @@ export default function LiveTrackingPage() {
   const [markerStyle, setMarkerStyle] = useState<MarkerStyle>('bus')
   const [tabStyle, setTabStyle] = useState<TabStyle>('default')
   const [listCardStyle, setListCardStyle] = useState<ListCardStyle>('detailed')
+  // Double highlight mode — default view per the requirement: level 1
+  // "Immediate attention" with level 2 "Current trip delayed (first point)"
+  const [doubleHighlight, setDoubleHighlight] = useState(false)
+  const [dhLevel1, setDhLevel1] = useState<DhLevel1>('immediate')
+  const [dhLevel2, setDhLevel2] = useState<DhLevel2 | null>('cur-first')
   // Urgency ticker is hidden by default to keep the view clean; toggled on
   // from the Test Console "Map & display" section when needed.
   const [showUrgencyTicker, setShowUrgencyTicker] = useState(false)
@@ -2117,10 +2341,28 @@ export default function LiveTrackingPage() {
   const isOfflineOrLate = (s: VehicleStop) => !s.online || deriveStatus(s) === 'Late'
   const offlineLateCount = stops.filter(isOfflineOrLate).length
 
+  // Double-highlight classification for every trip (placeholder logic in
+  // dhInfo until the real slack/margin calculation lands)
+  const dhByld: Record<string, DhInfo> = Object.fromEntries(stops.map((s) => [s.id, dhInfo(s)]))
+  const dhL1Counts: Record<DhLevel1, number> = { immediate: 0, risk: 0, stable: 0 }
+  const dhL2Counts: Record<string, number> = {}
+  stops.forEach((s) => {
+    const info = dhByld[s.id]
+    dhL1Counts[info.l1] += 1
+    if (info.l2) dhL2Counts[info.l2] = (dhL2Counts[info.l2] ?? 0) + 1
+  })
+
   const filtered = stops.filter((s) => {
-    if (filter === 'Online' && !s.online) return false
-    if (filter === 'Offline' && !isOfflineOrLate(s)) return false
-    if (filter === 'To Check' && !takenIds.has(s.id)) return false
+    if (doubleHighlight) {
+      // Level 1 filters the cards; a selected level 2 refines further
+      const info = dhByld[s.id]
+      if (info.l1 !== dhLevel1) return false
+      if (dhLevel1 !== 'stable' && dhLevel2 && info.l2 !== dhLevel2) return false
+    } else {
+      if (filter === 'Online' && !s.online) return false
+      if (filter === 'Offline' && !isOfflineOrLate(s)) return false
+      if (filter === 'To Check' && !takenIds.has(s.id)) return false
+    }
     if (search.trim()) {
       // PRD §4.4.2: search across Driver's name, Vehicle plate, Customer code, Bus label
       const q = search.toLowerCase()
@@ -2431,18 +2673,85 @@ export default function LiveTrackingPage() {
                 />
               </div>
 
-              {/* Filter tabs (style switchable from the Test Console) */}
-              <FilterTabs
-                tabStyle={tabStyle}
-                value={filter}
-                onChange={setFilter}
-                items={[
-                  { key: 'All', label: 'All' },
-                  { key: 'Offline', label: 'Offline/Late', count: offlineLateCount, urgent: true },
-                  { key: 'Online', label: 'Online' },
-                  { key: 'To Check', label: 'To Check', count: takenIds.size },
-                ]}
-              />
+              {doubleHighlight ? (
+                <>
+                  {/* Level 1 highlights */}
+                  <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+                    {DH_L1_META.map((m) => {
+                      const active = dhLevel1 === m.key
+                      return (
+                        <button
+                          key={m.key}
+                          onClick={() => {
+                            // Picking a level 1 resets level 2 — its own
+                            // sub-highlights then refine from there
+                            setDhLevel1(m.key)
+                            setDhLevel2(null)
+                          }}
+                          className={m.key === 'immediate' && dhL1Counts.immediate > 0 && !active ? 'tab-urgent-pulse' : undefined}
+                          style={{
+                            flex: '1 1 auto',
+                            padding: '6px 8px',
+                            borderRadius: 16,
+                            whiteSpace: 'nowrap',
+                            border: `1px solid ${active ? m.color : m.border}`,
+                            background: active ? m.color : m.soft,
+                            color: active ? '#fff' : m.color,
+                            fontSize: 12,
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            transition: 'all .15s',
+                          }}
+                        >
+                          {m.label} ({dhL1Counts[m.key]})
+                        </button>
+                      )
+                    })}
+                  </div>
+                  {/* Level 2 highlights — none for "Stable" */}
+                  {dhLevel1 !== 'stable' && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
+                      {DH_L2_META[dhLevel1].map((m) => {
+                        const active = dhLevel2 === m.key
+                        const count = dhL2Counts[m.key] ?? 0
+                        return (
+                          <button
+                            key={m.key}
+                            onClick={() => setDhLevel2(active ? null : m.key)}
+                            style={{
+                              padding: '4px 10px',
+                              borderRadius: 6,
+                              border: `1px solid ${active ? '#1677ff' : '#e8e8e8'}`,
+                              background: active ? '#e6f4ff' : '#fff',
+                              color: active ? '#1677ff' : count === 0 ? '#bfbfbf' : '#595959',
+                              fontSize: 11.5,
+                              fontWeight: active ? 600 : 500,
+                              cursor: 'pointer',
+                              transition: 'all .15s',
+                            }}
+                          >
+                            {m.label} ({count})
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+                  {dhLevel1 === 'stable' && <div style={{ marginBottom: 12 }} />}
+                </>
+              ) : (
+                /* Filter tabs (style switchable from the Test Console) */
+                <FilterTabs
+                  tabStyle={tabStyle}
+                  value={filter}
+                  onChange={setFilter}
+                  items={[
+                    { key: 'All', label: 'All' },
+                    { key: 'Offline', label: 'Offline/Late', count: offlineLateCount, urgent: true },
+                    { key: 'Online', label: 'Online' },
+                    { key: 'To Check', label: 'To Check', count: takenIds.size },
+                  ]}
+                />
+              )}
 
               {/* Driver list */}
               <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, paddingRight: 2 }}>
@@ -2452,7 +2761,18 @@ export default function LiveTrackingPage() {
                   </div>
                 ) : (
                   sorted.map((stop) =>
-                    listCardStyle === 'detailed' ? (
+                    doubleHighlight ? (
+                      <DhCard
+                        key={stop.id}
+                        stop={stop}
+                        info={dhByld[stop.id]}
+                        selected={selectedId === stop.id}
+                        onSelect={() => setSelectedId(stop.id)}
+                        innerRef={(el) => {
+                          cardRefs.current[stop.id] = el
+                        }}
+                      />
+                    ) : listCardStyle === 'detailed' ? (
                       <DriverCard
                         key={stop.id}
                         stop={stop}
@@ -2499,8 +2819,9 @@ export default function LiveTrackingPage() {
         title="Trip detail"
         placement="right"
         width={380}
-        // Accordion cards show the detail inline, so the drawer stays shut there
-        open={!!selectedStop && listCardStyle !== 'accordion'}
+        // Accordion cards show the detail inline, so the drawer stays shut
+        // there — except in double-highlight mode, which uses its own cards
+        open={!!selectedStop && (doubleHighlight || listCardStyle !== 'accordion')}
         onClose={() => setSelectedId(null)}
       >
         {selectedStop && (() => {
@@ -2579,6 +2900,8 @@ export default function LiveTrackingPage() {
           onListCardStyleChange={setListCardStyle}
           tabStyle={tabStyle}
           onTabStyleChange={setTabStyle}
+          doubleHighlight={doubleHighlight}
+          onDoubleHighlightChange={setDoubleHighlight}
           showUrgencyTicker={showUrgencyTicker}
           onShowUrgencyTickerChange={setShowUrgencyTicker}
           showRoutes={showRoutes}
