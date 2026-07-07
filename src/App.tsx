@@ -8,6 +8,7 @@ import EditGroupPage from '@/components/contracts/edit/EditGroupPage'
 import LiveTrackingPage from '@/components/livetracking/LiveTrackingPage'
 import LiveTrackingLegacyPage from '@/components/livetracking/LiveTrackingLegacyPage'
 import LiveTrackingTestingPage from '@/components/livetracking/LiveTrackingTestingPage'
+import LiveTrackingTesting2Page from '@/components/livetracking/LiveTrackingTesting2Page'
 import Tracking2Page from '@/components/livetracking/Tracking2Page'
 import TestingPage from '@/components/testing/TestingPage'
 
@@ -20,6 +21,7 @@ export type AppPage =
   | { type: 'live-tracking' }
   | { type: 'live-tracking-legacy' }
   | { type: 'live-tracking-testing' }
+  | { type: 'live-tracking-testing-2' }
   | { type: 'tracking-2' }
   | { type: 'testing' }
 
@@ -53,6 +55,14 @@ export default function App() {
     return (
       <AppLayout activeKey="live-tracking-testing" breadcrumbLabel="Live Tracking Testing" onNavigate={navigate}>
         <LiveTrackingTestingPage />
+      </AppLayout>
+    )
+  }
+
+  if (page.type === 'live-tracking-testing-2') {
+    return (
+      <AppLayout activeKey="live-tracking-testing-2" breadcrumbLabel="Live Tracking Testing 2" onNavigate={navigate}>
+        <LiveTrackingTesting2Page />
       </AppLayout>
     )
   }
