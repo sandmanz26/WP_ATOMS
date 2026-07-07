@@ -15,6 +15,7 @@ import {
   ControlOutlined,
   CloseCircleOutlined,
   EyeOutlined,
+  DownOutlined,
 } from '@ant-design/icons'
 import {
   type VehicleStop,
@@ -45,6 +46,11 @@ const GOOGLE_MAPS_API_KEY = (import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string 
    density) and the map is a context strip (≈30%). Clicking a card or a
    marker opens a rich tooltip with the essentials; "View detail" opens the
    full drawer with actions.
+
+   This page also carries every display switcher already available on the
+   main Live Tracking page (map theme, marker style, card style, tab/
+   highlight style, double highlight, layer toggles), adapted to this
+   list-first layout, via the "Display settings" panel on the map.
    ───────────────────────────────────────────────────────────────────────── */
 
 /* ── Demo volume: ops handles 60–80 trips/day, the seed set is 23 — clone
@@ -93,6 +99,16 @@ function svgDataUrl(svg: string): string {
   return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`
 }
 
+/* ── Marker styles (ported from Live Tracking) ── */
+type MarkerStyle = 'vehicle' | 'label' | 'status' | 'bus'
+
+const MARKER_STYLE_OPTIONS: { value: MarkerStyle; label: string }[] = [
+  { value: 'vehicle', label: 'Vehicle' },
+  { value: 'label', label: 'Label' },
+  { value: 'status', label: 'Status' },
+  { value: 'bus', label: 'Bus' },
+]
+
 function makeBusBadgeIcon(color: string, selected: boolean): google.maps.Icon {
   const size = selected ? 40 : 30
   const pad = 6
@@ -130,6 +146,73 @@ function makeBusBadgeIcon(color: string, selected: boolean): google.maps.Icon {
   }
 }
 
+// Steering-wheel pin — the original "Vehicle" marker style
+function makePinIcon(fill: string, offline: boolean, selected: boolean): google.maps.Icon {
+  const width = offline ? 38 : 32
+  const badge = offline
+    ? `<circle cx="29" cy="8" r="7" fill="#ff4d4f" stroke="#fff" stroke-width="2"/>
+       <line x1="26" y1="5" x2="32" y2="11" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>
+       <line x1="32" y1="5" x2="26" y2="11" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>`
+    : ''
+  const color = selected ? '#1677ff' : fill
+  const svg = `
+    <svg width="${width}" height="40" viewBox="0 0 ${width} 40" xmlns="http://www.w3.org/2000/svg">
+      <path d="M16 0C7.2 0 0 7.2 0 16c0 11.6 16 24 16 24s16-12.4 16-24C32 7.2 24.8 0 16 0Z" fill="${color}"/>
+      <circle cx="16" cy="15" r="7.8" fill="none" stroke="#ffffff" stroke-width="1.6"/>
+      <circle cx="16" cy="15" r="2" fill="#ffffff"/>
+      <line x1="16" y1="15" x2="16" y2="7.2" stroke="#ffffff" stroke-width="1.6"/>
+      <line x1="16" y1="15" x2="9.5" y2="19.2" stroke="#ffffff" stroke-width="1.6"/>
+      <line x1="16" y1="15" x2="22.5" y2="19.2" stroke="#ffffff" stroke-width="1.6"/>
+      ${badge}
+    </svg>
+  `
+  return { url: svgDataUrl(svg), scaledSize: new google.maps.Size(width, 40), anchor: new google.maps.Point(16, 40) }
+}
+
+// Rounded "tag" showing the bus code, color-coded by status
+function makeLabelIcon(label: string, color: string, selected: boolean): google.maps.Icon {
+  const w = Math.max(44, 15 + label.length * 8)
+  const h = 22
+  const totalH = h + 8
+  const stroke = selected ? '#1677ff' : '#ffffff'
+  const sw = selected ? 3 : 2
+  const cx = w / 2
+  const svg = `
+    <svg width="${w}" height="${totalH}" viewBox="0 0 ${w} ${totalH}" xmlns="http://www.w3.org/2000/svg">
+      <path d="M${cx - 6} ${h - 2} L${cx} ${totalH - 1} L${cx + 6} ${h - 2} Z" fill="${color}" stroke="${stroke}" stroke-width="${sw}"/>
+      <rect x="${sw / 2}" y="${sw / 2}" width="${w - sw}" height="${h}" rx="6" fill="${color}" stroke="${stroke}" stroke-width="${sw}"/>
+      <text x="${cx}" y="${h / 2 + 4}" text-anchor="middle" font-family="-apple-system,Segoe UI,Roboto,sans-serif" font-size="11" font-weight="700" fill="#ffffff">${label}</text>
+    </svg>
+  `
+  return { url: svgDataUrl(svg), scaledSize: new google.maps.Size(w, totalH), anchor: new google.maps.Point(cx, totalH) }
+}
+
+// Status dot: solid circle (online) or hollow with a slash (offline)
+function makeStatusDotIcon(color: string, selected: boolean, offline: boolean): google.maps.Icon {
+  const size = selected ? 26 : 20
+  const c = size / 2
+  const r = c - 3
+  const ring = selected ? '#1677ff' : '#ffffff'
+  const inner = offline
+    ? `<line x1="${c - r * 0.5}" y1="${c - r * 0.5}" x2="${c + r * 0.5}" y2="${c + r * 0.5}" stroke="${color}" stroke-width="2.2" stroke-linecap="round"/>`
+    : `<circle cx="${c}" cy="${c}" r="${r * 0.34}" fill="#ffffff"/>`
+  const svg = `
+    <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="${c}" cy="${c}" r="${r}" fill="${offline ? '#ffffff' : color}" stroke="${offline ? color : ring}" stroke-width="${selected ? 3 : 2.2}"/>
+      ${inner}
+    </svg>
+  `
+  return { url: svgDataUrl(svg), scaledSize: new google.maps.Size(size, size), anchor: new google.maps.Point(c, c) }
+}
+
+function makeMarkerIcon(style: MarkerStyle, stop: VehicleStop, selected: boolean): google.maps.Icon {
+  const color = statusColor(stop)
+  if (style === 'label') return makeLabelIcon(stop.label, color, selected)
+  if (style === 'status') return makeStatusDotIcon(color, selected, !stop.online)
+  if (style === 'bus') return makeBusBadgeIcon(color, selected)
+  return makePinIcon('#1a1a1a', !stop.online, selected)
+}
+
 function makeOriginIcon(): google.maps.Icon {
   const svg = `
     <svg width="26" height="35" viewBox="0 0 26 35" xmlns="http://www.w3.org/2000/svg">
@@ -154,28 +237,60 @@ function makeDestinationIcon(): google.maps.Icon {
   return { url: svgDataUrl(svg), scaledSize: new google.maps.Size(30, 40), anchor: new google.maps.Point(15, 40) }
 }
 
-const SILVER_THEME: google.maps.MapTypeStyle[] = [
-  { elementType: 'geometry', stylers: [{ color: '#f5f5f5' }] },
-  { elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
-  { elementType: 'labels.text.fill', stylers: [{ color: '#616161' }] },
-  { elementType: 'labels.text.stroke', stylers: [{ color: '#f5f5f5' }] },
-  { featureType: 'poi', elementType: 'geometry', stylers: [{ color: '#eeeeee' }] },
-  { featureType: 'poi.park', elementType: 'geometry', stylers: [{ color: '#e5e5e5' }] },
-  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#ffffff' }] },
-  { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#dadada' }] },
-  { featureType: 'transit.line', elementType: 'geometry', stylers: [{ color: '#e5e5e5' }] },
-  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#c9c9c9' }] },
+/* ── Map themes (ported from Live Tracking) ── */
+type MapTheme = 'default' | 'silver' | 'night' | 'retro'
+
+const MAP_THEME_OPTIONS: { value: MapTheme; label: string }[] = [
+  { value: 'default', label: 'Default' },
+  { value: 'silver', label: 'Silver' },
+  { value: 'night', label: 'Night' },
+  { value: 'retro', label: 'Retro' },
 ]
+
+const MAP_THEMES: Record<MapTheme, google.maps.MapTypeStyle[]> = {
+  default: [],
+  silver: [
+    { elementType: 'geometry', stylers: [{ color: '#f5f5f5' }] },
+    { elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
+    { elementType: 'labels.text.fill', stylers: [{ color: '#616161' }] },
+    { elementType: 'labels.text.stroke', stylers: [{ color: '#f5f5f5' }] },
+    { featureType: 'poi', elementType: 'geometry', stylers: [{ color: '#eeeeee' }] },
+    { featureType: 'poi.park', elementType: 'geometry', stylers: [{ color: '#e5e5e5' }] },
+    { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#ffffff' }] },
+    { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#dadada' }] },
+    { featureType: 'transit.line', elementType: 'geometry', stylers: [{ color: '#e5e5e5' }] },
+    { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#c9c9c9' }] },
+  ],
+  night: [
+    { elementType: 'geometry', stylers: [{ color: '#212121' }] },
+    { elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
+    { elementType: 'labels.text.fill', stylers: [{ color: '#9e9e9e' }] },
+    { elementType: 'labels.text.stroke', stylers: [{ color: '#212121' }] },
+    { featureType: 'poi.park', elementType: 'geometry', stylers: [{ color: '#181818' }] },
+    { featureType: 'road', elementType: 'geometry.fill', stylers: [{ color: '#2c2c2c' }] },
+    { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#3c3c3c' }] },
+    { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#000000' }] },
+  ],
+  retro: [
+    { elementType: 'geometry', stylers: [{ color: '#ebe3cd' }] },
+    { elementType: 'labels.text.fill', stylers: [{ color: '#523735' }] },
+    { elementType: 'labels.text.stroke', stylers: [{ color: '#f5f1e6' }] },
+    { featureType: 'poi.park', elementType: 'geometry.fill', stylers: [{ color: '#a5b076' }] },
+    { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#f5f1e6' }] },
+    { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#f8c967' }] },
+    { featureType: 'water', elementType: 'geometry.fill', stylers: [{ color: '#b9d3c2' }] },
+  ],
+}
 
 /* ── KPI chips: counts double as filters ── */
 type KpiKey = 'all' | 'On Time' | 'Late' | 'Offline' | 'Notified'
 
-const KPI_META: { key: KpiKey; label: string; color: string; soft: string; urgent?: boolean }[] = [
-  { key: 'all', label: 'All', color: '#1677ff', soft: '#e6f4ff' },
-  { key: 'On Time', label: 'On Time', color: '#16a34a', soft: '#f6ffed' },
-  { key: 'Late', label: 'Late', color: '#faad14', soft: '#fffbe6', urgent: true },
-  { key: 'Offline', label: 'Offline', color: '#ff4d4f', soft: '#fff1f0', urgent: true },
-  { key: 'Notified', label: 'Notified', color: '#1677ff', soft: '#e6f4ff' },
+const KPI_META: { key: KpiKey; label: string; color: string; soft: string; border: string; urgent?: boolean }[] = [
+  { key: 'all', label: 'All', color: '#1677ff', soft: '#e6f4ff', border: '#91caff' },
+  { key: 'On Time', label: 'On Time', color: '#16a34a', soft: '#f6ffed', border: '#b7eb8f' },
+  { key: 'Late', label: 'Late', color: '#faad14', soft: '#fffbe6', border: '#ffe58f', urgent: true },
+  { key: 'Offline', label: 'Offline', color: '#ff4d4f', soft: '#fff1f0', border: '#ffccc7', urgent: true },
+  { key: 'Notified', label: 'Notified', color: '#1677ff', soft: '#e6f4ff', border: '#91caff' },
 ]
 
 function kpiMatch(stop: VehicleStop, key: KpiKey): boolean {
@@ -183,6 +298,145 @@ function kpiMatch(stop: VehicleStop, key: KpiKey): boolean {
   if (key === 'Offline') return !stop.online
   if (!stop.online) return false
   return deriveStatus(stop) === key
+}
+
+/* ── Highlight (tab) style — ported from Live Tracking's Tab style, applied
+   to the KPI/filter bar: Default pill, Segment (connected track), or Color
+   (each chip carries its own status hue even when inactive). ── */
+type HighlightStyle = 'default' | 'segment' | 'color'
+
+const HIGHLIGHT_STYLE_OPTIONS: { value: HighlightStyle; label: string }[] = [
+  { value: 'default', label: 'Default' },
+  { value: 'segment', label: 'Segment' },
+  { value: 'color', label: 'Color' },
+]
+
+function KpiBar({
+  style,
+  active,
+  counts,
+  onSelect,
+}: {
+  style: HighlightStyle
+  active: KpiKey
+  counts: Record<KpiKey, number>
+  onSelect: (k: KpiKey) => void
+}) {
+  if (style === 'segment') {
+    return (
+      <div style={{ display: 'flex', gap: 2, background: '#f5f5f5', borderRadius: 10, padding: 3 }}>
+        {KPI_META.map((k) => {
+          const isActive = active === k.key
+          const hot = k.urgent && counts[k.key] > 0
+          return (
+            <button
+              key={k.key}
+              onClick={() => onSelect(isActive ? 'all' : k.key)}
+              className={hot && !isActive ? 'tab-urgent-pulse' : undefined}
+              style={{
+                padding: '6px 12px',
+                border: 'none',
+                borderRadius: 8,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                background: isActive ? '#fff' : 'transparent',
+                boxShadow: isActive ? '0 1px 3px rgba(0,0,0,0.12)' : 'none',
+                color: hot ? '#ff4d4f' : isActive ? '#1a1a1a' : '#8c8c8c',
+                fontSize: 12.5,
+                fontWeight: isActive || hot ? 600 : 500,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+              }}
+            >
+              {k.label}
+              <span style={{ fontSize: 11, fontWeight: 700, color: isActive ? '#1a1a1a' : hot ? '#ff4d4f' : '#bfbfbf' }}>{counts[k.key]}</span>
+            </button>
+          )
+        })}
+      </div>
+    )
+  }
+
+  if (style === 'color') {
+    return (
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {KPI_META.map((k) => {
+          const isActive = active === k.key
+          const hot = k.urgent && counts[k.key] > 0
+          return (
+            <button
+              key={k.key}
+              onClick={() => onSelect(isActive ? 'all' : k.key)}
+              className={hot && !isActive ? 'tab-urgent-pulse' : undefined}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '6px 13px',
+                borderRadius: 18,
+                border: `1px solid ${isActive || hot ? k.color : k.border}`,
+                background: isActive ? k.color : hot ? k.soft : '#fff',
+                color: isActive ? '#fff' : hot ? k.color : '#595959',
+                fontSize: 13,
+                fontWeight: isActive || hot ? 600 : 500,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {k.label}
+              <span
+                style={{
+                  minWidth: 20, height: 20, padding: '0 6px', borderRadius: 10, fontSize: 11.5, fontWeight: 700,
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                  background: isActive ? 'rgba(255,255,255,.28)' : hot ? k.color : '#f0f0f0',
+                  color: isActive || hot ? '#fff' : '#8c8c8c',
+                }}
+              >
+                {counts[k.key]}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+    )
+  }
+
+  // Default
+  return (
+    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+      {KPI_META.map((k) => {
+        const isActive = active === k.key
+        const hot = k.urgent && counts[k.key] > 0
+        return (
+          <button
+            key={k.key}
+            onClick={() => onSelect(isActive ? 'all' : k.key)}
+            className={hot && !isActive ? 'tab-urgent-pulse' : undefined}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8, padding: '6px 13px', borderRadius: 20,
+              border: `1px solid ${isActive || hot ? k.color : '#e8e8e8'}`,
+              background: isActive ? k.color : hot ? k.soft : '#fff',
+              color: isActive ? '#fff' : hot ? k.color : '#595959',
+              fontSize: 13, fontWeight: isActive || hot ? 600 : 500, cursor: 'pointer', whiteSpace: 'nowrap',
+            }}
+          >
+            {k.label}
+            <span
+              style={{
+                minWidth: 20, height: 20, padding: '0 6px', borderRadius: 10, fontSize: 11.5, fontWeight: 700,
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                background: isActive ? 'rgba(255,255,255,.28)' : hot ? k.color : '#f0f0f0',
+                color: isActive || hot ? '#fff' : '#8c8c8c',
+              }}
+            >
+              {counts[k.key]}
+            </span>
+          </button>
+        )
+      })}
+    </div>
+  )
 }
 
 type SortKey = 'start' | 'eta' | 'label'
@@ -245,23 +499,316 @@ function TripSummary({ stop, onViewDetail, onTake, handled }: { stop: VehicleSto
   )
 }
 
-/* ── Compact grid card: just enough to scan 60–80 trips fast ── */
-function CompactCard({
+/* ── Card style (ported from Live Tracking's Vertical card variation) —
+   applied to every card in the two-column grid ── */
+type CardStyle = 'compact' | 'split' | 'minimal' | 'detailed' | 'accordion'
+
+const CARD_STYLE_OPTIONS: { value: CardStyle; label: string }[] = [
+  { value: 'compact', label: 'Compact' },
+  { value: 'split', label: 'Split' },
+  { value: 'minimal', label: 'Minimal' },
+  { value: 'detailed', label: 'Detailed' },
+  { value: 'accordion', label: 'Accordion' },
+]
+
+function TripGridCard({
   stop,
+  variant,
   selected,
+  expanded,
   handled,
   onClick,
+  onViewDetail,
+  onTake,
   innerRef,
 }: {
   stop: VehicleStop
+  variant: CardStyle
   selected: boolean
+  expanded: boolean
   handled: boolean
   onClick: () => void
+  onViewDetail: () => void
+  onTake: () => void
   innerRef: (el: HTMLDivElement | null) => void
 }) {
   const color = statusColor(stop)
   const status = deriveStatus(stop)
   const statusLabel = stop.online ? status : 'Offline'
+  const start = formatTimeAmPm(stop.scheduled)
+  const name = firstName(stop.driver)
+  const border = selected ? '#1677ff' : '#f0f0f0'
+  const routeChip = (
+    <span style={{ background: '#e6f4ff', color: '#1677ff', fontSize: 11.5, fontWeight: 600, padding: '0 7px', borderRadius: 4, whiteSpace: 'nowrap' }}>
+      {stop.label}
+    </span>
+  )
+  const urgent = !stop.online || status === 'Late'
+
+  if (variant === 'split') {
+    return (
+      <div
+        ref={innerRef}
+        role="button"
+        tabIndex={0}
+        onClick={onClick}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClick() }}
+        style={{ display: 'flex', background: selected ? '#e6f4ff' : '#fff', border: `1px solid ${border}`, borderRadius: 10, cursor: 'pointer', overflow: 'hidden', minWidth: 0 }}
+      >
+        <span style={{ width: 4, background: color, flexShrink: 0 }} />
+        <div style={{ flex: 1, minWidth: 0, padding: '9px 11px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+          <div style={{ minWidth: 0 }}>
+            {routeChip}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 6 }}>
+              <ClockCircleOutlined style={{ fontSize: 11, color: '#8c8c8c' }} />
+              <Text style={{ fontSize: 12, color: '#8c8c8c' }}>{start}</Text>
+            </div>
+          </div>
+          <div style={{ textAlign: 'right', flexShrink: 0, borderLeft: '1px solid #f0f0f0', paddingLeft: 10 }}>
+            <Text style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1a', display: 'block' }} ellipsis>{name}</Text>
+            <Text style={{ fontSize: 11.5, color: '#8c8c8c' }}>{stop.plate}</Text>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (variant === 'minimal') {
+    return (
+      <div
+        ref={innerRef}
+        role="button"
+        tabIndex={0}
+        onClick={onClick}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClick() }}
+        style={{ display: 'flex', alignItems: 'center', gap: 8, background: selected ? '#e6f4ff' : '#fff', border: `1px solid ${border}`, borderRadius: 10, padding: '8px 10px', cursor: 'pointer', minWidth: 0 }}
+      >
+        <span style={{ width: 7, height: 7, borderRadius: '50%', background: color, flexShrink: 0 }} />
+        {routeChip}
+        <Text style={{ fontSize: 12.5, fontWeight: 600, color: '#1a1a1a', minWidth: 0 }} ellipsis>{name}</Text>
+        <div style={{ marginLeft: 'auto', textAlign: 'right', flexShrink: 0 }}>
+          <Text style={{ fontSize: 12, fontWeight: 600, color: '#1a1a1a', display: 'block' }}>{stop.plate}</Text>
+          <Text style={{ fontSize: 10.5, color: '#8c8c8c' }}>{start}</Text>
+        </div>
+      </div>
+    )
+  }
+
+  if (variant === 'detailed') {
+    return (
+      <div
+        ref={innerRef}
+        role="button"
+        tabIndex={0}
+        onClick={onClick}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClick() }}
+        style={{ display: 'flex', background: selected ? '#e6f4ff' : '#fff', border: `1px solid ${border}`, borderRadius: 10, cursor: 'pointer', overflow: 'hidden', minWidth: 0 }}
+      >
+        <span style={{ width: 4, background: color, flexShrink: 0 }} />
+        <div style={{ flex: 1, minWidth: 0, padding: '10px 12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+            {routeChip}
+            <Text style={{ fontSize: 11.5, color: '#8c8c8c' }}>{stop.customerCode}</Text>
+            <span style={{ marginLeft: 'auto', fontSize: 10.5, fontWeight: 600, color, whiteSpace: 'nowrap' }}>{statusLabel}</span>
+          </div>
+          {stop.from && stop.to && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 6, minWidth: 0 }}>
+              <Text style={{ fontSize: 11.5, color: '#595959' }} ellipsis>{stop.from.name}</Text>
+              <ArrowRightOutlined style={{ fontSize: 9, color: '#bfbfbf', flexShrink: 0 }} />
+              <Text style={{ fontSize: 11.5, fontWeight: 600 }} ellipsis>{stop.to.name}</Text>
+            </div>
+          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
+            <ClockCircleOutlined style={{ fontSize: 11, color: '#8c8c8c' }} />
+            <Text style={{ fontSize: 11.5, color: '#8c8c8c' }}>{start}</Text>
+            <WifiOutlined style={{ color: stop.online ? '#52c41a' : '#ff4d4f', fontSize: 11.5, marginLeft: 8 }} />
+            <Text style={{ fontSize: 12, fontWeight: 600, color: '#1a1a1a' }} ellipsis>{name}</Text>
+            <Text style={{ fontSize: 11.5, color: '#8c8c8c', marginLeft: 'auto', whiteSpace: 'nowrap' }}>{stop.plate}</Text>
+          </div>
+          <Text style={{ fontSize: 10.5, color: '#bfbfbf', display: 'block', marginTop: 4 }}>{stop.fleetOwner}</Text>
+        </div>
+      </div>
+    )
+  }
+
+  if (variant === 'accordion') {
+    return (
+      <div
+        ref={innerRef}
+        role="button"
+        tabIndex={0}
+        onClick={onClick}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClick() }}
+        style={{ display: 'flex', background: expanded ? '#f0f7ff' : '#fff', border: `1px solid ${border}`, borderRadius: 10, cursor: 'pointer', overflow: 'hidden', minWidth: 0 }}
+      >
+        <span style={{ width: 4, background: color, flexShrink: 0 }} />
+        <div style={{ flex: 1, minWidth: 0, padding: '9px 11px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+            {routeChip}
+            <Text style={{ fontSize: 12.5, fontWeight: 600, color: '#1a1a1a', minWidth: 0 }} ellipsis>{name}</Text>
+            <Text style={{ fontSize: 11.5, color: '#8c8c8c', marginLeft: 'auto', whiteSpace: 'nowrap', flexShrink: 0 }}>{stop.plate}</Text>
+            <DownOutlined style={{ fontSize: 10, color: '#bfbfbf', flexShrink: 0, transform: expanded ? 'rotate(180deg)' : 'none', transition: 'transform .2s' }} />
+          </div>
+          {expanded && (
+            <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid #e6f0fa', display: 'flex', flexDirection: 'column', gap: 5 }}>
+              {stop.from && stop.to && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}>
+                  <Text style={{ fontSize: 11.5, color: '#595959' }} ellipsis>{stop.from.name}</Text>
+                  <ArrowRightOutlined style={{ fontSize: 9, color: '#bfbfbf', flexShrink: 0 }} />
+                  <Text style={{ fontSize: 11.5, fontWeight: 600 }} ellipsis>{stop.to.name}</Text>
+                </div>
+              )}
+              <Text style={{ fontSize: 11.5, color: '#8c8c8c' }}>
+                {start} · {statusLabel}
+              </Text>
+              <Text style={{ fontSize: 11.5, color: '#8c8c8c' }}>{stop.fleetOwner}</Text>
+              <div style={{ display: 'flex', gap: 6, marginTop: 2 }}>
+                <Button size="small" type="primary" icon={<EyeOutlined />} onClick={(e) => { e.stopPropagation(); onViewDetail() }} style={{ flex: 1, fontSize: 11.5 }}>
+                  View detail
+                </Button>
+                {urgent && !handled && (
+                  <Button size="small" icon={<CheckOutlined style={{ fontSize: 10 }} />} onClick={(e) => { e.stopPropagation(); onTake() }} style={{ fontSize: 11.5 }}>
+                    Take it
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  // compact (default)
+  return (
+    <div
+      ref={innerRef}
+      role="button"
+      tabIndex={0}
+      onClick={onClick}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClick() }}
+      style={{
+        display: 'flex',
+        background: selected ? '#e6f4ff' : '#fff',
+        border: `1px solid ${border}`,
+        borderRadius: 10,
+        cursor: 'pointer',
+        overflow: 'hidden',
+        transition: 'background .15s, border-color .15s',
+        minWidth: 0,
+      }}
+    >
+      <span style={{ width: 4, background: color, flexShrink: 0 }} />
+      <div style={{ flex: 1, minWidth: 0, padding: '8px 10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+          {routeChip}
+          <Text style={{ fontSize: 11.5, color: '#8c8c8c', whiteSpace: 'nowrap' }}>{start}</Text>
+          {handled ? (
+            <CheckOutlined style={{ marginLeft: 'auto', fontSize: 10, color: '#16a34a', flexShrink: 0 }} title="Handled" />
+          ) : (
+            <span style={{ marginLeft: 'auto', fontSize: 10.5, fontWeight: 600, color, whiteSpace: 'nowrap', flexShrink: 0 }}>{statusLabel}</span>
+          )}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 5, minWidth: 0 }}>
+          <WifiOutlined style={{ color: stop.online ? '#52c41a' : '#ff4d4f', fontSize: 11.5, flexShrink: 0 }} />
+          <Text style={{ fontSize: 12.5, fontWeight: 600, color: '#1a1a1a', minWidth: 0 }} ellipsis>{name}</Text>
+          <Text style={{ fontSize: 11.5, color: '#8c8c8c', marginLeft: 'auto', whiteSpace: 'nowrap', flexShrink: 0 }}>{stop.plate}</Text>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ── Double highlight — ported from Live Tracking. Two levels of highlights
+   over the trip list, replacing the KPI bar when enabled. NOTE: the real
+   definitions depend on trip status + schedule margin/slack and are still
+   being worked out — everything derived from dhInfo() below is
+   deterministic PLACEHOLDER logic so the UI can be exercised now. ── */
+type DhLevel1 = 'immediate' | 'risk' | 'stable'
+type DhLevel2 = 'cur-first' | 'cur-other' | 'next' | 'offline' | 'will-first' | 'will-other' | 'no-slack'
+
+const DH_L1_META: { key: DhLevel1; label: string; color: string; soft: string; border: string }[] = [
+  { key: 'immediate', label: 'Immediate attention', color: '#ff4d4f', soft: '#fff1f0', border: '#ffccc7' },
+  { key: 'risk', label: 'At risk', color: '#faad14', soft: '#fffbe6', border: '#ffe58f' },
+  { key: 'stable', label: 'Stable', color: '#16a34a', soft: '#f6ffed', border: '#b7eb8f' },
+]
+
+const DH_L2_META: Record<Exclude<DhLevel1, 'stable'>, { key: DhLevel2; label: string }[]> = {
+  immediate: [
+    { key: 'cur-first', label: 'Current trip delayed (first point)' },
+    { key: 'cur-other', label: 'Current trip delayed (other points)' },
+    { key: 'next', label: 'Next trip delayed' },
+    { key: 'offline', label: 'Driver offline' },
+  ],
+  risk: [
+    { key: 'will-first', label: 'Current trip will be delayed (first point)' },
+    { key: 'will-other', label: 'Current trip will be delayed (other points)' },
+    { key: 'no-slack', label: 'No schedule slack' },
+  ],
+}
+
+interface DhInfo {
+  l1: DhLevel1
+  l2: DhLevel2 | null
+  currentDelayMin: number
+  nextTripDelayMin: number
+  predictedDelayMin: number
+  slackMin: number
+}
+
+function dhHash(id: string): number {
+  let h = 0
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) % 997
+  return h
+}
+
+function dhInfo(stop: VehicleStop): DhInfo {
+  const h = dhHash(stop.id)
+  const currentDelayMin = stop.online && stop.eta ? Math.max(0, toMinutes(stop.eta) - toMinutes(stop.scheduled)) : 0
+  // PLACEHOLDER schedule slack — real value = margin to the next trip's start
+  const slackMin = (h % 13) * 5 - 15 - currentDelayMin
+  const nextTripDelayMin = Math.max(0, -slackMin)
+  const predictedDelayMin = stop.online && currentDelayMin === 0 && h % 4 === 0 ? (h % 3) * 5 + 5 : 0
+  const atFirstPoint = stop.phase < 0.45
+
+  if (!stop.online) return { l1: 'immediate', l2: 'offline', currentDelayMin, nextTripDelayMin, predictedDelayMin, slackMin }
+  if (currentDelayMin > 0) return { l1: 'immediate', l2: atFirstPoint ? 'cur-first' : 'cur-other', currentDelayMin, nextTripDelayMin, predictedDelayMin, slackMin }
+  if (nextTripDelayMin > 0) return { l1: 'immediate', l2: 'next', currentDelayMin, nextTripDelayMin, predictedDelayMin, slackMin }
+  if (predictedDelayMin > 0) return { l1: 'risk', l2: atFirstPoint ? 'will-first' : 'will-other', currentDelayMin, nextTripDelayMin, predictedDelayMin, slackMin }
+  if (slackMin <= 5) return { l1: 'risk', l2: 'no-slack', currentDelayMin, nextTripDelayMin, predictedDelayMin, slackMin }
+  return { l1: 'stable', l2: null, currentDelayMin, nextTripDelayMin, predictedDelayMin, slackMin }
+}
+
+function slackChipColors(slackMin: number): { color: string; bg: string; border: string } {
+  if (slackMin < 0) return { color: '#ff4d4f', bg: '#fff1f0', border: '#ffccc7' }
+  if (slackMin <= 5) return { color: '#d48806', bg: '#fffbe6', border: '#ffe58f' }
+  return { color: '#16a34a', bg: '#f6ffed', border: '#b7eb8f' }
+}
+
+function DhGridCard({
+  stop,
+  info,
+  selected,
+  onClick,
+  innerRef,
+}: {
+  stop: VehicleStop
+  info: DhInfo
+  selected: boolean
+  onClick: () => void
+  innerRef: (el: HTMLDivElement | null) => void
+}) {
+  const accent = info.l1 === 'immediate' ? '#ff4d4f' : info.l1 === 'risk' ? '#faad14' : '#16a34a'
+  const baseStatus = deriveStatus(stop)
+  const statusLabel = !stop.online ? 'Offline' : info.currentDelayMin > 0 ? 'Late' : info.predictedDelayMin > 0 ? 'Will be late' : baseStatus
+  const statusStyle =
+    statusLabel === 'Will be late'
+      ? { color: '#d48806', bg: '#fffbe6', border: '#ffe58f' }
+      : statusLabel === 'Offline'
+        ? { color: STATUS_STYLE['To Check'].color, bg: STATUS_STYLE['To Check'].bg, border: STATUS_STYLE['To Check'].border }
+        : { color: STATUS_STYLE[baseStatus].color, bg: STATUS_STYLE[baseStatus].bg, border: STATUS_STYLE[baseStatus].border }
+  const slack = slackChipColors(info.slackMin)
+  const showDelays = info.l1 !== 'stable'
   return (
     <div
       ref={innerRef}
@@ -276,27 +823,50 @@ function CompactCard({
         borderRadius: 10,
         cursor: 'pointer',
         overflow: 'hidden',
-        transition: 'background .15s, border-color .15s',
         minWidth: 0,
       }}
     >
-      <span style={{ width: 4, background: color, flexShrink: 0 }} />
-      <div style={{ flex: 1, minWidth: 0, padding: '8px 10px' }}>
+      <span style={{ width: 4, background: accent, flexShrink: 0 }} />
+      <div style={{ flex: 1, minWidth: 0, padding: '9px 11px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
           <span style={{ background: '#e6f4ff', color: '#1677ff', fontSize: 11.5, fontWeight: 600, padding: '0 7px', borderRadius: 4, whiteSpace: 'nowrap' }}>
             {stop.label}
           </span>
+          <ClockCircleOutlined style={{ fontSize: 11, color: '#8c8c8c', flexShrink: 0 }} />
           <Text style={{ fontSize: 11.5, color: '#8c8c8c', whiteSpace: 'nowrap' }}>{formatTimeAmPm(stop.scheduled)}</Text>
-          {handled ? (
-            <CheckOutlined style={{ marginLeft: 'auto', fontSize: 10, color: '#16a34a', flexShrink: 0 }} title="Handled" />
-          ) : (
-            <span style={{ marginLeft: 'auto', fontSize: 10.5, fontWeight: 600, color, whiteSpace: 'nowrap', flexShrink: 0 }}>{statusLabel}</span>
-          )}
+          <span
+            style={{
+              marginLeft: 'auto', background: statusStyle.bg, color: statusStyle.color, border: `1px solid ${statusStyle.border}`,
+              fontSize: 10.5, fontWeight: 500, padding: '0 7px', borderRadius: 6, whiteSpace: 'nowrap', flexShrink: 0,
+            }}
+          >
+            {statusLabel}
+          </span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 5, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, minWidth: 0 }}>
           <WifiOutlined style={{ color: stop.online ? '#52c41a' : '#ff4d4f', fontSize: 11.5, flexShrink: 0 }} />
           <Text style={{ fontSize: 12.5, fontWeight: 600, color: '#1a1a1a', minWidth: 0 }} ellipsis>{firstName(stop.driver)}</Text>
+          <Text style={{ fontSize: 10.5, color: stop.online ? '#16a34a' : '#ff4d4f', flexShrink: 0 }}>{stop.online ? 'Online' : 'Offline'}</Text>
           <Text style={{ fontSize: 11.5, color: '#8c8c8c', marginLeft: 'auto', whiteSpace: 'nowrap', flexShrink: 0 }}>{stop.plate}</Text>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 7, flexWrap: 'wrap' }}>
+          <span style={{ background: slack.bg, color: slack.color, border: `1px solid ${slack.border}`, fontSize: 10.5, fontWeight: 600, padding: '0 7px', borderRadius: 6, whiteSpace: 'nowrap' }}>
+            Slack {info.slackMin > 0 ? `+${info.slackMin}` : info.slackMin} min
+          </span>
+          {showDelays && (
+            <>
+              {(info.currentDelayMin > 0 || info.predictedDelayMin > 0) && (
+                <Text style={{ fontSize: 10.5, color: '#ff4d4f', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                  Cur {info.currentDelayMin > 0 ? `+${info.currentDelayMin}` : `~+${info.predictedDelayMin}`}m
+                </Text>
+              )}
+              {info.nextTripDelayMin > 0 && (
+                <Text style={{ fontSize: 10.5, color: '#d48806', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                  Next +{info.nextTripDelayMin}m
+                </Text>
+              )}
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -330,6 +900,8 @@ function Testing2MapView({
   posRef,
   showRoutes,
   showTraffic,
+  mapTheme,
+  markerStyle,
   handledIds,
   onSelect,
   onClose,
@@ -343,6 +915,8 @@ function Testing2MapView({
   posRef: React.MutableRefObject<Record<string, [number, number] | null>>
   showRoutes: boolean
   showTraffic: boolean
+  mapTheme: MapTheme
+  markerStyle: MarkerStyle
   handledIds: Set<string>
   onSelect: (id: string) => void
   onClose: () => void
@@ -423,7 +997,7 @@ function Testing2MapView({
         zoomControl: true,
         streetViewControl: false,
         mapTypeControl: false,
-        styles: SILVER_THEME,
+        styles: MAP_THEMES[mapTheme],
       }}
     >
       {showTraffic && <TrafficLayer />}
@@ -459,7 +1033,7 @@ function Testing2MapView({
             <div key={stop.id}>
               <Marker
                 position={{ lat, lng }}
-                icon={makeBusBadgeIcon(statusColor(stop), sel)}
+                icon={makeMarkerIcon(markerStyle, stop, sel)}
                 onClick={() => onSelect(stop.id)}
               />
               {sel && (
@@ -498,6 +1072,16 @@ export default function LiveTrackingTesting2Page() {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [handledIds, setHandledIds] = useState<Set<string>>(new Set())
   const [notifiedIds, setNotifiedIds] = useState<Set<string>>(new Set())
+
+  // ── Display settings — ported from the main Live Tracking page ──
+  const [mapTheme, setMapTheme] = useState<MapTheme>('silver')
+  const [markerStyle, setMarkerStyle] = useState<MarkerStyle>('bus')
+  const [cardStyle, setCardStyle] = useState<CardStyle>('compact')
+  const [highlightStyle, setHighlightStyle] = useState<HighlightStyle>('default')
+  const [showNeedsAttention, setShowNeedsAttention] = useState(true)
+  const [doubleHighlight, setDoubleHighlight] = useState(false)
+  const [dhLevel1, setDhLevel1] = useState<DhLevel1>('immediate')
+  const [dhLevel2, setDhLevel2] = useState<DhLevel2 | null>('cur-first')
   const [showRoutes, setShowRoutes] = useState(true)
   const [showTraffic, setShowTraffic] = useState(true)
   const [simulating, setSimulating] = useState(false)
@@ -536,8 +1120,24 @@ export default function LiveTrackingTesting2Page() {
 
   const isUrgent = (s: VehicleStop) => !s.online || deriveStatus(s) === 'Late'
 
+  // Double-highlight classification for every trip
+  const dhById: Record<string, DhInfo> = Object.fromEntries(stops.map((s) => [s.id, dhInfo(s)]))
+  const dhL1Counts: Record<DhLevel1, number> = { immediate: 0, risk: 0, stable: 0 }
+  const dhL2Counts: Record<string, number> = {}
+  stops.forEach((s) => {
+    const info = dhById[s.id]
+    dhL1Counts[info.l1] += 1
+    if (info.l2) dhL2Counts[info.l2] = (dhL2Counts[info.l2] ?? 0) + 1
+  })
+
   const filtered = stops.filter((s) => {
-    if (!kpiMatch(s, filter)) return false
+    if (doubleHighlight) {
+      const info = dhById[s.id]
+      if (info.l1 !== dhLevel1) return false
+      if (dhLevel1 !== 'stable' && dhLevel2 && info.l2 !== dhLevel2) return false
+    } else if (!kpiMatch(s, filter)) {
+      return false
+    }
     if (search.trim()) {
       const q = search.toLowerCase()
       if (
@@ -563,8 +1163,14 @@ export default function LiveTrackingTesting2Page() {
     }
   }
 
-  const needsAttention = filtered.filter((s) => isUrgent(s) && !handledIds.has(s.id)).sort(sortFn)
-  const others = filtered.filter((s) => !(isUrgent(s) && !handledIds.has(s.id))).sort(sortFn)
+  // Needs-attention grouping — skipped entirely in double-highlight mode
+  // (level 1 already does the job) and toggleable otherwise
+  const needsAttention = !doubleHighlight && showNeedsAttention
+    ? filtered.filter((s) => isUrgent(s) && !handledIds.has(s.id)).sort(sortFn)
+    : []
+  const others = !doubleHighlight && showNeedsAttention
+    ? filtered.filter((s) => !(isUrgent(s) && !handledIds.has(s.id))).sort(sortFn)
+    : [...filtered].sort(sortFn)
 
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({})
   useEffect(() => {
@@ -588,7 +1194,7 @@ export default function LiveTrackingTesting2Page() {
   }
 
   const selectCard = (id: string) => {
-    // Second click on the selected card dismisses its tooltip
+    // Second click on the selected card dismisses its tooltip / collapses it
     setSelectedId((prev) => (prev === id ? null : id))
     setDrawerOpen(false)
   }
@@ -599,29 +1205,64 @@ export default function LiveTrackingTesting2Page() {
     </Text>
   )
 
-  const renderCard = (stop: VehicleStop) => (
-    <Popover
-      key={stop.id}
-      open={selectedId === stop.id && !drawerOpen}
-      content={
-        <TripSummary
+  const renderCard = (stop: VehicleStop) => {
+    if (doubleHighlight) {
+      return (
+        <DhGridCard
+          key={stop.id}
           stop={stop}
+          info={dhById[stop.id]}
+          selected={selectedId === stop.id}
+          onClick={() => setSelectedId(selectedId === stop.id ? null : stop.id)}
+          innerRef={(el) => { cardRefs.current[stop.id] = el }}
+        />
+      )
+    }
+    // Accordion expands inline instead of opening the hover popover
+    if (cardStyle === 'accordion') {
+      return (
+        <TripGridCard
+          key={stop.id}
+          stop={stop}
+          variant="accordion"
+          selected={selectedId === stop.id}
+          expanded={selectedId === stop.id}
           handled={handledIds.has(stop.id)}
+          onClick={() => selectCard(stop.id)}
           onViewDetail={() => setDrawerOpen(true)}
           onTake={() => markHandled(stop.id)}
+          innerRef={(el) => { cardRefs.current[stop.id] = el }}
         />
-      }
-      placement="left"
-    >
-      <CompactCard
-        stop={stop}
-        selected={selectedId === stop.id}
-        handled={handledIds.has(stop.id)}
-        onClick={() => selectCard(stop.id)}
-        innerRef={(el) => { cardRefs.current[stop.id] = el }}
-      />
-    </Popover>
-  )
+      )
+    }
+    return (
+      <Popover
+        key={stop.id}
+        open={selectedId === stop.id && !drawerOpen}
+        content={
+          <TripSummary
+            stop={stop}
+            handled={handledIds.has(stop.id)}
+            onViewDetail={() => setDrawerOpen(true)}
+            onTake={() => markHandled(stop.id)}
+          />
+        }
+        placement="left"
+      >
+        <TripGridCard
+          stop={stop}
+          variant={cardStyle}
+          selected={selectedId === stop.id}
+          expanded={false}
+          handled={handledIds.has(stop.id)}
+          onClick={() => selectCard(stop.id)}
+          onViewDetail={() => setDrawerOpen(true)}
+          onTake={() => markHandled(stop.id)}
+          innerRef={(el) => { cardRefs.current[stop.id] = el }}
+        />
+      </Popover>
+    )
+  }
 
   return (
     <div style={{ padding: '24px 32px' }}>
@@ -638,64 +1279,82 @@ export default function LiveTrackingTesting2Page() {
           height: 'calc(100vh - 96px)',
         }}
       >
-        {/* ── Header: KPI chips + search + sort ── */}
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', flexShrink: 0 }}>
-          {KPI_META.map((k) => {
-            const hot = k.urgent && counts[k.key] > 0
-            const active = filter === k.key
-            return (
-              <button
-                key={k.key}
-                onClick={() => setFilter(active ? 'all' : k.key)}
-                className={hot && !active ? 'tab-urgent-pulse' : undefined}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  padding: '6px 13px',
-                  borderRadius: 20,
-                  border: `1px solid ${active || hot ? k.color : '#e8e8e8'}`,
-                  background: active ? k.color : hot ? k.soft : '#fff',
-                  color: active ? '#fff' : hot ? k.color : '#595959',
-                  fontSize: 13,
-                  fontWeight: active || hot ? 600 : 500,
-                  cursor: 'pointer',
-                  transition: 'all .15s',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {k.label}
-                <span
-                  style={{
-                    minWidth: 20,
-                    height: 20,
-                    padding: '0 6px',
-                    borderRadius: 10,
-                    fontSize: 11.5,
-                    fontWeight: 700,
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    background: active ? 'rgba(255,255,255,.28)' : hot ? k.color : '#f0f0f0',
-                    color: active || hot ? '#fff' : '#8c8c8c',
-                  }}
-                >
-                  {counts[k.key]}
-                </span>
-              </button>
-            )
-          })}
-          <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
-            <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
-              placeholder="Search route, driver, plate..."
-              style={{ borderRadius: 8, width: 260 }}
-              allowClear
-            />
-            <Select size="middle" value={sortBy} onChange={setSortBy} options={SORT_OPTIONS} style={{ width: 118 }} />
-          </div>
+        {/* ── Header: KPI/highlight bar + search + sort ── */}
+        <div style={{ flexShrink: 0 }}>
+          {doubleHighlight ? (
+            <>
+              <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
+                {DH_L1_META.map((m) => {
+                  const active = dhLevel1 === m.key
+                  return (
+                    <button
+                      key={m.key}
+                      onClick={() => { setDhLevel1(m.key); setDhLevel2(null) }}
+                      className={m.key === 'immediate' && dhL1Counts.immediate > 0 && !active ? 'tab-urgent-pulse' : undefined}
+                      style={{
+                        padding: '6px 12px', borderRadius: 16, whiteSpace: 'nowrap',
+                        border: `1px solid ${active ? m.color : m.border}`,
+                        background: active ? m.color : m.soft,
+                        color: active ? '#fff' : m.color,
+                        fontSize: 12.5, fontWeight: 600, cursor: 'pointer', transition: 'all .15s',
+                      }}
+                    >
+                      {m.label} ({dhL1Counts[m.key]})
+                    </button>
+                  )
+                })}
+                <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <Input
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
+                    placeholder="Search route, driver, plate..."
+                    style={{ borderRadius: 8, width: 240 }}
+                    allowClear
+                  />
+                  <Select size="middle" value={sortBy} onChange={setSortBy} options={SORT_OPTIONS} style={{ width: 118 }} />
+                </div>
+              </div>
+              {dhLevel1 !== 'stable' && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {DH_L2_META[dhLevel1].map((m) => {
+                    const active = dhLevel2 === m.key
+                    const count = dhL2Counts[m.key] ?? 0
+                    return (
+                      <button
+                        key={m.key}
+                        onClick={() => setDhLevel2(active ? null : m.key)}
+                        style={{
+                          padding: '4px 10px', borderRadius: 6,
+                          border: `1px solid ${active ? '#1677ff' : '#e8e8e8'}`,
+                          background: active ? '#e6f4ff' : '#fff',
+                          color: active ? '#1677ff' : count === 0 ? '#bfbfbf' : '#595959',
+                          fontSize: 11.5, fontWeight: active ? 600 : 500, cursor: 'pointer', transition: 'all .15s',
+                        }}
+                      >
+                        {m.label} ({count})
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </>
+          ) : (
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+              <KpiBar style={highlightStyle} active={filter} counts={counts} onSelect={setFilter} />
+              <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
+                <Input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
+                  placeholder="Search route, driver, plate..."
+                  style={{ borderRadius: 8, width: 260 }}
+                  allowClear
+                />
+                <Select size="middle" value={sortBy} onChange={setSortBy} options={SORT_OPTIONS} style={{ width: 118 }} />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* ── Body: list-first (70%) + context map (30%) ── */}
@@ -743,6 +1402,8 @@ export default function LiveTrackingTesting2Page() {
                   posRef={posRef}
                   showRoutes={showRoutes}
                   showTraffic={showTraffic}
+                  mapTheme={mapTheme}
+                  markerStyle={markerStyle}
                   handledIds={handledIds}
                   onSelect={(id) => { setSelectedId(id); setDrawerOpen(false) }}
                   onClose={() => setSelectedId(null)}
@@ -753,11 +1414,38 @@ export default function LiveTrackingTesting2Page() {
               </MapErrorBoundary>
             )}
 
+            {/* Display settings — every switcher ported from Live Tracking */}
             <Popover
               placement="bottomRight"
               trigger="click"
               content={
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: 168 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: 210 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                    <Text style={{ fontSize: 13, color: '#595959' }}>Map theme</Text>
+                    <Select size="small" value={mapTheme} onChange={setMapTheme} options={MAP_THEME_OPTIONS} style={{ width: 104 }} dropdownStyle={{ zIndex: 2100 }} />
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                    <Text style={{ fontSize: 13, color: '#595959' }}>Card style</Text>
+                    <Select size="small" value={cardStyle} onChange={setCardStyle} options={CARD_STYLE_OPTIONS} style={{ width: 104 }} dropdownStyle={{ zIndex: 2100 }} />
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                    <Text style={{ fontSize: 13, color: '#595959' }}>Highlight style</Text>
+                    <Select size="small" value={highlightStyle} onChange={setHighlightStyle} options={HIGHLIGHT_STYLE_OPTIONS} style={{ width: 104 }} dropdownStyle={{ zIndex: 2100 }} />
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                    <Text style={{ fontSize: 13, color: '#595959' }}>Marker style</Text>
+                    <Select size="small" value={markerStyle} onChange={setMarkerStyle} options={MARKER_STYLE_OPTIONS} style={{ width: 104 }} dropdownStyle={{ zIndex: 2100 }} />
+                  </div>
+                  <div style={{ height: 1, background: '#f0f0f0', margin: '2px 0' }} />
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                    <Text style={{ fontSize: 13, color: '#595959' }}>Double highlight</Text>
+                    <Switch size="small" checked={doubleHighlight} onChange={setDoubleHighlight} />
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                    <Text style={{ fontSize: 13, color: '#595959' }}>Show needs attention</Text>
+                    <Switch size="small" checked={showNeedsAttention} onChange={setShowNeedsAttention} disabled={doubleHighlight} />
+                  </div>
+                  <div style={{ height: 1, background: '#f0f0f0', margin: '2px 0' }} />
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
                     <Text style={{ fontSize: 13, color: '#595959' }}>Show route</Text>
                     <Switch size="small" checked={showRoutes} onChange={setShowRoutes} />
@@ -782,8 +1470,10 @@ export default function LiveTrackingTesting2Page() {
                 icon={<ControlOutlined />}
                 size="small"
                 style={{ position: 'absolute', top: 10, right: 10, zIndex: 500, boxShadow: '0 4px 14px rgba(15,23,42,.12)' }}
-                title="Map layers"
-              />
+                title="Display settings"
+              >
+                Settings
+              </Button>
             </Popover>
 
             {/* Compact traffic legend for the narrow map */}
