@@ -24,6 +24,7 @@ import {
   PushpinOutlined,
   AppstoreOutlined,
   SortAscendingOutlined,
+  DownOutlined,
 } from '@ant-design/icons'
 import {
   type VehicleStop,
@@ -1069,13 +1070,14 @@ const CARD_FIELD_OPTIONS: { key: keyof CardFields; label: string }[] = [
    variation shows the route code, trip start time, the driver's first name and
    the vehicle plate, with a status-colour accent — switchable from the Test
    Console. "detailed" reuses the fuller DriverCard below. ── */
-type ListCardStyle = 'detailed' | 'compact' | 'split' | 'minimal'
+type ListCardStyle = 'detailed' | 'compact' | 'split' | 'minimal' | 'accordion'
 
 const LIST_CARD_STYLE_OPTIONS: { value: ListCardStyle; label: string }[] = [
   { value: 'detailed', label: 'Detailed' },
   { value: 'compact', label: 'Compact' },
   { value: 'split', label: 'Split' },
   { value: 'minimal', label: 'Minimal' },
+  { value: 'accordion', label: 'Accordion' },
 ]
 
 function firstName(full: string): string {
@@ -1112,6 +1114,79 @@ function ListCard({
       {stop.label}
     </span>
   )
+
+  // Accordion: a lean collapsed row; clicking expands the detail inline in
+  // the list (selection doubles as the expanded state) — no drawer needed.
+  if (variant === 'accordion') {
+    const status = deriveStatus(stop)
+    const s = STATUS_STYLE[status]
+    const statusLabel = stop.online ? status : 'Offline'
+    const lateMin = stop.online && status === 'Late' && stop.eta ? toMinutes(stop.eta) - toMinutes(stop.scheduled) : 0
+    const detailRow = (label: string, value: React.ReactNode) => (
+      <div style={{ display: 'flex', gap: 10, alignItems: 'baseline', minWidth: 0 }}>
+        <Text style={{ fontSize: 10.5, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.4, width: 76, flexShrink: 0 }}>
+          {label}
+        </Text>
+        <div style={{ fontSize: 12.5, color: '#1a1a1a', minWidth: 0, flex: 1 }}>{value}</div>
+      </div>
+    )
+    return (
+      <div
+        onClick={onSelect}
+        style={{ display: 'flex', background: selected ? '#f0f7ff' : '#fff', border: `1px solid ${border}`, borderRadius: 10, marginBottom: 8, cursor: 'pointer', overflow: 'hidden', transition: 'background .15s, border-color .15s' }}
+      >
+        <span style={{ width: 4, background: color, flexShrink: 0 }} />
+        <div style={{ flex: 1, minWidth: 0, padding: '10px 12px' }}>
+          {/* Collapsed row — the minimum to recognise the trip */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+            {routeChip}
+            <Text style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1a', minWidth: 0 }} ellipsis>{name}</Text>
+            <Text style={{ fontSize: 12, color: '#8c8c8c', marginLeft: 'auto', whiteSpace: 'nowrap', flexShrink: 0 }}>{stop.plate}</Text>
+            <span style={{ background: s.bg, color: s.color, border: `1px solid ${s.border}`, fontSize: 10.5, fontWeight: 500, padding: '0 7px', borderRadius: 5, whiteSpace: 'nowrap', flexShrink: 0 }}>
+              {statusLabel}
+            </span>
+            <DownOutlined
+              style={{ fontSize: 10, color: '#bfbfbf', flexShrink: 0, transform: selected ? 'rotate(180deg)' : 'none', transition: 'transform .2s' }}
+            />
+          </div>
+
+          {/* Expanded detail — shown inline when the card is selected */}
+          {selected && (
+            <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid #e6f0fa', display: 'flex', flexDirection: 'column', gap: 7 }}>
+              {detailRow(
+                'Route',
+                stop.from && stop.to ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                    <Text style={{ fontSize: 12.5, color: '#595959' }} ellipsis>{stop.from.name}</Text>
+                    <ArrowRightOutlined style={{ color: '#bfbfbf', fontSize: 10, flexShrink: 0 }} />
+                    <Text style={{ fontSize: 12.5, fontWeight: 600 }} ellipsis>{stop.to.name}</Text>
+                  </div>
+                ) : (
+                  <Text style={{ fontSize: 12.5, fontWeight: 600 }}>{stop.destination}</Text>
+                ),
+              )}
+              {detailRow('Trip start', start)}
+              {detailRow(
+                'ETA',
+                stop.online && stop.eta ? (
+                  <span style={{ color: lateMin > 0 ? '#ff4d4f' : '#1677ff', fontWeight: 700 }}>
+                    {formatTimeAmPm(stop.eta)}
+                    {lateMin > 0 && <span style={{ fontWeight: 500 }}> · {lateMin} min late</span>}
+                  </span>
+                ) : !stop.online ? (
+                  <span style={{ color: '#ff4d4f', fontWeight: 600 }}>Last seen {stop.lastOnline ?? 'unknown'}</span>
+                ) : (
+                  <span style={{ color: '#8c8c8c' }}>—</span>
+                ),
+              )}
+              {detailRow('Driver', <span style={{ fontWeight: 600 }}>{stop.driver}</span>)}
+              {detailRow('Fleet owner', stop.fleetOwner)}
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
 
   if (variant === 'split') {
     return (
@@ -2395,7 +2470,10 @@ export default function LiveTrackingPage() {
                         key={stop.id}
                         stop={stop}
                         selected={selectedId === stop.id}
-                        onSelect={() => setSelectedId(stop.id)}
+                        onSelect={() =>
+                          // Accordion: clicking the expanded card collapses it
+                          setSelectedId(listCardStyle === 'accordion' && selectedId === stop.id ? null : stop.id)
+                        }
                         variant={listCardStyle}
                       />
                     ),
@@ -2421,7 +2499,8 @@ export default function LiveTrackingPage() {
         title="Trip detail"
         placement="right"
         width={380}
-        open={!!selectedStop}
+        // Accordion cards show the detail inline, so the drawer stays shut there
+        open={!!selectedStop && listCardStyle !== 'accordion'}
         onClose={() => setSelectedId(null)}
       >
         {selectedStop && (() => {
