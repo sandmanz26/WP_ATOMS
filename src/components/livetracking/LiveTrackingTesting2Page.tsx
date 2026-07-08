@@ -16,6 +16,8 @@ import {
   CloseCircleOutlined,
   EyeOutlined,
   DownOutlined,
+  HolderOutlined,
+  CloseOutlined,
 } from '@ant-design/icons'
 import {
   type VehicleStop,
@@ -93,6 +95,31 @@ function statusColor(stop: VehicleStop): string {
 
 function firstName(full: string): string {
   return full.trim().split(/\s+/)[0]
+}
+
+// Minimal drag-by-header behaviour, no extra dependency needed — same
+// mechanism as the Test Console on the main Live Tracking page.
+function useDraggable(initial: { x: number; y: number }) {
+  const [pos, setPos] = useState(initial)
+  const dragRef = useRef<{ startX: number; startY: number; baseX: number; baseY: number } | null>(null)
+
+  const onDragStart = (e: React.MouseEvent) => {
+    dragRef.current = { startX: e.clientX, startY: e.clientY, baseX: pos.x, baseY: pos.y }
+    const onMove = (ev: MouseEvent) => {
+      const d = dragRef.current
+      if (!d) return
+      setPos({ x: d.baseX + (ev.clientX - d.startX), y: d.baseY + (ev.clientY - d.startY) })
+    }
+    const onUp = () => {
+      dragRef.current = null
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }
+
+  return { pos, onDragStart }
 }
 
 function svgDataUrl(svg: string): string {
@@ -1064,6 +1091,141 @@ function DetailItem({ label, children }: { label: string; children: React.ReactN
   )
 }
 
+/* ── Floating, draggable Display settings panel — same mechanism as the
+   Test Console on the main Live Tracking page (drag by header, close to a
+   reopener button) so every switcher ported from there behaves the same way
+   here too. ── */
+function SettingRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+      <Text style={{ fontSize: 13, color: '#595959' }}>{label}</Text>
+      {children}
+    </div>
+  )
+}
+
+function DisplaySettingsPanel({
+  pos,
+  onDragStart,
+  onClose,
+  mapTheme,
+  onMapThemeChange,
+  cardStyle,
+  onCardStyleChange,
+  highlightStyle,
+  onHighlightStyleChange,
+  markerStyle,
+  onMarkerStyleChange,
+  doubleHighlight,
+  onDoubleHighlightChange,
+  showNeedsAttention,
+  onShowNeedsAttentionChange,
+  showRoutes,
+  onShowRoutesChange,
+  showTraffic,
+  onShowTrafficChange,
+  simulating,
+  onToggleSimulate,
+}: {
+  pos: { x: number; y: number }
+  onDragStart: (e: React.MouseEvent) => void
+  onClose: () => void
+  mapTheme: MapTheme
+  onMapThemeChange: (v: MapTheme) => void
+  cardStyle: CardStyle
+  onCardStyleChange: (v: CardStyle) => void
+  highlightStyle: HighlightStyle
+  onHighlightStyleChange: (v: HighlightStyle) => void
+  markerStyle: MarkerStyle
+  onMarkerStyleChange: (v: MarkerStyle) => void
+  doubleHighlight: boolean
+  onDoubleHighlightChange: (v: boolean) => void
+  showNeedsAttention: boolean
+  onShowNeedsAttentionChange: (v: boolean) => void
+  showRoutes: boolean
+  onShowRoutesChange: (v: boolean) => void
+  showTraffic: boolean
+  onShowTrafficChange: (v: boolean) => void
+  simulating: boolean
+  onToggleSimulate: () => void
+}) {
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        top: pos.y,
+        left: pos.x,
+        zIndex: 2000,
+        width: 260,
+        background: '#fff',
+        border: '1px solid #ffd591',
+        borderRadius: 12,
+        boxShadow: '0 12px 32px rgba(15,23,42,.18)',
+        display: 'flex',
+        flexDirection: 'column',
+        maxHeight: '78vh',
+      }}
+    >
+      <div
+        onMouseDown={onDragStart}
+        style={{
+          cursor: 'grab',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          padding: '9px 10px',
+          borderBottom: '1px solid #ffe7ba',
+          background: '#fff7e6',
+          borderRadius: '12px 12px 0 0',
+          userSelect: 'none',
+        }}
+      >
+        <HolderOutlined style={{ color: '#d48806' }} />
+        <Text style={{ fontWeight: 600, fontSize: 13, color: '#d48806', flex: 1 }}>Display settings</Text>
+        <Button size="small" type="text" icon={<CloseOutlined />} onClick={onClose} title="Hide" />
+      </div>
+
+      <div style={{ padding: '10px 12px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <SettingRow label="Map theme">
+          <Select size="small" value={mapTheme} onChange={onMapThemeChange} options={MAP_THEME_OPTIONS} style={{ width: 104 }} dropdownStyle={{ zIndex: 2100 }} />
+        </SettingRow>
+        <SettingRow label="Card style">
+          <Select size="small" value={cardStyle} onChange={onCardStyleChange} options={CARD_STYLE_OPTIONS} style={{ width: 104 }} dropdownStyle={{ zIndex: 2100 }} />
+        </SettingRow>
+        <SettingRow label="Highlight style">
+          <Select size="small" value={highlightStyle} onChange={onHighlightStyleChange} options={HIGHLIGHT_STYLE_OPTIONS} style={{ width: 104 }} dropdownStyle={{ zIndex: 2100 }} />
+        </SettingRow>
+        <SettingRow label="Marker style">
+          <Select size="small" value={markerStyle} onChange={onMarkerStyleChange} options={MARKER_STYLE_OPTIONS} style={{ width: 104 }} dropdownStyle={{ zIndex: 2100 }} />
+        </SettingRow>
+        <div style={{ height: 1, background: '#f0f0f0' }} />
+        <SettingRow label="Double highlight">
+          <Switch size="small" checked={doubleHighlight} onChange={onDoubleHighlightChange} />
+        </SettingRow>
+        <SettingRow label="Show needs attention">
+          <Switch size="small" checked={showNeedsAttention} onChange={onShowNeedsAttentionChange} disabled={doubleHighlight} />
+        </SettingRow>
+        <div style={{ height: 1, background: '#f0f0f0' }} />
+        <SettingRow label="Show route">
+          <Switch size="small" checked={showRoutes} onChange={onShowRoutesChange} />
+        </SettingRow>
+        <SettingRow label="Show traffic">
+          <Switch size="small" checked={showTraffic} onChange={onShowTrafficChange} />
+        </SettingRow>
+        <Button
+          size="small"
+          type={simulating ? 'primary' : 'default'}
+          icon={simulating ? <PauseOutlined /> : <CaretRightOutlined />}
+          onClick={onToggleSimulate}
+          block
+        >
+          {simulating ? 'Pause' : 'Simulate'}
+        </Button>
+      </div>
+    </div>
+  )
+}
+
 export default function LiveTrackingTesting2Page() {
   const [filter, setFilter] = useState<KpiKey>('all')
   const [search, setSearch] = useState('')
@@ -1087,6 +1249,14 @@ export default function LiveTrackingTesting2Page() {
   const [simulating, setSimulating] = useState(false)
   const [progress, setProgress] = useState(0)
   const [messageApi, msgContext] = message.useMessage()
+
+  // Floating, draggable Display settings panel — visible by default, same
+  // behaviour as the Test Console on the main Live Tracking page
+  const [settingsVisible, setSettingsVisible] = useState(true)
+  const { pos: settingsPos, onDragStart: onSettingsDragStart } = useDraggable({
+    x: Math.max(window.innerWidth - 292, 16),
+    y: 96,
+  })
 
   const [realRoutes, setRealRoutes] = useState<Record<string, [number, number][]>>({})
   const onRouteResolved = (key: string, path: [number, number][]) =>
@@ -1265,7 +1435,7 @@ export default function LiveTrackingTesting2Page() {
   }
 
   return (
-    <div style={{ padding: '24px 32px' }}>
+    <div style={{ padding: '20px' }}>
       {msgContext}
       <div
         style={{
@@ -1414,68 +1584,6 @@ export default function LiveTrackingTesting2Page() {
               </MapErrorBoundary>
             )}
 
-            {/* Display settings — every switcher ported from Live Tracking */}
-            <Popover
-              placement="bottomRight"
-              trigger="click"
-              content={
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: 210 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                    <Text style={{ fontSize: 13, color: '#595959' }}>Map theme</Text>
-                    <Select size="small" value={mapTheme} onChange={setMapTheme} options={MAP_THEME_OPTIONS} style={{ width: 104 }} dropdownStyle={{ zIndex: 2100 }} />
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                    <Text style={{ fontSize: 13, color: '#595959' }}>Card style</Text>
-                    <Select size="small" value={cardStyle} onChange={setCardStyle} options={CARD_STYLE_OPTIONS} style={{ width: 104 }} dropdownStyle={{ zIndex: 2100 }} />
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                    <Text style={{ fontSize: 13, color: '#595959' }}>Highlight style</Text>
-                    <Select size="small" value={highlightStyle} onChange={setHighlightStyle} options={HIGHLIGHT_STYLE_OPTIONS} style={{ width: 104 }} dropdownStyle={{ zIndex: 2100 }} />
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                    <Text style={{ fontSize: 13, color: '#595959' }}>Marker style</Text>
-                    <Select size="small" value={markerStyle} onChange={setMarkerStyle} options={MARKER_STYLE_OPTIONS} style={{ width: 104 }} dropdownStyle={{ zIndex: 2100 }} />
-                  </div>
-                  <div style={{ height: 1, background: '#f0f0f0', margin: '2px 0' }} />
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                    <Text style={{ fontSize: 13, color: '#595959' }}>Double highlight</Text>
-                    <Switch size="small" checked={doubleHighlight} onChange={setDoubleHighlight} />
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                    <Text style={{ fontSize: 13, color: '#595959' }}>Show needs attention</Text>
-                    <Switch size="small" checked={showNeedsAttention} onChange={setShowNeedsAttention} disabled={doubleHighlight} />
-                  </div>
-                  <div style={{ height: 1, background: '#f0f0f0', margin: '2px 0' }} />
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                    <Text style={{ fontSize: 13, color: '#595959' }}>Show route</Text>
-                    <Switch size="small" checked={showRoutes} onChange={setShowRoutes} />
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                    <Text style={{ fontSize: 13, color: '#595959' }}>Show traffic</Text>
-                    <Switch size="small" checked={showTraffic} onChange={setShowTraffic} />
-                  </div>
-                  <Button
-                    size="small"
-                    type={simulating ? 'primary' : 'default'}
-                    icon={simulating ? <PauseOutlined /> : <CaretRightOutlined />}
-                    onClick={() => setSimulating((v) => !v)}
-                    block
-                  >
-                    {simulating ? 'Pause' : 'Simulate'}
-                  </Button>
-                </div>
-              }
-            >
-              <Button
-                icon={<ControlOutlined />}
-                size="small"
-                style={{ position: 'absolute', top: 10, right: 10, zIndex: 500, boxShadow: '0 4px 14px rgba(15,23,42,.12)' }}
-                title="Display settings"
-              >
-                Settings
-              </Button>
-            </Popover>
-
             {/* Compact traffic legend for the narrow map */}
             <div
               style={{
@@ -1587,6 +1695,49 @@ export default function LiveTrackingTesting2Page() {
           )
         })()}
       </Drawer>
+
+      {settingsVisible ? (
+        <DisplaySettingsPanel
+          pos={settingsPos}
+          onDragStart={onSettingsDragStart}
+          onClose={() => setSettingsVisible(false)}
+          mapTheme={mapTheme}
+          onMapThemeChange={setMapTheme}
+          cardStyle={cardStyle}
+          onCardStyleChange={setCardStyle}
+          highlightStyle={highlightStyle}
+          onHighlightStyleChange={setHighlightStyle}
+          markerStyle={markerStyle}
+          onMarkerStyleChange={setMarkerStyle}
+          doubleHighlight={doubleHighlight}
+          onDoubleHighlightChange={setDoubleHighlight}
+          showNeedsAttention={showNeedsAttention}
+          onShowNeedsAttentionChange={setShowNeedsAttention}
+          showRoutes={showRoutes}
+          onShowRoutesChange={setShowRoutes}
+          showTraffic={showTraffic}
+          onShowTrafficChange={setShowTraffic}
+          simulating={simulating}
+          onToggleSimulate={() => setSimulating((v) => !v)}
+        />
+      ) : (
+        <Button
+          shape="circle"
+          size="large"
+          icon={<ControlOutlined />}
+          onClick={() => setSettingsVisible(true)}
+          style={{
+            position: 'fixed',
+            bottom: 24,
+            right: 24,
+            zIndex: 2000,
+            borderColor: '#ffd591',
+            color: '#d48806',
+            boxShadow: '0 6px 18px rgba(15,23,42,.18)',
+          }}
+          title="Show display settings"
+        />
+      )}
     </div>
   )
 }
