@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, Component, type ReactNode } from 'react'
 import { GoogleMap, Marker, Polyline, InfoWindow, TrafficLayer, useJsApiLoader } from '@react-google-maps/api'
-import { Typography, Input, Button, Popover, Switch, Drawer, Tooltip, Select, message } from 'antd'
+import { Typography, Input, Button, Switch, Tooltip, Select, message } from 'antd'
 import {
   SearchOutlined,
   WifiOutlined,
@@ -1267,6 +1267,127 @@ function DetailItem({ label, children }: { label: string; children: React.ReactN
   )
 }
 
+/* ── Drawer position — side (docked as a third column) or bottom (docked
+   below the list/map row). Both are laid out as normal flex siblings
+   instead of an overlay, so the list and map stay fully clickable while
+   it's open — no modal mask blocking pointer events. ── */
+type DrawerPosition = 'side' | 'bottom'
+
+const DRAWER_POSITION_OPTIONS: { value: DrawerPosition; label: string }[] = [
+  { value: 'side', label: 'Side' },
+  { value: 'bottom', label: 'Bottom' },
+]
+
+/* ── Docked trip detail panel — replaces the old modal Drawer. Same content
+   either way; "side" stacks fields vertically, "bottom" wraps them in a row
+   since the panel is short and wide instead of tall and narrow. ── */
+function TripDetailPanel({
+  stop,
+  position,
+  onClose,
+  onNotify,
+  onMarkHandled,
+  urgent,
+  handled,
+}: {
+  stop: VehicleStop
+  position: DrawerPosition
+  onClose: () => void
+  onNotify: () => void
+  onMarkHandled: () => void
+  urgent: boolean
+  handled: boolean
+}) {
+  const status = deriveStatus(stop)
+  const style = STATUS_STYLE[status]
+  const statusLabel = stop.online ? status : 'Offline'
+  const lateMin = stop.online && status === 'Late' && stop.eta ? toMinutes(stop.eta) - toMinutes(stop.scheduled) : 0
+
+  const fields = (
+    <>
+      <DetailItem label="Route">
+        {stop.from && stop.to ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#16a34a', flexShrink: 0 }} />
+            <Text style={{ fontSize: 13, color: '#595959' }} ellipsis>{stop.from.name}</Text>
+            <ArrowRightOutlined style={{ color: '#bfbfbf', fontSize: 12, flexShrink: 0 }} />
+            <Text style={{ fontSize: 13, fontWeight: 600 }} ellipsis>{stop.to.name}</Text>
+          </div>
+        ) : (
+          <Text style={{ fontSize: 13, fontWeight: 600 }}>{stop.destination}</Text>
+        )}
+      </DetailItem>
+      <DetailItem label="Trip start">{formatTimeAmPm(stop.scheduled)}</DetailItem>
+      <DetailItem label="ETA">
+        {stop.online && stop.eta ? (
+          <span style={{ color: status === 'Late' ? '#ff4d4f' : '#1677ff', fontWeight: 700 }}>
+            {formatTimeAmPm(stop.eta)}
+            {lateMin > 0 && <span style={{ fontWeight: 500 }}> · {lateMin} min late</span>}
+          </span>
+        ) : (
+          <span style={{ color: '#8c8c8c' }}>—</span>
+        )}
+      </DetailItem>
+      <DetailItem label="Driver">{stop.driver}</DetailItem>
+      <DetailItem label="Vehicle">{stop.plate}</DetailItem>
+      <DetailItem label="Fleet owner">{stop.fleetOwner}</DetailItem>
+      {!stop.online && (
+        <DetailItem label="Last online">
+          <span style={{ color: '#ff4d4f', fontWeight: 600 }}>{stop.lastOnline ?? 'Position unknown'}</span>
+        </DetailItem>
+      )}
+    </>
+  )
+
+  return (
+    <div
+      style={{
+        background: '#fff',
+        border: '1px solid #f0f0f0',
+        borderRadius: 12,
+        flexShrink: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        ...(position === 'side'
+          // order: 3 keeps it after the list/map regardless of which one
+          // "Map position" put first (they use order 1/2 to swap sides)
+          ? { width: 340, height: '100%', order: 3 }
+          : { width: '100%', height: 232, marginTop: 12 }),
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', borderBottom: '1px solid #f0f0f0', flexShrink: 0 }}>
+        <Text style={{ fontSize: 14, fontWeight: 600, color: '#1a1a1a' }}>Trip detail</Text>
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <WifiOutlined style={{ color: stop.online ? '#52c41a' : '#ff4d4f', fontSize: 15 }} />
+          <span style={{ background: '#e6f4ff', color: '#1677ff', fontSize: 12, fontWeight: 600, padding: '1px 8px', borderRadius: 5 }}>{stop.label}</span>
+          <span style={{ background: '#f5f5f5', color: '#595959', fontSize: 12, padding: '1px 8px', borderRadius: 5 }}>{stop.customerCode}</span>
+          <span style={{ background: style.bg, color: style.color, border: `1px solid ${style.border}`, fontSize: 11.5, fontWeight: 600, padding: '1px 9px', borderRadius: 6 }}>{statusLabel}</span>
+          <Button size="small" type="text" icon={<CloseOutlined />} onClick={onClose} title="Close" />
+        </div>
+      </div>
+
+      <div style={{ padding: 16, overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+          <Button type="primary" icon={<BellOutlined />} disabled={stop.notified} onClick={onNotify} style={{ flex: 1 }}>
+            {stop.notified ? 'Notified' : 'Notify driver'}
+          </Button>
+          <Button icon={<CheckOutlined />} disabled={!urgent || handled} onClick={onMarkHandled} style={{ flex: 1 }}>
+            {handled ? 'Handled' : 'Mark handled'}
+          </Button>
+          <Tooltip title="Demo only">
+            <Button icon={<PhoneOutlined />} />
+          </Tooltip>
+        </div>
+        {position === 'side' ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>{fields}</div>
+        ) : (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '14px 32px' }}>{fields}</div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 /* ── Floating, draggable Display settings panel — same mechanism as the
    Test Console on the main Live Tracking page (drag by header, close to a
    reopener button) so every switcher ported from there behaves the same way
@@ -1298,6 +1419,8 @@ function DisplaySettingsPanel({
   onMapPositionChange,
   listMapRatio,
   onListMapRatioChange,
+  drawerPosition,
+  onDrawerPositionChange,
   doubleHighlight,
   onDoubleHighlightChange,
   showNeedsAttention,
@@ -1326,6 +1449,8 @@ function DisplaySettingsPanel({
   onMapPositionChange: (v: MapPosition) => void
   listMapRatio: ListMapRatio
   onListMapRatioChange: (v: ListMapRatio) => void
+  drawerPosition: DrawerPosition
+  onDrawerPositionChange: (v: DrawerPosition) => void
   doubleHighlight: boolean
   onDoubleHighlightChange: (v: boolean) => void
   showNeedsAttention: boolean
@@ -1396,6 +1521,9 @@ function DisplaySettingsPanel({
         <SettingRow label="List : map size">
           <Select size="small" value={listMapRatio} onChange={onListMapRatioChange} options={LIST_MAP_RATIO_OPTIONS} style={{ width: 104 }} dropdownStyle={{ zIndex: 2100 }} />
         </SettingRow>
+        <SettingRow label="Detail panel">
+          <Select size="small" value={drawerPosition} onChange={onDrawerPositionChange} options={DRAWER_POSITION_OPTIONS} style={{ width: 104 }} dropdownStyle={{ zIndex: 2100 }} />
+        </SettingRow>
         <div style={{ height: 1, background: '#f0f0f0' }} />
         <SettingRow label="Double highlight">
           <Switch size="small" checked={doubleHighlight} onChange={onDoubleHighlightChange} />
@@ -1430,6 +1558,7 @@ export default function LiveTrackingTesting2Page() {
   const [sortBy, setSortBy] = useState<SortKey>('start')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [drawerPosition, setDrawerPosition] = useState<DrawerPosition>('side')
   const [handledIds, setHandledIds] = useState<Set<string>>(new Set())
   const [notifiedIds, setNotifiedIds] = useState<Set<string>>(new Set())
 
@@ -1566,10 +1695,24 @@ export default function LiveTrackingTesting2Page() {
     setSearch('')
   }
 
-  const selectCard = (id: string) => {
-    // Second click on the selected card dismisses its tooltip / collapses it
+  // Accordion cards only toggle their own inline expansion — no docked
+  // panel, since the expanded card already shows the detail.
+  const toggleExpand = (id: string) => {
     setSelectedId((prev) => (prev === id ? null : id))
     setDrawerOpen(false)
+  }
+
+  // Every other card style: one click selects the trip (which shows its
+  // tooltip on the map, not on the card) and opens the docked detail panel
+  // directly. Clicking the already-open card again closes it.
+  const openCard = (id: string) => {
+    if (selectedId === id && drawerOpen) {
+      setDrawerOpen(false)
+      setSelectedId(null)
+    } else {
+      setSelectedId(id)
+      setDrawerOpen(true)
+    }
   }
 
   const sectionLabel = (text: string, color = '#94a3b8') => (
@@ -1587,13 +1730,13 @@ export default function LiveTrackingTesting2Page() {
           info={dhById[stop.id]}
           selected={selectedId === stop.id}
           handled={handledIds.has(stop.id)}
-          onClick={() => setSelectedId(selectedId === stop.id ? null : stop.id)}
+          onClick={() => openCard(stop.id)}
           onTake={() => markHandled(stop.id)}
           innerRef={(el) => { cardRefs.current[stop.id] = el }}
         />
       )
     }
-    // Accordion expands inline instead of opening the hover popover
+    // Accordion expands inline instead of opening the docked panel
     if (cardStyle === 'accordion') {
       return (
         <TripGridCard
@@ -1603,40 +1746,29 @@ export default function LiveTrackingTesting2Page() {
           selected={selectedId === stop.id}
           expanded={selectedId === stop.id}
           handled={handledIds.has(stop.id)}
-          onClick={() => selectCard(stop.id)}
+          onClick={() => toggleExpand(stop.id)}
           onViewDetail={() => setDrawerOpen(true)}
           onTake={() => markHandled(stop.id)}
           innerRef={(el) => { cardRefs.current[stop.id] = el }}
         />
       )
     }
+    // Compact / Split / Minimal / Detailed — one click selects the trip
+    // (its tooltip shows on the map only) and opens the docked detail
+    // panel directly, no separate card-level tooltip step
     return (
-      <Popover
+      <TripGridCard
         key={stop.id}
-        open={selectedId === stop.id && !drawerOpen}
-        content={
-          <TripSummary
-            stop={stop}
-            variant={mapCardStyle}
-            handled={handledIds.has(stop.id)}
-            onViewDetail={() => setDrawerOpen(true)}
-            onTake={() => markHandled(stop.id)}
-          />
-        }
-        placement="left"
-      >
-        <TripGridCard
-          stop={stop}
-          variant={cardStyle}
-          selected={selectedId === stop.id}
-          expanded={false}
-          handled={handledIds.has(stop.id)}
-          onClick={() => selectCard(stop.id)}
-          onViewDetail={() => setDrawerOpen(true)}
-          onTake={() => markHandled(stop.id)}
-          innerRef={(el) => { cardRefs.current[stop.id] = el }}
-        />
-      </Popover>
+        stop={stop}
+        variant={cardStyle}
+        selected={selectedId === stop.id}
+        expanded={false}
+        handled={handledIds.has(stop.id)}
+        onClick={() => openCard(stop.id)}
+        onViewDetail={() => setDrawerOpen(true)}
+        onTake={() => markHandled(stop.id)}
+        innerRef={(el) => { cardRefs.current[stop.id] = el }}
+      />
     )
   }
 
@@ -1816,92 +1948,35 @@ export default function LiveTrackingTesting2Page() {
               ))}
             </div>
           </div>
+
+          {/* Docked trip detail — side: a third flex column, laid out next
+              to the map instead of overlaying it, so both stay clickable */}
+          {drawerOpen && selectedStop && drawerPosition === 'side' && (
+            <TripDetailPanel
+              stop={selectedStop}
+              position="side"
+              onClose={() => setDrawerOpen(false)}
+              onNotify={() => notifyDriver(selectedStop.id)}
+              onMarkHandled={() => markHandled(selectedStop.id)}
+              urgent={isUrgent(selectedStop)}
+              handled={handledIds.has(selectedStop.id)}
+            />
+          )}
         </div>
+
+        {/* Docked trip detail — bottom: docked below the list/map row */}
+        {drawerOpen && selectedStop && drawerPosition === 'bottom' && (
+          <TripDetailPanel
+            stop={selectedStop}
+            position="bottom"
+            onClose={() => setDrawerOpen(false)}
+            onNotify={() => notifyDriver(selectedStop.id)}
+            onMarkHandled={() => markHandled(selectedStop.id)}
+            urgent={isUrgent(selectedStop)}
+            handled={handledIds.has(selectedStop.id)}
+          />
+        )}
       </div>
-
-      {/* ── Full detail drawer (from "View detail") ── */}
-      <Drawer
-        title="Trip detail"
-        placement="right"
-        width={380}
-        open={drawerOpen && !!selectedStop}
-        onClose={() => setDrawerOpen(false)}
-      >
-        {selectedStop && (() => {
-          const st = selectedStop
-          const status = deriveStatus(st)
-          const style = STATUS_STYLE[status]
-          const statusLabel = st.online ? status : 'Offline'
-          const lateMin = st.online && status === 'Late' && st.eta ? toMinutes(st.eta) - toMinutes(st.scheduled) : 0
-          const urgent = isUrgent(st)
-          const handled = handledIds.has(st.id)
-          return (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <WifiOutlined style={{ color: st.online ? '#52c41a' : '#ff4d4f', fontSize: 16 }} />
-                <span style={{ background: '#e6f4ff', color: '#1677ff', fontSize: 12.5, fontWeight: 600, padding: '2px 9px', borderRadius: 5 }}>{st.label}</span>
-                <span style={{ background: '#f5f5f5', color: '#595959', fontSize: 12.5, padding: '2px 9px', borderRadius: 5 }}>{st.customerCode}</span>
-                <span style={{ marginLeft: 'auto', background: style.bg, color: style.color, border: `1px solid ${style.border}`, fontSize: 12, fontWeight: 600, padding: '2px 10px', borderRadius: 6 }}>{statusLabel}</span>
-              </div>
-
-              <div style={{ display: 'flex', gap: 8 }}>
-                <Button
-                  type="primary"
-                  icon={<BellOutlined />}
-                  disabled={st.notified}
-                  onClick={() => notifyDriver(st.id)}
-                  style={{ flex: 1 }}
-                >
-                  {st.notified ? 'Notified' : 'Notify driver'}
-                </Button>
-                <Button
-                  icon={<CheckOutlined />}
-                  disabled={!urgent || handled}
-                  onClick={() => markHandled(st.id)}
-                  style={{ flex: 1 }}
-                >
-                  {handled ? 'Handled' : 'Mark handled'}
-                </Button>
-                <Tooltip title="Demo only">
-                  <Button icon={<PhoneOutlined />} />
-                </Tooltip>
-              </div>
-
-              <DetailItem label="Route">
-                {st.from && st.to ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#16a34a', flexShrink: 0 }} />
-                    <Text style={{ fontSize: 13, color: '#595959' }} ellipsis>{st.from.name}</Text>
-                    <ArrowRightOutlined style={{ color: '#bfbfbf', fontSize: 12, flexShrink: 0 }} />
-                    <Text style={{ fontSize: 13, fontWeight: 600 }} ellipsis>{st.to.name}</Text>
-                  </div>
-                ) : (
-                  <Text style={{ fontSize: 13, fontWeight: 600 }}>{st.destination}</Text>
-                )}
-              </DetailItem>
-              <DetailItem label="Trip start">{formatTimeAmPm(st.scheduled)}</DetailItem>
-              <DetailItem label="ETA">
-                {st.online && st.eta ? (
-                  <span style={{ color: status === 'Late' ? '#ff4d4f' : '#1677ff', fontWeight: 700 }}>
-                    {formatTimeAmPm(st.eta)}
-                    {lateMin > 0 && <span style={{ fontWeight: 500 }}> · {lateMin} min late</span>}
-                  </span>
-                ) : (
-                  <span style={{ color: '#8c8c8c' }}>—</span>
-                )}
-              </DetailItem>
-              <DetailItem label="Driver">{st.driver}</DetailItem>
-              <DetailItem label="Vehicle">{st.plate}</DetailItem>
-              <DetailItem label="Fleet owner">{st.fleetOwner}</DetailItem>
-              {!st.online && (
-                <DetailItem label="Last online">
-                  <span style={{ color: '#ff4d4f', fontWeight: 600 }}>{st.lastOnline ?? 'Position unknown'}</span>
-                </DetailItem>
-              )}
-            </div>
-          )
-        })()}
-      </Drawer>
 
       {settingsVisible ? (
         <DisplaySettingsPanel
@@ -1922,6 +1997,8 @@ export default function LiveTrackingTesting2Page() {
           onMapPositionChange={setMapPosition}
           listMapRatio={listMapRatio}
           onListMapRatioChange={setListMapRatio}
+          drawerPosition={drawerPosition}
+          onDrawerPositionChange={setDrawerPosition}
           doubleHighlight={doubleHighlight}
           onDoubleHighlightChange={setDoubleHighlight}
           showNeedsAttention={showNeedsAttention}
