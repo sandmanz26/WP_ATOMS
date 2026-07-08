@@ -658,7 +658,7 @@ function TripSummary({
 
 /* ── Card style (ported from Live Tracking's Vertical card variation) —
    applied to every card in the two-column grid ── */
-type CardStyle = 'compact' | 'split' | 'minimal' | 'detailed' | 'accordion'
+type CardStyle = 'compact' | 'split' | 'minimal' | 'detailed' | 'accordion' | 'avatar' | 'timeline' | 'banner' | 'row'
 
 const CARD_STYLE_OPTIONS: { value: CardStyle; label: string }[] = [
   { value: 'compact', label: 'Compact' },
@@ -666,6 +666,10 @@ const CARD_STYLE_OPTIONS: { value: CardStyle; label: string }[] = [
   { value: 'minimal', label: 'Minimal' },
   { value: 'detailed', label: 'Detailed' },
   { value: 'accordion', label: 'Accordion' },
+  { value: 'avatar', label: 'Avatar' },
+  { value: 'timeline', label: 'Timeline' },
+  { value: 'banner', label: 'Banner' },
+  { value: 'row', label: 'Row' },
 ]
 
 function TripGridCard({
@@ -859,6 +863,153 @@ function TripGridCard({
             </div>
           )}
         </div>
+      </div>
+    )
+  }
+
+  // ── Avatar: driver-forward — initials avatar leads, route tucked under the name ──
+  if (variant === 'avatar') {
+    const initials = stop.driver
+      .trim()
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((w) => w[0])
+      .join('')
+      .toUpperCase()
+    return (
+      <div
+        ref={innerRef}
+        role="button"
+        tabIndex={0}
+        onClick={onClick}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClick() }}
+        style={{ display: 'flex', gap: 10, background: selected ? '#e6f4ff' : '#fff', border: `1px solid ${border}`, borderRadius: 10, padding: '9px 11px', cursor: 'pointer', minWidth: 0 }}
+      >
+        <div
+          style={{
+            width: 34, height: 34, borderRadius: '50%', background: color, color: '#fff',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12.5, fontWeight: 700, flexShrink: 0,
+          }}
+        >
+          {initials}
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+            <Text style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1a', minWidth: 0 }} ellipsis>{name}</Text>
+            {routeChip}
+            <span style={{ marginLeft: 'auto', fontSize: 10.5, fontWeight: 600, color, whiteSpace: 'nowrap', flexShrink: 0 }}>{statusLabel}</span>
+          </div>
+          {stop.from && stop.to && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 4, minWidth: 0 }}>
+              <Text style={{ fontSize: 11.5, color: '#8c8c8c', minWidth: 0 }} ellipsis>{stop.from.name}</Text>
+              <ArrowRightOutlined style={{ fontSize: 9, color: '#bfbfbf', flexShrink: 0 }} />
+              <Text style={{ fontSize: 11.5, color: '#595959', minWidth: 0 }} ellipsis>{stop.to.name}</Text>
+            </div>
+          )}
+          <Text style={{ fontSize: 11.5, color: '#8c8c8c', display: 'block', marginTop: 4 }}>{start} · {stop.plate}</Text>
+          {takeItBtn}
+        </div>
+      </div>
+    )
+  }
+
+  // ── Timeline: schedule-forward — a mini bar between start time and ETA
+  //    so a glance shows whether the trip is running behind ──
+  if (variant === 'timeline') {
+    const isLate = urgent && stop.online
+    const barColor = !stop.online ? '#ff4d4f' : isLate ? '#faad14' : '#16a34a'
+    const rightLabel = stop.online
+      ? (stop.eta ? formatTimeAmPm(stop.eta) : '—')
+      : (stop.lastOnline ?? 'unknown')
+    return (
+      <div
+        ref={innerRef}
+        role="button"
+        tabIndex={0}
+        onClick={onClick}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClick() }}
+        style={{ display: 'flex', background: selected ? '#e6f4ff' : '#fff', border: `1px solid ${border}`, borderRadius: 10, cursor: 'pointer', overflow: 'hidden', minWidth: 0 }}
+      >
+        <span style={{ width: 4, background: color, flexShrink: 0 }} />
+        <div style={{ flex: 1, minWidth: 0, padding: '9px 11px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+            {routeChip}
+            <Text style={{ fontSize: 12.5, fontWeight: 600, color: '#1a1a1a', minWidth: 0 }} ellipsis>{name}</Text>
+            <span style={{ marginLeft: 'auto', fontSize: 10.5, fontWeight: 600, color, whiteSpace: 'nowrap', flexShrink: 0 }}>{statusLabel}</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 9 }}>
+            <Text style={{ fontSize: 11, color: '#8c8c8c', flexShrink: 0 }}>{start}</Text>
+            <div style={{ flex: 1, height: 3, borderRadius: 2, background: '#f0f0f0', position: 'relative' }}>
+              <div style={{ position: 'absolute', inset: 0, borderRadius: 2, background: barColor, opacity: 0.35 }} />
+              <div style={{ position: 'absolute', right: stop.online ? 0 : '50%', top: -2.5, width: 8, height: 8, borderRadius: '50%', background: barColor, transform: 'translateX(50%)' }} />
+            </div>
+            <Text style={{ fontSize: 11, fontWeight: 600, color: barColor, flexShrink: 0, whiteSpace: 'nowrap' }} ellipsis>{rightLabel}</Text>
+          </div>
+          <Text style={{ fontSize: 11, color: '#8c8c8c', display: 'block', marginTop: 6 }}>{stop.plate}</Text>
+          {takeItBtn}
+        </div>
+      </div>
+    )
+  }
+
+  // ── Banner: status-forward — a solid colored header band, white body ──
+  if (variant === 'banner') {
+    return (
+      <div
+        ref={innerRef}
+        role="button"
+        tabIndex={0}
+        onClick={onClick}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClick() }}
+        style={{ background: selected ? '#e6f4ff' : '#fff', border: `1px solid ${border}`, borderRadius: 10, cursor: 'pointer', overflow: 'hidden', minWidth: 0 }}
+      >
+        <div style={{ background: color, padding: '5px 11px', display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+          <Text style={{ fontSize: 12, fontWeight: 700, color: '#fff', minWidth: 0 }} ellipsis>{stop.label}</Text>
+          <Text style={{ fontSize: 10.5, fontWeight: 700, color: '#fff', marginLeft: 'auto', whiteSpace: 'nowrap', letterSpacing: 0.3 }}>
+            {statusLabel.toUpperCase()}
+          </Text>
+        </div>
+        <div style={{ padding: '9px 11px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+            <WifiOutlined style={{ color: stop.online ? '#52c41a' : '#ff4d4f', fontSize: 11.5, flexShrink: 0 }} />
+            <Text style={{ fontSize: 12.5, fontWeight: 600, color: '#1a1a1a', minWidth: 0 }} ellipsis>{name}</Text>
+            <Text style={{ fontSize: 11.5, color: '#8c8c8c', marginLeft: 'auto', whiteSpace: 'nowrap', flexShrink: 0 }}>{stop.plate}</Text>
+          </div>
+          <Text style={{ fontSize: 11, color: '#8c8c8c', display: 'block', marginTop: 4 }}>{start}</Text>
+          {takeItBtn}
+        </div>
+      </div>
+    )
+  }
+
+  // ── Row: single dense table-like line for fast scanning ──
+  if (variant === 'row') {
+    return (
+      <div
+        ref={innerRef}
+        role="button"
+        tabIndex={0}
+        onClick={onClick}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClick() }}
+        style={{ display: 'flex', alignItems: 'center', gap: 8, background: selected ? '#e6f4ff' : '#fff', border: `1px solid ${border}`, borderRadius: 8, padding: '6px 10px', cursor: 'pointer', minWidth: 0, height: 36 }}
+      >
+        <span style={{ width: 6, height: 6, borderRadius: '50%', background: color, flexShrink: 0 }} />
+        <span style={{ fontSize: 11.5, fontWeight: 600, color: '#1677ff', width: 46, flexShrink: 0 }}>{stop.label}</span>
+        <Text style={{ fontSize: 11.5, color: '#8c8c8c', width: 58, flexShrink: 0 }}>{start}</Text>
+        <Text style={{ fontSize: 12, fontWeight: 600, color: '#1a1a1a', flex: 1, minWidth: 0 }} ellipsis>{name}</Text>
+        <Text style={{ fontSize: 11.5, color: '#8c8c8c', width: 62, flexShrink: 0, textAlign: 'right' }}>{stop.plate}</Text>
+        <span style={{ fontSize: 10.5, fontWeight: 600, color, width: 52, flexShrink: 0, textAlign: 'right', whiteSpace: 'nowrap' }}>{statusLabel}</span>
+        {urgent && !handled && (
+          <Tooltip title="Take it">
+            <Button
+              size="small"
+              shape="circle"
+              icon={<CheckOutlined style={{ fontSize: 10 }} />}
+              onClick={(e) => { e.stopPropagation(); onTake() }}
+              style={{ flexShrink: 0 }}
+            />
+          </Tooltip>
+        )}
       </div>
     )
   }
