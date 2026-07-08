@@ -328,14 +328,17 @@ function kpiMatch(stop: VehicleStop, key: KpiKey): boolean {
 }
 
 /* ── Highlight (tab) style — ported from Live Tracking's Tab style, applied
-   to the KPI/filter bar: Default pill, Segment (connected track), or Color
-   (each chip carries its own status hue even when inactive). ── */
-type HighlightStyle = 'default' | 'segment' | 'color'
+   to the KPI/filter bar: Default pill, Segment (connected track), Color
+   (each chip carries its own status hue even when inactive), or 2 Levels
+   (the two-tier Immediate attention/At risk/Stable system, replacing the
+   KPI bar with its own level-1/level-2 highlight chips below). ── */
+type HighlightStyle = 'default' | 'segment' | 'color' | 'two-level'
 
 const HIGHLIGHT_STYLE_OPTIONS: { value: HighlightStyle; label: string }[] = [
   { value: 'default', label: 'Default' },
   { value: 'segment', label: 'Segment' },
   { value: 'color', label: 'Color' },
+  { value: 'two-level', label: '2 Levels' },
 ]
 
 function KpiBar({
@@ -344,7 +347,7 @@ function KpiBar({
   counts,
   onSelect,
 }: {
-  style: HighlightStyle
+  style: Exclude<HighlightStyle, 'two-level'>
   active: KpiKey
   counts: Record<KpiKey, number>
   onSelect: (k: KpiKey) => void
@@ -1572,8 +1575,6 @@ function DisplaySettingsPanel({
   onListMapRatioChange,
   drawerPosition,
   onDrawerPositionChange,
-  doubleHighlight,
-  onDoubleHighlightChange,
   showNeedsAttention,
   onShowNeedsAttentionChange,
   showRoutes,
@@ -1602,8 +1603,6 @@ function DisplaySettingsPanel({
   onListMapRatioChange: (v: ListMapRatio) => void
   drawerPosition: DrawerPosition
   onDrawerPositionChange: (v: DrawerPosition) => void
-  doubleHighlight: boolean
-  onDoubleHighlightChange: (v: boolean) => void
   showNeedsAttention: boolean
   onShowNeedsAttentionChange: (v: boolean) => void
   showRoutes: boolean
@@ -1676,11 +1675,8 @@ function DisplaySettingsPanel({
           <Select size="small" value={drawerPosition} onChange={onDrawerPositionChange} options={DRAWER_POSITION_OPTIONS} style={{ width: 104 }} dropdownStyle={{ zIndex: 2100 }} />
         </SettingRow>
         <div style={{ height: 1, background: '#f0f0f0' }} />
-        <SettingRow label="Double highlight">
-          <Switch size="small" checked={doubleHighlight} onChange={onDoubleHighlightChange} />
-        </SettingRow>
         <SettingRow label="Show needs attention">
-          <Switch size="small" checked={showNeedsAttention} onChange={onShowNeedsAttentionChange} disabled={doubleHighlight} />
+          <Switch size="small" checked={showNeedsAttention} onChange={onShowNeedsAttentionChange} disabled={highlightStyle === 'two-level'} />
         </SettingRow>
         <div style={{ height: 1, background: '#f0f0f0' }} />
         <SettingRow label="Show route">
@@ -1722,7 +1718,8 @@ export default function LiveTrackingTesting2Page() {
   const [listMapRatio, setListMapRatio] = useState<ListMapRatio>('60:40')
   const [highlightStyle, setHighlightStyle] = useState<HighlightStyle>('default')
   const [showNeedsAttention, setShowNeedsAttention] = useState(true)
-  const [doubleHighlight, setDoubleHighlight] = useState(false)
+  // "2 Levels" is one of the Highlight style options — not a separate toggle
+  const isTwoLevel = highlightStyle === 'two-level'
   const [dhLevel1, setDhLevel1] = useState<DhLevel1>('immediate')
   const [dhLevel2, setDhLevel2] = useState<DhLevel2 | null>('cur-first')
   const [showRoutes, setShowRoutes] = useState(true)
@@ -1782,7 +1779,7 @@ export default function LiveTrackingTesting2Page() {
   })
 
   const filtered = stops.filter((s) => {
-    if (doubleHighlight) {
+    if (isTwoLevel) {
       const info = dhById[s.id]
       if (info.l1 !== dhLevel1) return false
       if (dhLevel1 !== 'stable' && dhLevel2 && info.l2 !== dhLevel2) return false
@@ -1816,10 +1813,10 @@ export default function LiveTrackingTesting2Page() {
 
   // Needs-attention grouping — skipped entirely in double-highlight mode
   // (level 1 already does the job) and toggleable otherwise
-  const needsAttention = !doubleHighlight && showNeedsAttention
+  const needsAttention = !isTwoLevel && showNeedsAttention
     ? filtered.filter((s) => isUrgent(s) && !handledIds.has(s.id)).sort(sortFn)
     : []
-  const others = !doubleHighlight && showNeedsAttention
+  const others = !isTwoLevel && showNeedsAttention
     ? filtered.filter((s) => !(isUrgent(s) && !handledIds.has(s.id))).sort(sortFn)
     : [...filtered].sort(sortFn)
 
@@ -1873,7 +1870,7 @@ export default function LiveTrackingTesting2Page() {
   )
 
   const renderCard = (stop: VehicleStop) => {
-    if (doubleHighlight) {
+    if (isTwoLevel) {
       return (
         <DhGridCard
           key={stop.id}
@@ -1940,7 +1937,7 @@ export default function LiveTrackingTesting2Page() {
       >
         {/* ── Header: KPI/highlight bar + search + sort ── */}
         <div style={{ flexShrink: 0 }}>
-          {doubleHighlight ? (
+          {isTwoLevel ? (
             <>
               <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
                 {DH_L1_META.map((m) => {
@@ -2150,8 +2147,6 @@ export default function LiveTrackingTesting2Page() {
           onListMapRatioChange={setListMapRatio}
           drawerPosition={drawerPosition}
           onDrawerPositionChange={setDrawerPosition}
-          doubleHighlight={doubleHighlight}
-          onDoubleHighlightChange={setDoubleHighlight}
           showNeedsAttention={showNeedsAttention}
           onShowNeedsAttentionChange={setShowNeedsAttention}
           showRoutes={showRoutes}
