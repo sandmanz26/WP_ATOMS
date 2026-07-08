@@ -163,6 +163,16 @@ body {
   animation: tab-urgent-pulse 1.3s ease-in-out infinite;
 }
 
+/* Live Tracking Testing 2 — "Drawer" detail panel style: slides in from the
+   right as a classic overlay (unlike Side/Bottom, which push the layout) */
+@keyframes detail-drawer-slide-in {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+.detail-drawer-overlay {
+  animation: detail-drawer-slide-in 0.22s ease-out;
+}
+
 /* Tracking 2.0 — selected marker tooltip */
 .tracking2-tooltip.leaflet-tooltip {
   background: #0f172a;

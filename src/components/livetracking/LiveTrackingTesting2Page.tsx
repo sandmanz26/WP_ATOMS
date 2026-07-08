@@ -686,6 +686,7 @@ function TripGridCard({
   selected,
   expanded,
   handled,
+  showAction,
   onClick,
   onViewDetail,
   onTake,
@@ -696,6 +697,7 @@ function TripGridCard({
   selected: boolean
   expanded: boolean
   handled: boolean
+  showAction: boolean
   onClick: () => void
   onViewDetail: () => void
   onTake: () => void
@@ -714,8 +716,9 @@ function TripGridCard({
   )
   const urgent = !stop.online || status === 'Late'
   // Lets ops act on a late/offline trip right from the card, no need to
-  // open the tooltip or drawer first
-  const takeItBtn = urgent && !handled && (
+  // open the tooltip or drawer first — hidden when "Action placement" is
+  // set to Detail, where Mark handled/Notify only live in the docked panel
+  const takeItBtn = showAction && urgent && !handled && (
     <Button
       size="small"
       icon={<CheckOutlined style={{ fontSize: 10 }} />}
@@ -724,6 +727,35 @@ function TripGridCard({
     >
       Take it
     </Button>
+  )
+  // Trello-style assignee badge — once a trip is taken, a small avatar
+  // pins to the card's corner regardless of where the action itself lives.
+  // Kept inside the card's own bounds (not overlapping the edge) since
+  // several variants clip their content to round the left accent strip.
+  const handledBadge = handled && (
+    <div
+      title="Taken by Heikke Ekkieh"
+      style={{
+        position: 'absolute',
+        top: 5,
+        right: 5,
+        width: 18,
+        height: 18,
+        borderRadius: '50%',
+        background: '#597ef7',
+        color: '#fff',
+        fontSize: 8.5,
+        fontWeight: 700,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        border: '1.5px solid #fff',
+        boxShadow: '0 1px 3px rgba(0,0,0,.25)',
+        zIndex: 1,
+      }}
+    >
+      HE
+    </div>
   )
 
   if (variant === 'split') {
@@ -734,8 +766,9 @@ function TripGridCard({
         tabIndex={0}
         onClick={onClick}
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClick() }}
-        style={{ display: 'flex', background: selected ? '#e6f4ff' : '#fff', border: `1px solid ${border}`, borderRadius: 10, cursor: 'pointer', overflow: 'hidden', minWidth: 0 }}
+        style={{ position: 'relative', display: 'flex', background: selected ? '#e6f4ff' : '#fff', border: `1px solid ${border}`, borderRadius: 10, cursor: 'pointer', overflow: 'hidden', minWidth: 0 }}
       >
+        {handledBadge}
         <span style={{ width: 4, background: color, flexShrink: 0 }} />
         <div style={{ flex: 1, minWidth: 0, padding: '9px 11px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
@@ -765,8 +798,9 @@ function TripGridCard({
         tabIndex={0}
         onClick={onClick}
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClick() }}
-        style={{ display: 'flex', alignItems: 'center', gap: 8, background: selected ? '#e6f4ff' : '#fff', border: `1px solid ${border}`, borderRadius: 10, padding: '8px 10px', cursor: 'pointer', minWidth: 0 }}
+        style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 8, background: selected ? '#e6f4ff' : '#fff', border: `1px solid ${border}`, borderRadius: 10, padding: '8px 10px', cursor: 'pointer', minWidth: 0 }}
       >
+        {handledBadge}
         <span style={{ width: 7, height: 7, borderRadius: '50%', background: color, flexShrink: 0 }} />
         {routeChip}
         <Text style={{ fontSize: 12.5, fontWeight: 600, color: '#1a1a1a', minWidth: 0 }} ellipsis>{name}</Text>
@@ -774,7 +808,7 @@ function TripGridCard({
           <Text style={{ fontSize: 12, fontWeight: 600, color: '#1a1a1a', display: 'block' }}>{stop.plate}</Text>
           <Text style={{ fontSize: 10.5, color: '#8c8c8c' }}>{start}</Text>
         </div>
-        {urgent && !handled && (
+        {showAction && urgent && !handled && (
           <Tooltip title="Take it">
             <Button
               size="small"
@@ -797,8 +831,9 @@ function TripGridCard({
         tabIndex={0}
         onClick={onClick}
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClick() }}
-        style={{ display: 'flex', background: selected ? '#e6f4ff' : '#fff', border: `1px solid ${border}`, borderRadius: 10, cursor: 'pointer', overflow: 'hidden', minWidth: 0 }}
+        style={{ position: 'relative', display: 'flex', background: selected ? '#e6f4ff' : '#fff', border: `1px solid ${border}`, borderRadius: 10, cursor: 'pointer', overflow: 'hidden', minWidth: 0 }}
       >
+        {handledBadge}
         <span style={{ width: 4, background: color, flexShrink: 0 }} />
         <div style={{ flex: 1, minWidth: 0, padding: '10px 12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
@@ -835,8 +870,9 @@ function TripGridCard({
         tabIndex={0}
         onClick={onClick}
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClick() }}
-        style={{ display: 'flex', background: expanded ? '#f0f7ff' : '#fff', border: `1px solid ${border}`, borderRadius: 10, cursor: 'pointer', overflow: 'hidden', minWidth: 0 }}
+        style={{ position: 'relative', display: 'flex', background: expanded ? '#f0f7ff' : '#fff', border: `1px solid ${border}`, borderRadius: 10, cursor: 'pointer', overflow: 'hidden', minWidth: 0 }}
       >
+        {handledBadge}
         <span style={{ width: 4, background: color, flexShrink: 0 }} />
         <div style={{ flex: 1, minWidth: 0, padding: '9px 11px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
@@ -862,7 +898,7 @@ function TripGridCard({
                 <Button size="small" type="primary" icon={<EyeOutlined />} onClick={(e) => { e.stopPropagation(); onViewDetail() }} style={{ flex: 1, fontSize: 11.5 }}>
                   View detail
                 </Button>
-                {urgent && !handled && (
+                {showAction && urgent && !handled && (
                   <Button size="small" icon={<CheckOutlined style={{ fontSize: 10 }} />} onClick={(e) => { e.stopPropagation(); onTake() }} style={{ fontSize: 11.5 }}>
                     Take it
                   </Button>
@@ -891,8 +927,9 @@ function TripGridCard({
         tabIndex={0}
         onClick={onClick}
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClick() }}
-        style={{ display: 'flex', gap: 10, background: selected ? '#e6f4ff' : '#fff', border: `1px solid ${border}`, borderRadius: 10, padding: '9px 11px', cursor: 'pointer', minWidth: 0 }}
+        style={{ position: 'relative', display: 'flex', gap: 10, background: selected ? '#e6f4ff' : '#fff', border: `1px solid ${border}`, borderRadius: 10, padding: '9px 11px', cursor: 'pointer', minWidth: 0 }}
       >
+        {handledBadge}
         <div
           style={{
             width: 34, height: 34, borderRadius: '50%', background: color, color: '#fff',
@@ -936,8 +973,9 @@ function TripGridCard({
         tabIndex={0}
         onClick={onClick}
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClick() }}
-        style={{ display: 'flex', background: selected ? '#e6f4ff' : '#fff', border: `1px solid ${border}`, borderRadius: 10, cursor: 'pointer', overflow: 'hidden', minWidth: 0 }}
+        style={{ position: 'relative', display: 'flex', background: selected ? '#e6f4ff' : '#fff', border: `1px solid ${border}`, borderRadius: 10, cursor: 'pointer', overflow: 'hidden', minWidth: 0 }}
       >
+        {handledBadge}
         <span style={{ width: 4, background: color, flexShrink: 0 }} />
         <div style={{ flex: 1, minWidth: 0, padding: '9px 11px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
@@ -969,8 +1007,9 @@ function TripGridCard({
         tabIndex={0}
         onClick={onClick}
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClick() }}
-        style={{ background: selected ? '#e6f4ff' : '#fff', border: `1px solid ${border}`, borderRadius: 10, cursor: 'pointer', overflow: 'hidden', minWidth: 0 }}
+        style={{ position: 'relative', background: selected ? '#e6f4ff' : '#fff', border: `1px solid ${border}`, borderRadius: 10, cursor: 'pointer', overflow: 'hidden', minWidth: 0 }}
       >
+        {handledBadge}
         <div style={{ background: color, padding: '5px 11px', display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
           <Text style={{ fontSize: 12, fontWeight: 700, color: '#fff', minWidth: 0 }} ellipsis>{stop.label}</Text>
           <Text style={{ fontSize: 10.5, fontWeight: 700, color: '#fff', marginLeft: 'auto', whiteSpace: 'nowrap', letterSpacing: 0.3 }}>
@@ -999,15 +1038,26 @@ function TripGridCard({
         tabIndex={0}
         onClick={onClick}
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClick() }}
-        style={{ display: 'flex', alignItems: 'center', gap: 8, background: selected ? '#e6f4ff' : '#fff', border: `1px solid ${border}`, borderRadius: 8, padding: '6px 10px', cursor: 'pointer', minWidth: 0, height: 36 }}
+        style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 8, background: selected ? '#e6f4ff' : '#fff', border: `1px solid ${border}`, borderRadius: 8, padding: '6px 10px', cursor: 'pointer', minWidth: 0, height: 36 }}
       >
+        {handled && (
+          <div
+            title="Taken by Heikke Ekkieh"
+            style={{
+              width: 18, height: 18, borderRadius: '50%', background: '#597ef7', color: '#fff',
+              fontSize: 8.5, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+            }}
+          >
+            HE
+          </div>
+        )}
         <span style={{ width: 6, height: 6, borderRadius: '50%', background: color, flexShrink: 0 }} />
         <span style={{ fontSize: 11.5, fontWeight: 600, color: '#1677ff', width: 46, flexShrink: 0 }}>{stop.label}</span>
         <Text style={{ fontSize: 11.5, color: '#8c8c8c', width: 58, flexShrink: 0 }}>{start}</Text>
         <Text style={{ fontSize: 12, fontWeight: 600, color: '#1a1a1a', flex: 1, minWidth: 0 }} ellipsis>{name}</Text>
         <Text style={{ fontSize: 11.5, color: '#8c8c8c', width: 62, flexShrink: 0, textAlign: 'right' }}>{stop.plate}</Text>
         <span style={{ fontSize: 10.5, fontWeight: 600, color, width: 52, flexShrink: 0, textAlign: 'right', whiteSpace: 'nowrap' }}>{statusLabel}</span>
-        {urgent && !handled && (
+        {showAction && urgent && !handled && (
           <Tooltip title="Take it">
             <Button
               size="small"
@@ -1031,6 +1081,7 @@ function TripGridCard({
       onClick={onClick}
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClick() }}
       style={{
+        position: 'relative',
         display: 'flex',
         background: selected ? '#e6f4ff' : '#fff',
         border: `1px solid ${border}`,
@@ -1041,16 +1092,13 @@ function TripGridCard({
         minWidth: 0,
       }}
     >
+      {handledBadge}
       <span style={{ width: 4, background: color, flexShrink: 0 }} />
       <div style={{ flex: 1, minWidth: 0, padding: '8px 10px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
           {routeChip}
           <Text style={{ fontSize: 11.5, color: '#8c8c8c', whiteSpace: 'nowrap' }}>{start}</Text>
-          {handled ? (
-            <CheckOutlined style={{ marginLeft: 'auto', fontSize: 10, color: '#16a34a', flexShrink: 0 }} title="Handled" />
-          ) : (
-            <span style={{ marginLeft: 'auto', fontSize: 10.5, fontWeight: 600, color, whiteSpace: 'nowrap', flexShrink: 0 }}>{statusLabel}</span>
-          )}
+          <span style={{ marginLeft: 'auto', fontSize: 10.5, fontWeight: 600, color, whiteSpace: 'nowrap', flexShrink: 0 }}>{statusLabel}</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 5, minWidth: 0 }}>
           <WifiOutlined style={{ color: stop.online ? '#52c41a' : '#ff4d4f', fontSize: 11.5, flexShrink: 0 }} />
@@ -1230,6 +1278,7 @@ function DhGridCard({
   info,
   selected,
   handled,
+  showAction,
   onClick,
   onTake,
   innerRef,
@@ -1238,6 +1287,7 @@ function DhGridCard({
   info: DhInfo
   selected: boolean
   handled: boolean
+  showAction: boolean
   onClick: () => void
   onTake: () => void
   innerRef: (el: HTMLDivElement | null) => void
@@ -1262,6 +1312,7 @@ function DhGridCard({
       onClick={onClick}
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClick() }}
       style={{
+        position: 'relative',
         display: 'flex',
         background: selected ? '#e6f4ff' : '#fff',
         border: `1px solid ${selected ? '#1677ff' : '#f0f0f0'}`,
@@ -1271,6 +1322,19 @@ function DhGridCard({
         minWidth: 0,
       }}
     >
+      {handled && (
+        <div
+          title="Taken by Heikke Ekkieh"
+          style={{
+            position: 'absolute', top: 5, right: 5, width: 18, height: 18, borderRadius: '50%',
+            background: '#597ef7', color: '#fff', fontSize: 8.5, fontWeight: 700,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            border: '1.5px solid #fff', boxShadow: '0 1px 3px rgba(0,0,0,.25)', zIndex: 1,
+          }}
+        >
+          HE
+        </div>
+      )}
       <span style={{ width: 4, background: accent, flexShrink: 0 }} />
       <div style={{ flex: 1, minWidth: 0, padding: '9px 11px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
@@ -1313,7 +1377,7 @@ function DhGridCard({
             </>
           )}
         </div>
-        {urgent && !handled && (
+        {showAction && urgent && !handled && (
           <Button
             size="small"
             icon={<CheckOutlined style={{ fontSize: 10 }} />}
@@ -1522,15 +1586,28 @@ function DetailItem({ label, children }: { label: string; children: React.ReactN
   )
 }
 
-/* ── Drawer position — side (docked as a third column) or bottom (docked
-   below the list/map row). Both are laid out as normal flex siblings
-   instead of an overlay, so the list and map stay fully clickable while
-   it's open — no modal mask blocking pointer events. ── */
-type DrawerPosition = 'side' | 'bottom'
+/* ── Drawer position — Side/Bottom dock as normal flex siblings (they
+   shift/shrink the list+map row instead of covering it, so both stay
+   clickable while the panel is open). Drawer is the classic overlay
+   instead — it slides in from the right on top of the layout without
+   resizing it, at the cost of covering whatever sits underneath it. ── */
+type DrawerPosition = 'side' | 'bottom' | 'overlay'
 
 const DRAWER_POSITION_OPTIONS: { value: DrawerPosition; label: string }[] = [
   { value: 'side', label: 'Side' },
   { value: 'bottom', label: 'Bottom' },
+  { value: 'overlay', label: 'Drawer' },
+]
+
+/* ── Where the Late/Offline "Take it" action lives: right on the card for
+   one-click triage, or tucked away in the detail panel only. Either way,
+   once a trip is taken a small assignee avatar pins to the card — like a
+   Trello member avatar after you assign a card to yourself. ── */
+type ActionPlacement = 'card' | 'detail'
+
+const ACTION_PLACEMENT_OPTIONS: { value: ActionPlacement; label: string }[] = [
+  { value: 'card', label: 'On card' },
+  { value: 'detail', label: 'In detail' },
 ]
 
 /* ── Docked trip detail panel — replaces the old modal Drawer. Same content
@@ -1596,18 +1673,22 @@ function TripDetailPanel({
 
   return (
     <div
+      className={position === 'overlay' ? 'detail-drawer-overlay' : undefined}
       style={{
         background: '#fff',
         border: '1px solid #f0f0f0',
-        borderRadius: 12,
         flexShrink: 0,
         display: 'flex',
         flexDirection: 'column',
         ...(position === 'side'
           // order: 3 keeps it after the list/map regardless of which one
           // "Map position" put first (they use order 1/2 to swap sides)
-          ? { width: 340, height: '100%', order: 3 }
-          : { width: '100%', height: 232, marginTop: 12 }),
+          ? { borderRadius: 12, width: 340, height: '100%', order: 3 }
+          : position === 'overlay'
+            // Classic overlay — fixed on top of everything, sliding in from
+            // the right, instead of pushing the list/map layout
+            ? { borderRadius: 0, position: 'fixed', top: 0, right: 0, bottom: 0, width: 380, zIndex: 1500, boxShadow: '-8px 0 28px rgba(15,23,42,.18)' }
+            : { borderRadius: 12, width: '100%', height: 232, marginTop: 12 }),
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', borderBottom: '1px solid #f0f0f0', flexShrink: 0 }}>
@@ -1633,10 +1714,10 @@ function TripDetailPanel({
             <Button icon={<PhoneOutlined />} />
           </Tooltip>
         </div>
-        {position === 'side' ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>{fields}</div>
-        ) : (
+        {position === 'bottom' ? (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '14px 32px' }}>{fields}</div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>{fields}</div>
         )}
       </div>
     </div>
@@ -1676,6 +1757,8 @@ function DisplaySettingsPanel({
   onListMapRatioChange,
   drawerPosition,
   onDrawerPositionChange,
+  actionPlacement,
+  onActionPlacementChange,
   showNeedsAttention,
   onShowNeedsAttentionChange,
   showRoutes,
@@ -1704,6 +1787,8 @@ function DisplaySettingsPanel({
   onListMapRatioChange: (v: ListMapRatio) => void
   drawerPosition: DrawerPosition
   onDrawerPositionChange: (v: DrawerPosition) => void
+  actionPlacement: ActionPlacement
+  onActionPlacementChange: (v: ActionPlacement) => void
   showNeedsAttention: boolean
   onShowNeedsAttentionChange: (v: boolean) => void
   showRoutes: boolean
@@ -1775,6 +1860,9 @@ function DisplaySettingsPanel({
         <SettingRow label="Detail panel">
           <Select size="small" value={drawerPosition} onChange={onDrawerPositionChange} options={DRAWER_POSITION_OPTIONS} style={{ width: 104 }} dropdownStyle={{ zIndex: 2100 }} />
         </SettingRow>
+        <SettingRow label="Action placement">
+          <Select size="small" value={actionPlacement} onChange={onActionPlacementChange} options={ACTION_PLACEMENT_OPTIONS} style={{ width: 104 }} dropdownStyle={{ zIndex: 2100 }} />
+        </SettingRow>
         <div style={{ height: 1, background: '#f0f0f0' }} />
         <SettingRow label="Show needs attention">
           <Switch size="small" checked={showNeedsAttention} onChange={onShowNeedsAttentionChange} disabled={highlightStyle === 'two-level'} />
@@ -1807,6 +1895,7 @@ export default function LiveTrackingTesting2Page() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [drawerPosition, setDrawerPosition] = useState<DrawerPosition>('side')
+  const [actionPlacement, setActionPlacement] = useState<ActionPlacement>('card')
   const [handledIds, setHandledIds] = useState<Set<string>>(new Set())
   const [notifiedIds, setNotifiedIds] = useState<Set<string>>(new Set())
 
@@ -1979,6 +2068,7 @@ export default function LiveTrackingTesting2Page() {
           info={dhById[stop.id]}
           selected={selectedId === stop.id}
           handled={handledIds.has(stop.id)}
+          showAction={actionPlacement === 'card'}
           onClick={() => openCard(stop.id)}
           onTake={() => markHandled(stop.id)}
           innerRef={(el) => { cardRefs.current[stop.id] = el }}
@@ -1995,6 +2085,7 @@ export default function LiveTrackingTesting2Page() {
           selected={selectedId === stop.id}
           expanded={selectedId === stop.id}
           handled={handledIds.has(stop.id)}
+          showAction={actionPlacement === 'card'}
           onClick={() => toggleExpand(stop.id)}
           onViewDetail={() => setDrawerOpen(true)}
           onTake={() => markHandled(stop.id)}
@@ -2013,6 +2104,7 @@ export default function LiveTrackingTesting2Page() {
         selected={selectedId === stop.id}
         expanded={false}
         handled={handledIds.has(stop.id)}
+        showAction={actionPlacement === 'card'}
         onClick={() => openCard(stop.id)}
         onViewDetail={() => setDrawerOpen(true)}
         onTake={() => markHandled(stop.id)}
@@ -2240,6 +2332,21 @@ export default function LiveTrackingTesting2Page() {
         )}
       </div>
 
+      {/* Detail panel — Drawer: classic overlay sliding in from the right,
+          on top of everything (unlike Side/Bottom, this one covers rather
+          than pushes the layout underneath it) */}
+      {drawerOpen && selectedStop && drawerPosition === 'overlay' && (
+        <TripDetailPanel
+          stop={selectedStop}
+          position="overlay"
+          onClose={() => setDrawerOpen(false)}
+          onNotify={() => notifyDriver(selectedStop.id)}
+          onMarkHandled={() => markHandled(selectedStop.id)}
+          urgent={isUrgent(selectedStop)}
+          handled={handledIds.has(selectedStop.id)}
+        />
+      )}
+
       {settingsVisible ? (
         <DisplaySettingsPanel
           pos={settingsPos}
@@ -2261,6 +2368,8 @@ export default function LiveTrackingTesting2Page() {
           onListMapRatioChange={setListMapRatio}
           drawerPosition={drawerPosition}
           onDrawerPositionChange={setDrawerPosition}
+          actionPlacement={actionPlacement}
+          onActionPlacementChange={setActionPlacement}
           showNeedsAttention={showNeedsAttention}
           onShowNeedsAttentionChange={setShowNeedsAttention}
           showRoutes={showRoutes}
