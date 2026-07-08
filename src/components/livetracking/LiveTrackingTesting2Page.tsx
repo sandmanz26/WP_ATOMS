@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, Component, type ReactNode } from 'react'
 import { GoogleMap, Marker, Polyline, InfoWindow, TrafficLayer, useJsApiLoader } from '@react-google-maps/api'
-import { Typography, Input, Button, Switch, Tooltip, Select, message } from 'antd'
+import { Typography, Input, Button, Switch, Tooltip, Select, message, Dropdown } from 'antd'
 import {
   SearchOutlined,
   WifiOutlined,
@@ -21,6 +21,10 @@ import {
   ExclamationCircleFilled,
   WarningFilled,
   CheckCircleFilled,
+  MoreOutlined,
+  SwapOutlined,
+  LogoutOutlined,
+  FlagOutlined,
 } from '@ant-design/icons'
 import {
   type VehicleStop,
@@ -680,6 +684,98 @@ const CARD_STYLE_OPTIONS: { value: CardStyle; label: string }[] = [
   { value: 'row', label: 'Row' },
 ]
 
+/* ── Action model — Take it (simple binary handled/unhandled) or Claim
+   workflow, per the ops requirement: claim → shows "Claimed by xx" →
+   release (only the claimant) or take over (anyone else) → mark action
+   complete (moves the trip to Stable). Alert-to-management (req 5) is
+   KIV on the real time threshold per the spec, so it's a deterministic
+   placeholder flag here, same pattern as the rest of the DH system. ── */
+type ActionModel = 'take-it' | 'claim'
+
+const ACTION_MODEL_OPTIONS: { value: ActionModel; label: string }[] = [
+  { value: 'take-it', label: 'Take it' },
+  { value: 'claim', label: 'Claim workflow' },
+]
+
+// The only "logged in" identity in this sandbox
+const CURRENT_USER = 'Heikke Ekkieh'
+
+function initialsOf(fullName: string): string {
+  return fullName
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((w) => w[0])
+    .join('')
+    .toUpperCase()
+}
+
+interface ClaimBundle {
+  claimedBy?: string
+  actionComplete: boolean
+  overdue: boolean
+  onClaim: () => void
+  onRelease: () => void
+  onTakeOver: () => void
+  onMarkComplete: () => void
+}
+
+/* ── Claim / release / take-over / mark-complete control. Button UI
+   follows the 3 states from the requirement: urgent (solid fill,
+   flashing) while unclaimed, non-urgent (outline) once claimed, calm
+   (grey) once marked complete — plus a "More actions" menu for
+   release/take-over/mark-complete. ── */
+function ClaimControl({ accent, claim, compact }: { accent: string; claim: ClaimBundle; compact?: boolean }) {
+  const { claimedBy, actionComplete, overdue, onClaim, onRelease, onTakeOver, onMarkComplete } = claim
+  const isMine = claimedBy === CURRENT_USER
+  const label = actionComplete ? 'Action complete' : claimedBy ? `Claimed by ${firstName(claimedBy)}` : 'Claim'
+
+  const items = [
+    { key: 'complete', label: 'Mark action complete', icon: <FlagOutlined />, disabled: actionComplete, onClick: onMarkComplete },
+    ...(claimedBy && isMine && !actionComplete
+      ? [{ key: 'release', label: 'Release trip', icon: <LogoutOutlined />, onClick: onRelease }]
+      : []),
+    ...(claimedBy && !isMine && !actionComplete
+      ? [{ key: 'takeover', label: 'Take over trip', icon: <SwapOutlined />, onClick: onTakeOver }]
+      : []),
+  ]
+
+  return (
+    <div style={{ marginTop: compact ? 0 : 8 }} onClick={(e) => e.stopPropagation()}>
+      <div style={{ display: 'flex', gap: 6 }}>
+        <Button
+          size="small"
+          className={!claimedBy && !actionComplete ? 'claim-flash' : undefined}
+          onClick={() => !claimedBy && !actionComplete && onClaim()}
+          disabled={actionComplete}
+          style={{
+            flex: compact ? undefined : 1,
+            width: compact ? '100%' : undefined,
+            height: 24,
+            fontSize: 11.5,
+            fontWeight: 600,
+            ...(actionComplete
+              ? { background: '#f5f5f5', color: '#bfbfbf', borderColor: '#e8e8e8' }
+              : claimedBy
+                ? { background: '#fff', color: accent, borderColor: accent }
+                : { background: accent, color: '#fff', borderColor: accent }),
+          }}
+        >
+          {label}
+        </Button>
+        <Dropdown menu={{ items }} trigger={['click']} placement="bottomRight">
+          <Button size="small" icon={<MoreOutlined />} style={{ height: 24, width: 24, padding: 0, flexShrink: 0 }} onClick={(e) => e.stopPropagation()} />
+        </Dropdown>
+      </div>
+      {!compact && overdue && !actionComplete && (
+        <Text style={{ fontSize: 10, color: '#ff4d4f', fontWeight: 600, display: 'block', marginTop: 3 }}>
+          ⚠ Alert sent to management
+        </Text>
+      )}
+    </div>
+  )
+}
+
 function TripGridCard({
   stop,
   variant,
@@ -687,6 +783,7 @@ function TripGridCard({
   expanded,
   handled,
   showAction,
+  claim,
   onClick,
   onViewDetail,
   onTake,
@@ -698,6 +795,7 @@ function TripGridCard({
   expanded: boolean
   handled: boolean
   showAction: boolean
+  claim?: ClaimBundle
   onClick: () => void
   onViewDetail: () => void
   onTake: () => void
@@ -717,8 +815,9 @@ function TripGridCard({
   const urgent = !stop.online || status === 'Late'
   // Lets ops act on a late/offline trip right from the card, no need to
   // open the tooltip or drawer first — hidden when "Action placement" is
-  // set to Detail, where Mark handled/Notify only live in the docked panel
-  const takeItBtn = showAction && urgent && !handled && (
+  // set to Detail, where the action only lives in the docked panel.
+  // In Claim workflow mode this becomes the claim/release/take-over control.
+  const takeItBtn = showAction && !claim && urgent && !handled && (
     <Button
       size="small"
       icon={<CheckOutlined style={{ fontSize: 10 }} />}
@@ -728,13 +827,16 @@ function TripGridCard({
       Take it
     </Button>
   )
-  // Trello-style assignee badge — once a trip is taken, a small avatar
-  // pins to the card's corner regardless of where the action itself lives.
-  // Kept inside the card's own bounds (not overlapping the edge) since
-  // several variants clip their content to round the left accent strip.
-  const handledBadge = handled && (
+  const claimControl = showAction && claim && <ClaimControl accent={color} claim={claim} />
+  const actionControl = claim ? claimControl : takeItBtn
+  // Trello-style assignee badge — once a trip is taken/claimed, a small
+  // avatar pins to the card's corner regardless of where the action itself
+  // lives. Kept inside the card's own bounds (not overlapping the edge)
+  // since several variants clip their content to round the left accent strip.
+  const badgeName = claim ? (claim.claimedBy ?? (claim.actionComplete ? CURRENT_USER : undefined)) : handled ? CURRENT_USER : undefined
+  const handledBadge = badgeName && (
     <div
-      title="Taken by Heikke Ekkieh"
+      title={`Taken by ${badgeName}`}
       style={{
         position: 'absolute',
         top: 5,
@@ -754,7 +856,7 @@ function TripGridCard({
         zIndex: 1,
       }}
     >
-      HE
+      {initialsOf(badgeName)}
     </div>
   )
 
@@ -784,7 +886,7 @@ function TripGridCard({
               <Text style={{ fontSize: 11.5, color: '#8c8c8c' }}>{stop.plate}</Text>
             </div>
           </div>
-          {takeItBtn}
+          {actionControl}
         </div>
       </div>
     )
@@ -808,16 +910,22 @@ function TripGridCard({
           <Text style={{ fontSize: 12, fontWeight: 600, color: '#1a1a1a', display: 'block' }}>{stop.plate}</Text>
           <Text style={{ fontSize: 10.5, color: '#8c8c8c' }}>{start}</Text>
         </div>
-        {showAction && urgent && !handled && (
-          <Tooltip title="Take it">
-            <Button
-              size="small"
-              shape="circle"
-              icon={<CheckOutlined style={{ fontSize: 10 }} />}
-              onClick={(e) => { e.stopPropagation(); onTake() }}
-              style={{ flexShrink: 0 }}
-            />
-          </Tooltip>
+        {showAction && claim ? (
+          <div style={{ width: 118, flexShrink: 0 }}>
+            <ClaimControl accent={color} claim={claim} compact />
+          </div>
+        ) : (
+          showAction && urgent && !handled && (
+            <Tooltip title="Take it">
+              <Button
+                size="small"
+                shape="circle"
+                icon={<CheckOutlined style={{ fontSize: 10 }} />}
+                onClick={(e) => { e.stopPropagation(); onTake() }}
+                style={{ flexShrink: 0 }}
+              />
+            </Tooltip>
+          )
         )}
       </div>
     )
@@ -856,7 +964,7 @@ function TripGridCard({
             <Text style={{ fontSize: 11.5, color: '#8c8c8c', marginLeft: 'auto', whiteSpace: 'nowrap' }}>{stop.plate}</Text>
           </div>
           <Text style={{ fontSize: 10.5, color: '#bfbfbf', display: 'block', marginTop: 4 }}>{stop.fleetOwner}</Text>
-          {takeItBtn}
+          {actionControl}
         </div>
       </div>
     )
@@ -898,12 +1006,13 @@ function TripGridCard({
                 <Button size="small" type="primary" icon={<EyeOutlined />} onClick={(e) => { e.stopPropagation(); onViewDetail() }} style={{ flex: 1, fontSize: 11.5 }}>
                   View detail
                 </Button>
-                {showAction && urgent && !handled && (
+                {showAction && !claim && urgent && !handled && (
                   <Button size="small" icon={<CheckOutlined style={{ fontSize: 10 }} />} onClick={(e) => { e.stopPropagation(); onTake() }} style={{ fontSize: 11.5 }}>
                     Take it
                   </Button>
                 )}
               </div>
+              {showAction && claim && <ClaimControl accent={color} claim={claim} compact />}
             </div>
           )}
         </div>
@@ -952,7 +1061,7 @@ function TripGridCard({
             </div>
           )}
           <Text style={{ fontSize: 11.5, color: '#8c8c8c', display: 'block', marginTop: 4 }}>{start} · {stop.plate}</Text>
-          {takeItBtn}
+          {actionControl}
         </div>
       </div>
     )
@@ -992,7 +1101,7 @@ function TripGridCard({
             <Text style={{ fontSize: 11, fontWeight: 600, color: barColor, flexShrink: 0, whiteSpace: 'nowrap' }} ellipsis>{rightLabel}</Text>
           </div>
           <Text style={{ fontSize: 11, color: '#8c8c8c', display: 'block', marginTop: 6 }}>{stop.plate}</Text>
-          {takeItBtn}
+          {actionControl}
         </div>
       </div>
     )
@@ -1023,7 +1132,7 @@ function TripGridCard({
             <Text style={{ fontSize: 11.5, color: '#8c8c8c', marginLeft: 'auto', whiteSpace: 'nowrap', flexShrink: 0 }}>{stop.plate}</Text>
           </div>
           <Text style={{ fontSize: 11, color: '#8c8c8c', display: 'block', marginTop: 4 }}>{start}</Text>
-          {takeItBtn}
+          {actionControl}
         </div>
       </div>
     )
@@ -1040,15 +1149,15 @@ function TripGridCard({
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClick() }}
         style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 8, background: selected ? '#e6f4ff' : '#fff', border: `1px solid ${border}`, borderRadius: 8, padding: '6px 10px', cursor: 'pointer', minWidth: 0, height: 36 }}
       >
-        {handled && (
+        {badgeName && (
           <div
-            title="Taken by Heikke Ekkieh"
+            title={`Taken by ${badgeName}`}
             style={{
               width: 18, height: 18, borderRadius: '50%', background: '#597ef7', color: '#fff',
               fontSize: 8.5, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
             }}
           >
-            HE
+            {initialsOf(badgeName)}
           </div>
         )}
         <span style={{ width: 6, height: 6, borderRadius: '50%', background: color, flexShrink: 0 }} />
@@ -1057,16 +1166,22 @@ function TripGridCard({
         <Text style={{ fontSize: 12, fontWeight: 600, color: '#1a1a1a', flex: 1, minWidth: 0 }} ellipsis>{name}</Text>
         <Text style={{ fontSize: 11.5, color: '#8c8c8c', width: 62, flexShrink: 0, textAlign: 'right' }}>{stop.plate}</Text>
         <span style={{ fontSize: 10.5, fontWeight: 600, color, width: 52, flexShrink: 0, textAlign: 'right', whiteSpace: 'nowrap' }}>{statusLabel}</span>
-        {showAction && urgent && !handled && (
-          <Tooltip title="Take it">
-            <Button
-              size="small"
-              shape="circle"
-              icon={<CheckOutlined style={{ fontSize: 10 }} />}
-              onClick={(e) => { e.stopPropagation(); onTake() }}
-              style={{ flexShrink: 0 }}
-            />
-          </Tooltip>
+        {showAction && claim ? (
+          <div style={{ width: 100, flexShrink: 0 }} onClick={(e) => e.stopPropagation()}>
+            <ClaimControl accent={color} claim={claim} compact />
+          </div>
+        ) : (
+          showAction && urgent && !handled && (
+            <Tooltip title="Take it">
+              <Button
+                size="small"
+                shape="circle"
+                icon={<CheckOutlined style={{ fontSize: 10 }} />}
+                onClick={(e) => { e.stopPropagation(); onTake() }}
+                style={{ flexShrink: 0 }}
+              />
+            </Tooltip>
+          )
         )}
       </div>
     )
@@ -1105,7 +1220,7 @@ function TripGridCard({
           <Text style={{ fontSize: 12.5, fontWeight: 600, color: '#1a1a1a', minWidth: 0 }} ellipsis>{name}</Text>
           <Text style={{ fontSize: 11.5, color: '#8c8c8c', marginLeft: 'auto', whiteSpace: 'nowrap', flexShrink: 0 }}>{stop.plate}</Text>
         </div>
-        {takeItBtn}
+        {actionControl}
       </div>
     </div>
   )
@@ -1279,6 +1394,7 @@ function DhGridCard({
   selected,
   handled,
   showAction,
+  claim,
   onClick,
   onTake,
   innerRef,
@@ -1288,6 +1404,7 @@ function DhGridCard({
   selected: boolean
   handled: boolean
   showAction: boolean
+  claim?: ClaimBundle
   onClick: () => void
   onTake: () => void
   innerRef: (el: HTMLDivElement | null) => void
@@ -1322,9 +1439,9 @@ function DhGridCard({
         minWidth: 0,
       }}
     >
-      {handled && (
+      {(claim ? (claim.claimedBy ?? (claim.actionComplete ? CURRENT_USER : undefined)) : handled ? CURRENT_USER : undefined) && (
         <div
-          title="Taken by Heikke Ekkieh"
+          title={`Taken by ${claim ? (claim.claimedBy ?? CURRENT_USER) : CURRENT_USER}`}
           style={{
             position: 'absolute', top: 5, right: 5, width: 18, height: 18, borderRadius: '50%',
             background: '#597ef7', color: '#fff', fontSize: 8.5, fontWeight: 700,
@@ -1332,7 +1449,7 @@ function DhGridCard({
             border: '1.5px solid #fff', boxShadow: '0 1px 3px rgba(0,0,0,.25)', zIndex: 1,
           }}
         >
-          HE
+          {initialsOf(claim ? (claim.claimedBy ?? CURRENT_USER) : CURRENT_USER)}
         </div>
       )}
       <span style={{ width: 4, background: accent, flexShrink: 0 }} />
@@ -1377,7 +1494,7 @@ function DhGridCard({
             </>
           )}
         </div>
-        {showAction && urgent && !handled && (
+        {showAction && (claim ? <ClaimControl accent={accent} claim={claim} /> : urgent && !handled && (
           <Button
             size="small"
             icon={<CheckOutlined style={{ fontSize: 10 }} />}
@@ -1386,7 +1503,7 @@ function DhGridCard({
           >
             Take it
           </Button>
-        )}
+        ))}
       </div>
     </div>
   )
@@ -1759,6 +1876,8 @@ function DisplaySettingsPanel({
   onDrawerPositionChange,
   actionPlacement,
   onActionPlacementChange,
+  actionModel,
+  onActionModelChange,
   showNeedsAttention,
   onShowNeedsAttentionChange,
   showRoutes,
@@ -1789,6 +1908,8 @@ function DisplaySettingsPanel({
   onDrawerPositionChange: (v: DrawerPosition) => void
   actionPlacement: ActionPlacement
   onActionPlacementChange: (v: ActionPlacement) => void
+  actionModel: ActionModel
+  onActionModelChange: (v: ActionModel) => void
   showNeedsAttention: boolean
   onShowNeedsAttentionChange: (v: boolean) => void
   showRoutes: boolean
@@ -1863,6 +1984,9 @@ function DisplaySettingsPanel({
         <SettingRow label="Action placement">
           <Select size="small" value={actionPlacement} onChange={onActionPlacementChange} options={ACTION_PLACEMENT_OPTIONS} style={{ width: 104 }} dropdownStyle={{ zIndex: 2100 }} />
         </SettingRow>
+        <SettingRow label="Action model">
+          <Select size="small" value={actionModel} onChange={onActionModelChange} options={ACTION_MODEL_OPTIONS} style={{ width: 104 }} dropdownStyle={{ zIndex: 2100 }} />
+        </SettingRow>
         <div style={{ height: 1, background: '#f0f0f0' }} />
         <SettingRow label="Show needs attention">
           <Switch size="small" checked={showNeedsAttention} onChange={onShowNeedsAttentionChange} disabled={highlightStyle === 'two-level'} />
@@ -1896,8 +2020,20 @@ export default function LiveTrackingTesting2Page() {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [drawerPosition, setDrawerPosition] = useState<DrawerPosition>('side')
   const [actionPlacement, setActionPlacement] = useState<ActionPlacement>('card')
+  const [actionModel, setActionModel] = useState<ActionModel>('take-it')
   const [handledIds, setHandledIds] = useState<Set<string>>(new Set())
   const [notifiedIds, setNotifiedIds] = useState<Set<string>>(new Set())
+  // Claim workflow — who claimed each trip and which ones are wrapped up.
+  // A few trips start pre-claimed by a second demo teammate (deterministic,
+  // not random) so the Take over / Release paths have something to act on.
+  const [claimedBy, setClaimedBy] = useState<Record<string, string>>(() => {
+    const seed: Record<string, string> = {}
+    baseTrips.forEach((t) => {
+      if (dhHash(t.id) % 9 === 0) seed[t.id] = 'Farah Aziz'
+    })
+    return seed
+  })
+  const [actionCompleteIds, setActionCompleteIds] = useState<Set<string>>(new Set())
 
   // ── Display settings — ported from the main Live Tracking page ──
   const [mapTheme, setMapTheme] = useState<MapTheme>('silver')
@@ -1958,8 +2094,18 @@ export default function LiveTrackingTesting2Page() {
 
   const isUrgent = (s: VehicleStop) => !s.online || deriveStatus(s) === 'Late'
 
-  // Double-highlight classification for every trip
-  const dhById: Record<string, DhInfo> = Object.fromEntries(stops.map((s) => [s.id, dhInfo(s)]))
+  // Double-highlight classification for every trip. Claim workflow biz req 3:
+  // marking a trip's action complete re-categorises it as Stable regardless
+  // of what the underlying placeholder delay math says.
+  const dhById: Record<string, DhInfo> = Object.fromEntries(
+    stops.map((s) => {
+      const info = dhInfo(s)
+      if (actionModel === 'claim' && actionCompleteIds.has(s.id) && info.l1 !== 'stable') {
+        return [s.id, { ...info, l1: 'stable' as DhLevel1, l2: null }]
+      }
+      return [s.id, info]
+    })
+  )
   const dhL1Counts: Record<DhLevel1, number> = { immediate: 0, risk: 0, stable: 0 }
   const dhL2Counts: Record<string, number> = {}
   stops.forEach((s) => {
@@ -2028,6 +2174,29 @@ export default function LiveTrackingTesting2Page() {
     messageApi.success('Driver notified — status set to Notified')
   }
 
+  // Claim workflow actions (biz req 1/2/4)
+  const claimTrip = (id: string) => {
+    setClaimedBy((prev) => ({ ...prev, [id]: CURRENT_USER }))
+    messageApi.success('Trip claimed')
+  }
+  const releaseTrip = (id: string) => {
+    setClaimedBy((prev) => {
+      const next = { ...prev }
+      delete next[id]
+      return next
+    })
+    messageApi.info('Trip released')
+  }
+  const takeOverTrip = (id: string) => {
+    setClaimedBy((prev) => ({ ...prev, [id]: CURRENT_USER }))
+    messageApi.success('Trip taken over')
+  }
+  // Marking action complete re-categorises the trip as Stable (biz req 3)
+  const markActionComplete = (id: string) => {
+    setActionCompleteIds((prev) => new Set(prev).add(id))
+    messageApi.success('Action marked complete — trip is now Stable')
+  }
+
   const clearFilters = () => {
     setFilter('all')
     setSearch('')
@@ -2059,7 +2228,24 @@ export default function LiveTrackingTesting2Page() {
     </Text>
   )
 
+  // Claim workflow bundle for a trip (biz req 1/2/3/4/5). Overdue (req 5,
+  // "alert management") is a deterministic placeholder: an urgent trip
+  // that's sat unclaimed-or-unresolved reads as overdue.
+  const claimBundle = (stop: VehicleStop): ClaimBundle => {
+    const complete = actionCompleteIds.has(stop.id)
+    return {
+      claimedBy: claimedBy[stop.id],
+      actionComplete: complete,
+      overdue: !complete && isUrgent(stop) && dhHash(stop.id) % 4 === 0,
+      onClaim: () => claimTrip(stop.id),
+      onRelease: () => releaseTrip(stop.id),
+      onTakeOver: () => takeOverTrip(stop.id),
+      onMarkComplete: () => markActionComplete(stop.id),
+    }
+  }
+
   const renderCard = (stop: VehicleStop) => {
+    const claim = actionModel === 'claim' ? claimBundle(stop) : undefined
     if (isTwoLevel) {
       return (
         <DhGridCard
@@ -2069,6 +2255,7 @@ export default function LiveTrackingTesting2Page() {
           selected={selectedId === stop.id}
           handled={handledIds.has(stop.id)}
           showAction={actionPlacement === 'card'}
+          claim={claim}
           onClick={() => openCard(stop.id)}
           onTake={() => markHandled(stop.id)}
           innerRef={(el) => { cardRefs.current[stop.id] = el }}
@@ -2086,6 +2273,7 @@ export default function LiveTrackingTesting2Page() {
           expanded={selectedId === stop.id}
           handled={handledIds.has(stop.id)}
           showAction={actionPlacement === 'card'}
+          claim={claim}
           onClick={() => toggleExpand(stop.id)}
           onViewDetail={() => setDrawerOpen(true)}
           onTake={() => markHandled(stop.id)}
@@ -2105,6 +2293,7 @@ export default function LiveTrackingTesting2Page() {
         expanded={false}
         handled={handledIds.has(stop.id)}
         showAction={actionPlacement === 'card'}
+        claim={claim}
         onClick={() => openCard(stop.id)}
         onViewDetail={() => setDrawerOpen(true)}
         onTake={() => markHandled(stop.id)}
@@ -2370,6 +2559,8 @@ export default function LiveTrackingTesting2Page() {
           onDrawerPositionChange={setDrawerPosition}
           actionPlacement={actionPlacement}
           onActionPlacementChange={setActionPlacement}
+          actionModel={actionModel}
+          onActionModelChange={setActionModel}
           showNeedsAttention={showNeedsAttention}
           onShowNeedsAttentionChange={setShowNeedsAttention}
           showRoutes={showRoutes}
