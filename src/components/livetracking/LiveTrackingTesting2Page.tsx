@@ -474,13 +474,142 @@ const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: 'label', label: 'Route code' },
 ]
 
+/* ── Map/marker tooltip style — how much the InfoWindow/card popover shows ── */
+type MapCardStyle = 'default' | 'compact' | 'detailed'
+
+const MAP_CARD_STYLE_OPTIONS: { value: MapCardStyle; label: string }[] = [
+  { value: 'default', label: 'Default' },
+  { value: 'compact', label: 'Compact' },
+  { value: 'detailed', label: 'Detailed' },
+]
+
+/* ── Which side of the screen the context map sits on ── */
+type MapPosition = 'right' | 'left'
+
+const MAP_POSITION_OPTIONS: { value: MapPosition; label: string }[] = [
+  { value: 'right', label: 'Right' },
+  { value: 'left', label: 'Left' },
+]
+
+/* ── List : map width proportion ── */
+type ListMapRatio = '70:30' | '65:35' | '60:40' | '55:45' | '50:50'
+
+const LIST_MAP_RATIO_OPTIONS: { value: ListMapRatio; label: string }[] = [
+  { value: '70:30', label: '70 : 30' },
+  { value: '65:35', label: '65 : 35' },
+  { value: '60:40', label: '60 : 40' },
+  { value: '55:45', label: '55 : 45' },
+  { value: '50:50', label: '50 : 50' },
+]
+
+function ratioFlex(r: ListMapRatio): [number, number] {
+  const [a, b] = r.split(':').map(Number)
+  return [a, b]
+}
+
 /* ── Rich tooltip body shared by the card popover and the map InfoWindow ── */
-function TripSummary({ stop, onViewDetail, onTake, handled }: { stop: VehicleStop; onViewDetail: () => void; onTake?: () => void; handled?: boolean }) {
+function TripSummary({
+  stop,
+  variant = 'default',
+  onViewDetail,
+  onTake,
+  handled,
+}: {
+  stop: VehicleStop
+  variant?: MapCardStyle
+  onViewDetail: () => void
+  onTake?: () => void
+  handled?: boolean
+}) {
   const status = deriveStatus(stop)
   const s = STATUS_STYLE[status]
   const statusLabel = stop.online ? status : 'Offline'
   const lateMin = stop.online && status === 'Late' && stop.eta ? toMinutes(stop.eta) - toMinutes(stop.scheduled) : 0
   const urgent = !stop.online || status === 'Late'
+  const takeBtn = urgent && !handled && onTake && (
+    <Button size="small" icon={<CheckOutlined style={{ fontSize: 10 }} />} onClick={onTake} style={{ fontSize: 12, flexShrink: 0, whiteSpace: 'nowrap' }}>
+      Take it
+    </Button>
+  )
+
+  // ── Compact: just enough to recognise the trip and act ──
+  if (variant === 'compact') {
+    return (
+      <div style={{ width: 200, maxWidth: '100%', boxSizing: 'border-box', overflow: 'hidden' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+          <WifiOutlined style={{ color: stop.online ? '#52c41a' : '#ff4d4f', fontSize: 12, flexShrink: 0 }} />
+          <Text style={{ fontSize: 12.5, fontWeight: 600, minWidth: 0 }} ellipsis>{firstName(stop.driver)}</Text>
+          <span style={{ marginLeft: 'auto', flexShrink: 0, background: s.bg, color: s.color, border: `1px solid ${s.border}`, fontSize: 10.5, fontWeight: 500, padding: '0 7px', borderRadius: 6, whiteSpace: 'nowrap' }}>
+            {statusLabel}
+          </span>
+        </div>
+        <Text style={{ fontSize: 11.5, color: '#8c8c8c', display: 'block', marginTop: 5 }} ellipsis>
+          {stop.online && stop.eta
+            ? `ETA ${formatTimeAmPm(stop.eta)}${lateMin > 0 ? ` (+${lateMin}m)` : ''}`
+            : !stop.online
+              ? `Last seen ${stop.lastOnline ?? 'unknown'}`
+              : formatTimeAmPm(stop.scheduled)}
+        </Text>
+        <div style={{ display: 'flex', gap: 5, marginTop: 8 }}>
+          <Button size="small" type="primary" icon={<EyeOutlined />} onClick={onViewDetail} style={{ flex: 1, fontSize: 11.5, minWidth: 0, padding: '0 6px' }} />
+          {takeBtn}
+        </div>
+      </div>
+    )
+  }
+
+  // ── Detailed: adds customer code, and labels the trip start / fleet owner
+  //    rows separately instead of folding them into one line ──
+  if (variant === 'detailed') {
+    return (
+      <div style={{ width: 296, maxWidth: '100%', boxSizing: 'border-box', overflow: 'hidden' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+          <span style={{ background: '#e6f4ff', color: '#1677ff', fontSize: 11.5, fontWeight: 600, padding: '0 7px', borderRadius: 4, whiteSpace: 'nowrap', flexShrink: 0 }}>
+            {stop.label}
+          </span>
+          <Text style={{ fontSize: 11.5, color: '#8c8c8c', flexShrink: 0 }}>{stop.customerCode}</Text>
+          <span style={{ marginLeft: 'auto', flexShrink: 0, background: s.bg, color: s.color, border: `1px solid ${s.border}`, fontSize: 11, fontWeight: 500, padding: '1px 8px', borderRadius: 6, whiteSpace: 'nowrap' }}>
+            {statusLabel}
+          </span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, minWidth: 0 }}>
+          <WifiOutlined style={{ color: stop.online ? '#52c41a' : '#ff4d4f', fontSize: 13, flexShrink: 0 }} />
+          <Text style={{ fontSize: 13, fontWeight: 600, minWidth: 0 }} ellipsis>{stop.driver}</Text>
+          <Text style={{ fontSize: 11.5, color: stop.online ? '#16a34a' : '#ff4d4f', flexShrink: 0 }}>{stop.online ? 'Online' : 'Offline'}</Text>
+        </div>
+        {stop.from && stop.to && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, minWidth: 0 }}>
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#16a34a', flexShrink: 0 }} />
+            <Text style={{ fontSize: 12, color: '#595959', minWidth: 0, flexShrink: 1 }} ellipsis>{stop.from.name}</Text>
+            <ArrowRightOutlined style={{ color: '#bfbfbf', fontSize: 10, flexShrink: 0 }} />
+            <Text style={{ fontSize: 12, fontWeight: 600, minWidth: 0, flexShrink: 1 }} ellipsis>{stop.to.name}</Text>
+          </div>
+        )}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginTop: 8, paddingTop: 8, borderTop: '1px solid #f0f0f0' }}>
+          <Text style={{ fontSize: 11.5, color: '#8c8c8c' }}>Trip start: <strong style={{ color: '#1a1a1a' }}>{formatTimeAmPm(stop.scheduled)}</strong></Text>
+          <Text style={{ fontSize: 11.5, color: '#8c8c8c' }} ellipsis>
+            {stop.online && stop.eta ? (
+              <>ETA: <strong style={{ color: lateMin > 0 ? '#faad14' : '#1a1a1a' }}>{formatTimeAmPm(stop.eta)}{lateMin > 0 ? ` (+${lateMin}m)` : ''}</strong></>
+            ) : !stop.online ? (
+              <>Last seen: <strong style={{ color: '#ff4d4f' }}>{stop.lastOnline ?? 'unknown'}</strong></>
+            ) : (
+              'ETA: —'
+            )}
+          </Text>
+          <Text style={{ fontSize: 11.5, color: '#8c8c8c' }}>Vehicle: <strong style={{ color: '#1a1a1a' }}>{stop.plate}</strong></Text>
+          <Text style={{ fontSize: 11.5, color: '#8c8c8c' }} ellipsis>Fleet owner: <strong style={{ color: '#1a1a1a' }}>{stop.fleetOwner}</strong></Text>
+        </div>
+        <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
+          <Button size="small" type="primary" icon={<EyeOutlined />} onClick={onViewDetail} style={{ flex: 1, fontSize: 12, minWidth: 0 }}>
+            View detail
+          </Button>
+          {takeBtn}
+        </div>
+      </div>
+    )
+  }
+
+  // ── Default ──
   return (
     <div style={{ width: 272, maxWidth: '100%', boxSizing: 'border-box', overflow: 'hidden' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
@@ -521,11 +650,7 @@ function TripSummary({ stop, onViewDetail, onTake, handled }: { stop: VehicleSto
         <Button size="small" type="primary" icon={<EyeOutlined />} onClick={onViewDetail} style={{ flex: 1, fontSize: 12, minWidth: 0 }}>
           View detail
         </Button>
-        {urgent && !handled && onTake && (
-          <Button size="small" icon={<CheckOutlined style={{ fontSize: 10 }} />} onClick={onTake} style={{ fontSize: 12, flexShrink: 0, whiteSpace: 'nowrap' }}>
-            Take it
-          </Button>
-        )}
+        {takeBtn}
       </div>
     </div>
   )
@@ -977,6 +1102,7 @@ function Testing2MapView({
   showTraffic,
   mapTheme,
   markerStyle,
+  mapCardStyle,
   handledIds,
   onSelect,
   onClose,
@@ -992,6 +1118,7 @@ function Testing2MapView({
   showTraffic: boolean
   mapTheme: MapTheme
   markerStyle: MarkerStyle
+  mapCardStyle: MapCardStyle
   handledIds: Set<string>
   onSelect: (id: string) => void
   onClose: () => void
@@ -1115,6 +1242,7 @@ function Testing2MapView({
                 <InfoWindow position={{ lat, lng }} onCloseClick={onClose} options={{ disableAutoPan: true, pixelOffset: new google.maps.Size(0, -26) }}>
                   <TripSummary
                     stop={stop}
+                    variant={mapCardStyle}
                     handled={handledIds.has(stop.id)}
                     onViewDetail={onViewDetail}
                     onTake={() => onTake(stop.id)}
@@ -1164,6 +1292,12 @@ function DisplaySettingsPanel({
   onHighlightStyleChange,
   markerStyle,
   onMarkerStyleChange,
+  mapCardStyle,
+  onMapCardStyleChange,
+  mapPosition,
+  onMapPositionChange,
+  listMapRatio,
+  onListMapRatioChange,
   doubleHighlight,
   onDoubleHighlightChange,
   showNeedsAttention,
@@ -1186,6 +1320,12 @@ function DisplaySettingsPanel({
   onHighlightStyleChange: (v: HighlightStyle) => void
   markerStyle: MarkerStyle
   onMarkerStyleChange: (v: MarkerStyle) => void
+  mapCardStyle: MapCardStyle
+  onMapCardStyleChange: (v: MapCardStyle) => void
+  mapPosition: MapPosition
+  onMapPositionChange: (v: MapPosition) => void
+  listMapRatio: ListMapRatio
+  onListMapRatioChange: (v: ListMapRatio) => void
   doubleHighlight: boolean
   onDoubleHighlightChange: (v: boolean) => void
   showNeedsAttention: boolean
@@ -1246,6 +1386,16 @@ function DisplaySettingsPanel({
         <SettingRow label="Marker style">
           <Select size="small" value={markerStyle} onChange={onMarkerStyleChange} options={MARKER_STYLE_OPTIONS} style={{ width: 104 }} dropdownStyle={{ zIndex: 2100 }} />
         </SettingRow>
+        <SettingRow label="Map card style">
+          <Select size="small" value={mapCardStyle} onChange={onMapCardStyleChange} options={MAP_CARD_STYLE_OPTIONS} style={{ width: 104 }} dropdownStyle={{ zIndex: 2100 }} />
+        </SettingRow>
+        <div style={{ height: 1, background: '#f0f0f0' }} />
+        <SettingRow label="Map position">
+          <Select size="small" value={mapPosition} onChange={onMapPositionChange} options={MAP_POSITION_OPTIONS} style={{ width: 104 }} dropdownStyle={{ zIndex: 2100 }} />
+        </SettingRow>
+        <SettingRow label="List : map size">
+          <Select size="small" value={listMapRatio} onChange={onListMapRatioChange} options={LIST_MAP_RATIO_OPTIONS} style={{ width: 104 }} dropdownStyle={{ zIndex: 2100 }} />
+        </SettingRow>
         <div style={{ height: 1, background: '#f0f0f0' }} />
         <SettingRow label="Double highlight">
           <Switch size="small" checked={doubleHighlight} onChange={onDoubleHighlightChange} />
@@ -1287,6 +1437,9 @@ export default function LiveTrackingTesting2Page() {
   const [mapTheme, setMapTheme] = useState<MapTheme>('silver')
   const [markerStyle, setMarkerStyle] = useState<MarkerStyle>('bus')
   const [cardStyle, setCardStyle] = useState<CardStyle>('compact')
+  const [mapCardStyle, setMapCardStyle] = useState<MapCardStyle>('default')
+  const [mapPosition, setMapPosition] = useState<MapPosition>('right')
+  const [listMapRatio, setListMapRatio] = useState<ListMapRatio>('60:40')
   const [highlightStyle, setHighlightStyle] = useState<HighlightStyle>('default')
   const [showNeedsAttention, setShowNeedsAttention] = useState(true)
   const [doubleHighlight, setDoubleHighlight] = useState(false)
@@ -1390,6 +1543,8 @@ export default function LiveTrackingTesting2Page() {
     ? filtered.filter((s) => !(isUrgent(s) && !handledIds.has(s.id))).sort(sortFn)
     : [...filtered].sort(sortFn)
 
+  const [listFlex, mapFlex] = ratioFlex(listMapRatio)
+
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({})
   useEffect(() => {
     if (selectedId && cardRefs.current[selectedId]) {
@@ -1462,6 +1617,7 @@ export default function LiveTrackingTesting2Page() {
         content={
           <TripSummary
             stop={stop}
+            variant={mapCardStyle}
             handled={handledIds.has(stop.id)}
             onViewDetail={() => setDrawerOpen(true)}
             onTake={() => markHandled(stop.id)}
@@ -1577,10 +1733,10 @@ export default function LiveTrackingTesting2Page() {
           )}
         </div>
 
-        {/* ── Body: list-first (70%) + context map (30%) ── */}
+        {/* ── Body: list-first, proportion and map side both switchable ── */}
         <div style={{ display: 'flex', gap: 16, flex: 1, minHeight: 0 }}>
           {/* List */}
-          <div style={{ flex: 6, minWidth: 0, overflowY: 'auto', paddingRight: 2 }}>
+          <div style={{ order: mapPosition === 'left' ? 2 : 1, flex: listFlex, minWidth: 0, overflowY: 'auto', paddingRight: 2 }}>
             {filtered.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '48px 0', color: '#bfbfbf' }}>
                 <CloseCircleOutlined style={{ fontSize: 26, display: 'block', marginBottom: 10 }} />
@@ -1604,7 +1760,7 @@ export default function LiveTrackingTesting2Page() {
           </div>
 
           {/* Context map */}
-          <div style={{ flex: 4, minWidth: 320, position: 'relative', borderRadius: 12, overflow: 'hidden', border: '1px solid #f0f0f0' }}>
+          <div style={{ order: mapPosition === 'left' ? 1 : 2, flex: mapFlex, minWidth: 320, position: 'relative', borderRadius: 12, overflow: 'hidden', border: '1px solid #f0f0f0' }}>
             {!GOOGLE_MAPS_API_KEY ? (
               <div style={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, background: '#f7f8fa', color: '#8c8c8c', textAlign: 'center', padding: 24 }}>
                 <EnvironmentOutlined style={{ fontSize: 32, color: '#bfbfbf' }} />
@@ -1624,6 +1780,7 @@ export default function LiveTrackingTesting2Page() {
                   showTraffic={showTraffic}
                   mapTheme={mapTheme}
                   markerStyle={markerStyle}
+                  mapCardStyle={mapCardStyle}
                   handledIds={handledIds}
                   onSelect={(id) => { setSelectedId(id); setDrawerOpen(false) }}
                   onClose={() => setSelectedId(null)}
@@ -1759,6 +1916,12 @@ export default function LiveTrackingTesting2Page() {
           onHighlightStyleChange={setHighlightStyle}
           markerStyle={markerStyle}
           onMarkerStyleChange={setMarkerStyle}
+          mapCardStyle={mapCardStyle}
+          onMapCardStyleChange={setMapCardStyle}
+          mapPosition={mapPosition}
+          onMapPositionChange={setMapPosition}
+          listMapRatio={listMapRatio}
+          onListMapRatioChange={setListMapRatio}
           doubleHighlight={doubleHighlight}
           onDoubleHighlightChange={setDoubleHighlight}
           showNeedsAttention={showNeedsAttention}
