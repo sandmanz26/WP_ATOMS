@@ -482,42 +482,47 @@ function TripSummary({ stop, onViewDetail, onTake, handled }: { stop: VehicleSto
   const lateMin = stop.online && status === 'Late' && stop.eta ? toMinutes(stop.eta) - toMinutes(stop.scheduled) : 0
   const urgent = !stop.online || status === 'Late'
   return (
-    <div style={{ width: 252 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <WifiOutlined style={{ color: stop.online ? '#52c41a' : '#ff4d4f', fontSize: 13 }} />
-        <Text style={{ fontSize: 13, fontWeight: 600 }}>{stop.driver}</Text>
-        <span style={{ marginLeft: 'auto', background: s.bg, color: s.color, border: `1px solid ${s.border}`, fontSize: 11, fontWeight: 500, padding: '1px 8px', borderRadius: 6, whiteSpace: 'nowrap' }}>
+    <div style={{ width: 272, maxWidth: '100%', boxSizing: 'border-box', overflow: 'hidden' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+        <WifiOutlined style={{ color: stop.online ? '#52c41a' : '#ff4d4f', fontSize: 13, flexShrink: 0 }} />
+        <Text style={{ fontSize: 13, fontWeight: 600, minWidth: 0 }} ellipsis>{stop.driver}</Text>
+        <span style={{ marginLeft: 'auto', flexShrink: 0, background: s.bg, color: s.color, border: `1px solid ${s.border}`, fontSize: 11, fontWeight: 500, padding: '1px 8px', borderRadius: 6, whiteSpace: 'nowrap' }}>
           {statusLabel}
         </span>
       </div>
       {stop.from && stop.to && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, minWidth: 0 }}>
           <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#16a34a', flexShrink: 0 }} />
-          <Text style={{ fontSize: 12, color: '#595959' }} ellipsis>{stop.from.name}</Text>
+          <Text style={{ fontSize: 12, color: '#595959', minWidth: 0, flexShrink: 1 }} ellipsis>{stop.from.name}</Text>
           <ArrowRightOutlined style={{ color: '#bfbfbf', fontSize: 10, flexShrink: 0 }} />
-          <Text style={{ fontSize: 12, fontWeight: 600 }} ellipsis>{stop.to.name}</Text>
+          <Text style={{ fontSize: 12, fontWeight: 600, minWidth: 0, flexShrink: 1 }} ellipsis>{stop.to.name}</Text>
         </div>
       )}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
-        <ClockCircleOutlined style={{ fontSize: 11.5, color: '#8c8c8c' }} />
-        <Text style={{ fontSize: 12, color: '#8c8c8c' }}>{formatTimeAmPm(stop.scheduled)}</Text>
-        {stop.online && stop.eta ? (
-          <Text style={{ fontSize: 12, fontWeight: 600, color: lateMin > 0 ? '#faad14' : '#1677ff' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, minWidth: 0 }}>
+        <ClockCircleOutlined style={{ fontSize: 11.5, color: '#8c8c8c', flexShrink: 0 }} />
+        <Text style={{ fontSize: 12, color: '#8c8c8c', flexShrink: 0 }}>{formatTimeAmPm(stop.scheduled)}</Text>
+        {stop.online && stop.eta && (
+          <Text style={{ fontSize: 12, fontWeight: 600, color: lateMin > 0 ? '#faad14' : '#1677ff', minWidth: 0 }} ellipsis>
             · ETA {formatTimeAmPm(stop.eta)}{lateMin > 0 ? ` (+${lateMin}m)` : ''}
           </Text>
-        ) : !stop.online ? (
-          <Text style={{ fontSize: 12, fontWeight: 600, color: '#ff4d4f' }}>· Last seen {stop.lastOnline ?? 'unknown'}</Text>
-        ) : null}
+        )}
       </div>
-      <Text style={{ fontSize: 11.5, color: '#8c8c8c', display: 'block', marginTop: 4 }}>
+      {/* Own row so a long "Last seen" timestamp truncates cleanly instead
+          of overflowing the InfoWindow bubble */}
+      {!stop.online && (
+        <Text style={{ fontSize: 12, fontWeight: 600, color: '#ff4d4f', display: 'block', marginTop: 4 }} ellipsis>
+          Last seen {stop.lastOnline ?? 'unknown'}
+        </Text>
+      )}
+      <Text style={{ fontSize: 11.5, color: '#8c8c8c', display: 'block', marginTop: 4 }} ellipsis>
         {stop.plate} · {stop.fleetOwner}
       </Text>
       <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
-        <Button size="small" type="primary" icon={<EyeOutlined />} onClick={onViewDetail} style={{ flex: 1, fontSize: 12 }}>
+        <Button size="small" type="primary" icon={<EyeOutlined />} onClick={onViewDetail} style={{ flex: 1, fontSize: 12, minWidth: 0 }}>
           View detail
         </Button>
         {urgent && !handled && onTake && (
-          <Button size="small" icon={<CheckOutlined style={{ fontSize: 10 }} />} onClick={onTake} style={{ fontSize: 12 }}>
+          <Button size="small" icon={<CheckOutlined style={{ fontSize: 10 }} />} onClick={onTake} style={{ fontSize: 12, flexShrink: 0, whiteSpace: 'nowrap' }}>
             Take it
           </Button>
         )}
@@ -571,6 +576,18 @@ function TripGridCard({
     </span>
   )
   const urgent = !stop.online || status === 'Late'
+  // Lets ops act on a late/offline trip right from the card, no need to
+  // open the tooltip or drawer first
+  const takeItBtn = urgent && !handled && (
+    <Button
+      size="small"
+      icon={<CheckOutlined style={{ fontSize: 10 }} />}
+      onClick={(e) => { e.stopPropagation(); onTake() }}
+      style={{ width: '100%', marginTop: 8, fontSize: 11.5, height: 24 }}
+    >
+      Take it
+    </Button>
+  )
 
   if (variant === 'split') {
     return (
@@ -583,18 +600,21 @@ function TripGridCard({
         style={{ display: 'flex', background: selected ? '#e6f4ff' : '#fff', border: `1px solid ${border}`, borderRadius: 10, cursor: 'pointer', overflow: 'hidden', minWidth: 0 }}
       >
         <span style={{ width: 4, background: color, flexShrink: 0 }} />
-        <div style={{ flex: 1, minWidth: 0, padding: '9px 11px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
-          <div style={{ minWidth: 0 }}>
-            {routeChip}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 6 }}>
-              <ClockCircleOutlined style={{ fontSize: 11, color: '#8c8c8c' }} />
-              <Text style={{ fontSize: 12, color: '#8c8c8c' }}>{start}</Text>
+        <div style={{ flex: 1, minWidth: 0, padding: '9px 11px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+            <div style={{ minWidth: 0 }}>
+              {routeChip}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 6 }}>
+                <ClockCircleOutlined style={{ fontSize: 11, color: '#8c8c8c' }} />
+                <Text style={{ fontSize: 12, color: '#8c8c8c' }}>{start}</Text>
+              </div>
+            </div>
+            <div style={{ textAlign: 'right', flexShrink: 0, borderLeft: '1px solid #f0f0f0', paddingLeft: 10 }}>
+              <Text style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1a', display: 'block' }} ellipsis>{name}</Text>
+              <Text style={{ fontSize: 11.5, color: '#8c8c8c' }}>{stop.plate}</Text>
             </div>
           </div>
-          <div style={{ textAlign: 'right', flexShrink: 0, borderLeft: '1px solid #f0f0f0', paddingLeft: 10 }}>
-            <Text style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1a', display: 'block' }} ellipsis>{name}</Text>
-            <Text style={{ fontSize: 11.5, color: '#8c8c8c' }}>{stop.plate}</Text>
-          </div>
+          {takeItBtn}
         </div>
       </div>
     )
@@ -617,6 +637,17 @@ function TripGridCard({
           <Text style={{ fontSize: 12, fontWeight: 600, color: '#1a1a1a', display: 'block' }}>{stop.plate}</Text>
           <Text style={{ fontSize: 10.5, color: '#8c8c8c' }}>{start}</Text>
         </div>
+        {urgent && !handled && (
+          <Tooltip title="Take it">
+            <Button
+              size="small"
+              shape="circle"
+              icon={<CheckOutlined style={{ fontSize: 10 }} />}
+              onClick={(e) => { e.stopPropagation(); onTake() }}
+              style={{ flexShrink: 0 }}
+            />
+          </Tooltip>
+        )}
       </div>
     )
   }
@@ -653,6 +684,7 @@ function TripGridCard({
             <Text style={{ fontSize: 11.5, color: '#8c8c8c', marginLeft: 'auto', whiteSpace: 'nowrap' }}>{stop.plate}</Text>
           </div>
           <Text style={{ fontSize: 10.5, color: '#bfbfbf', display: 'block', marginTop: 4 }}>{stop.fleetOwner}</Text>
+          {takeItBtn}
         </div>
       </div>
     )
@@ -741,6 +773,7 @@ function TripGridCard({
           <Text style={{ fontSize: 12.5, fontWeight: 600, color: '#1a1a1a', minWidth: 0 }} ellipsis>{name}</Text>
           <Text style={{ fontSize: 11.5, color: '#8c8c8c', marginLeft: 'auto', whiteSpace: 'nowrap', flexShrink: 0 }}>{stop.plate}</Text>
         </div>
+        {takeItBtn}
       </div>
     </div>
   )
@@ -816,18 +849,23 @@ function DhGridCard({
   stop,
   info,
   selected,
+  handled,
   onClick,
+  onTake,
   innerRef,
 }: {
   stop: VehicleStop
   info: DhInfo
   selected: boolean
+  handled: boolean
   onClick: () => void
+  onTake: () => void
   innerRef: (el: HTMLDivElement | null) => void
 }) {
   const accent = info.l1 === 'immediate' ? '#ff4d4f' : info.l1 === 'risk' ? '#faad14' : '#16a34a'
   const baseStatus = deriveStatus(stop)
   const statusLabel = !stop.online ? 'Offline' : info.currentDelayMin > 0 ? 'Late' : info.predictedDelayMin > 0 ? 'Will be late' : baseStatus
+  const urgent = !stop.online || statusLabel === 'Late'
   const statusStyle =
     statusLabel === 'Will be late'
       ? { color: '#d48806', bg: '#fffbe6', border: '#ffe58f' }
@@ -895,6 +933,16 @@ function DhGridCard({
             </>
           )}
         </div>
+        {urgent && !handled && (
+          <Button
+            size="small"
+            icon={<CheckOutlined style={{ fontSize: 10 }} />}
+            onClick={(e) => { e.stopPropagation(); onTake() }}
+            style={{ width: '100%', marginTop: 8, fontSize: 11.5, height: 24 }}
+          >
+            Take it
+          </Button>
+        )}
       </div>
     </div>
   )
@@ -1383,7 +1431,9 @@ export default function LiveTrackingTesting2Page() {
           stop={stop}
           info={dhById[stop.id]}
           selected={selectedId === stop.id}
+          handled={handledIds.has(stop.id)}
           onClick={() => setSelectedId(selectedId === stop.id ? null : stop.id)}
+          onTake={() => markHandled(stop.id)}
           innerRef={(el) => { cardRefs.current[stop.id] = el }}
         />
       )
@@ -1530,7 +1580,7 @@ export default function LiveTrackingTesting2Page() {
         {/* ── Body: list-first (70%) + context map (30%) ── */}
         <div style={{ display: 'flex', gap: 16, flex: 1, minHeight: 0 }}>
           {/* List */}
-          <div style={{ flex: 7, minWidth: 0, overflowY: 'auto', paddingRight: 2 }}>
+          <div style={{ flex: 6, minWidth: 0, overflowY: 'auto', paddingRight: 2 }}>
             {filtered.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '48px 0', color: '#bfbfbf' }}>
                 <CloseCircleOutlined style={{ fontSize: 26, display: 'block', marginBottom: 10 }} />
@@ -1554,7 +1604,7 @@ export default function LiveTrackingTesting2Page() {
           </div>
 
           {/* Context map */}
-          <div style={{ flex: 3, minWidth: 300, position: 'relative', borderRadius: 12, overflow: 'hidden', border: '1px solid #f0f0f0' }}>
+          <div style={{ flex: 4, minWidth: 320, position: 'relative', borderRadius: 12, overflow: 'hidden', border: '1px solid #f0f0f0' }}>
             {!GOOGLE_MAPS_API_KEY ? (
               <div style={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, background: '#f7f8fa', color: '#8c8c8c', textAlign: 'center', padding: 24 }}>
                 <EnvironmentOutlined style={{ fontSize: 32, color: '#bfbfbf' }} />
