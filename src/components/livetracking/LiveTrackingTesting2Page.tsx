@@ -530,22 +530,32 @@ function TripSummary({
   onViewDetail,
   onTake,
   handled,
+  claim,
 }: {
   stop: VehicleStop
   variant?: MapCardStyle
   onViewDetail: () => void
   onTake?: () => void
   handled?: boolean
+  claim?: ClaimBundle
 }) {
   const status = deriveStatus(stop)
   const s = STATUS_STYLE[status]
   const statusLabel = stop.online ? status : 'Offline'
   const lateMin = stop.online && status === 'Late' && stop.eta ? toMinutes(stop.eta) - toMinutes(stop.scheduled) : 0
   const urgent = !stop.online || status === 'Late'
-  const takeBtn = urgent && !handled && onTake && (
+  const accent = statusColor(stop)
+  const takeBtn = !claim && urgent && !handled && onTake && (
     <Button size="small" icon={<CheckOutlined style={{ fontSize: 10 }} />} onClick={onTake} style={{ fontSize: 12, flexShrink: 0, whiteSpace: 'nowrap' }}>
       Take it
     </Button>
+  )
+  // Claim workflow control, shown below the trip's own action row (in place
+  // of the plain "Take it" button) so the map popup mirrors the card/drawer
+  const claimRow = claim && (
+    <div style={{ marginTop: 6 }} onClick={(e) => e.stopPropagation()}>
+      <ClaimControl accent={accent} claim={claim} compact />
+    </div>
   )
 
   // ── Compact: just enough to recognise the trip and act ──
@@ -570,12 +580,13 @@ function TripSummary({
           <Button size="small" type="primary" icon={<EyeOutlined />} onClick={onViewDetail} style={{ flex: 1, fontSize: 11.5, minWidth: 0, padding: '0 6px' }} />
           {takeBtn}
         </div>
+        {claimRow}
       </div>
     )
   }
 
-  // ── Detailed: adds customer code, and labels the trip start / fleet owner
-  //    rows separately instead of folding them into one line ──
+  // ── Detailed: labels the trip start / ETA / vehicle rows separately
+  //    instead of folding them into one line ──
   if (variant === 'detailed') {
     return (
       <div style={{ width: 296, maxWidth: '100%', boxSizing: 'border-box', overflow: 'hidden' }}>
@@ -619,6 +630,7 @@ function TripSummary({
           </Button>
           {takeBtn}
         </div>
+        {claimRow}
       </div>
     )
   }
@@ -666,6 +678,7 @@ function TripSummary({
         </Button>
         {takeBtn}
       </div>
+      {claimRow}
     </div>
   )
 }
@@ -1556,6 +1569,7 @@ function Testing2MapView({
   markerStyle,
   mapCardStyle,
   handledIds,
+  claim,
   onSelect,
   onClose,
   onViewDetail,
@@ -1572,6 +1586,7 @@ function Testing2MapView({
   markerStyle: MarkerStyle
   mapCardStyle: MapCardStyle
   handledIds: Set<string>
+  claim?: ClaimBundle
   onSelect: (id: string) => void
   onClose: () => void
   onViewDetail: () => void
@@ -1698,6 +1713,7 @@ function Testing2MapView({
                     handled={handledIds.has(stop.id)}
                     onViewDetail={onViewDetail}
                     onTake={() => onTake(stop.id)}
+                    claim={claim}
                   />
                 </InfoWindow>
               )}
@@ -2495,6 +2511,7 @@ export default function LiveTrackingTesting2Page() {
                   markerStyle={markerStyle}
                   mapCardStyle={mapCardStyle}
                   handledIds={handledIds}
+                  claim={actionModel === 'claim' && selectedStop ? claimBundle(selectedStop) : undefined}
                   onSelect={(id) => { setSelectedId(id); setDrawerOpen(false) }}
                   onClose={() => setSelectedId(null)}
                   onViewDetail={() => setDrawerOpen(true)}
