@@ -712,6 +712,16 @@ const ACTION_MODEL_OPTIONS: { value: ActionModel; label: string }[] = [
   { value: 'claim', label: 'Claim workflow' },
 ]
 
+// Visual style of the "Claim" call-to-action button — text only (current),
+// icon alongside the text, or icon only (no text)
+type ClaimButtonStyle = 'text' | 'icon-text' | 'icon'
+
+const CLAIM_BUTTON_STYLE_OPTIONS: { value: ClaimButtonStyle; label: string }[] = [
+  { value: 'text', label: 'Text' },
+  { value: 'icon-text', label: 'Icon + text' },
+  { value: 'icon', label: 'Icon only' },
+]
+
 // The only "logged in" identity in this sandbox
 const CURRENT_USER = 'Heikke Ekkieh'
 
@@ -730,6 +740,7 @@ interface ClaimBundle {
   actionComplete: boolean
   overdue: boolean
   notified: boolean
+  buttonStyle: ClaimButtonStyle
   onClaim: () => void
   onRelease: () => void
   onTakeOver: () => void
@@ -741,19 +752,22 @@ interface ClaimBundle {
   onCreateIncident: () => void
 }
 
-/* ── Claim / release / take-over / mark-complete control. Button UI
-   follows the 3 states from the requirement: urgent (solid fill,
-   flashing) while unclaimed, non-urgent (outline) once claimed, calm
-   (grey) once marked complete — plus a "More actions" menu for
-   release/take-over/mark-complete. ── */
+/* ── Claim / release / take-over / mark-complete control. While unclaimed,
+   the CTA is an urgent flashing button (text/icon per "Claim button style").
+   Once claimed or completed it's no longer actionable by clicking it — so it
+   drops the button chrome entirely and reads as plain status text — plus a
+   "More actions" menu for release/take-over/mark-complete. ── */
 function ClaimControl({ accent, claim, compact }: { accent: string; claim: ClaimBundle; compact?: boolean }) {
   const {
-    claimedBy, actionComplete, overdue, notified,
+    claimedBy, actionComplete, overdue, notified, buttonStyle,
     onClaim, onRelease, onTakeOver, onMarkComplete,
     onNotify, onViewGps, onViewSchedule, onSendAnnouncement, onCreateIncident,
   } = claim
   const isMine = claimedBy === CURRENT_USER
+  const settled = actionComplete || !!claimedBy
   const label = actionComplete ? 'Action complete' : claimedBy ? `Claimed by ${firstName(claimedBy)}` : 'Claim'
+  const showIcon = buttonStyle !== 'text'
+  const showText = buttonStyle !== 'icon'
 
   // Order follows biz req 2.3's "More actions" list verbatim
   const items = [
@@ -772,29 +786,51 @@ function ClaimControl({ accent, claim, compact }: { accent: string; claim: Claim
     { key: 'maps', label: 'Open driver location in Google Maps', icon: <EnvironmentOutlined />, disabled: true },
   ]
 
+  const cta = settled ? (
+    <div
+      style={{
+        flex: compact ? undefined : 1,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: compact ? 'center' : 'flex-start',
+        minWidth: 0,
+        height: 24,
+        fontSize: 11.5,
+        fontWeight: 600,
+        color: actionComplete ? '#bfbfbf' : accent,
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+      }}
+    >
+      {label}
+    </div>
+  ) : (
+    <Button
+      size="small"
+      className="claim-flash"
+      icon={showIcon ? <CheckOutlined style={{ fontSize: 10 }} /> : undefined}
+      onClick={onClaim}
+      style={{
+        flex: compact ? undefined : 1,
+        width: compact ? '100%' : undefined,
+        height: 24,
+        fontSize: 11.5,
+        fontWeight: 600,
+        padding: showText ? undefined : 0,
+        background: accent,
+        color: '#fff',
+        borderColor: accent,
+      }}
+    >
+      {showText ? 'Claim' : undefined}
+    </Button>
+  )
+
   return (
     <div style={{ marginTop: compact ? 0 : 8 }} onClick={(e) => e.stopPropagation()}>
-      <div style={{ display: 'flex', gap: 6 }}>
-        <Button
-          size="small"
-          className={!claimedBy && !actionComplete ? 'claim-flash' : undefined}
-          onClick={() => !claimedBy && !actionComplete && onClaim()}
-          disabled={actionComplete || !!claimedBy}
-          style={{
-            flex: compact ? undefined : 1,
-            width: compact ? '100%' : undefined,
-            height: 24,
-            fontSize: 11.5,
-            fontWeight: 600,
-            ...(actionComplete
-              ? { background: '#f5f5f5', color: '#bfbfbf', borderColor: '#e8e8e8' }
-              : claimedBy
-                ? { background: '#fff', color: accent, borderColor: accent }
-                : { background: accent, color: '#fff', borderColor: accent }),
-          }}
-        >
-          {label}
-        </Button>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        {!settled && !showText ? <Tooltip title="Claim">{cta}</Tooltip> : cta}
         <Dropdown menu={{ items }} trigger={['click']} placement="bottomRight">
           <Button size="small" icon={<MoreOutlined />} style={{ height: 24, width: 24, padding: 0, flexShrink: 0 }} onClick={(e) => e.stopPropagation()} />
         </Dropdown>
@@ -905,7 +941,7 @@ function TripGridCard({
         {handledBadge}
         <span style={{ width: 4, background: color, flexShrink: 0 }} />
         <div style={{ flex: 1, minWidth: 0, padding: '9px 11px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, paddingRight: badgeName ? 20 : 0 }}>
             <div style={{ minWidth: 0 }}>
               {routeChip}
               <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 6 }}>
@@ -932,7 +968,7 @@ function TripGridCard({
         tabIndex={0}
         onClick={onClick}
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClick() }}
-        style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 8, background: selected ? '#e6f4ff' : '#fff', border: `1px solid ${border}`, borderRadius: 10, padding: '8px 10px', cursor: 'pointer', minWidth: 0 }}
+        style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 8, background: selected ? '#e6f4ff' : '#fff', border: `1px solid ${border}`, borderRadius: 10, padding: '8px 10px', paddingRight: badgeName ? 22 : 10, cursor: 'pointer', minWidth: 0 }}
       >
         {handledBadge}
         <span style={{ width: 7, height: 7, borderRadius: '50%', background: color, flexShrink: 0 }} />
@@ -976,7 +1012,7 @@ function TripGridCard({
         {handledBadge}
         <span style={{ width: 4, background: color, flexShrink: 0 }} />
         <div style={{ flex: 1, minWidth: 0, padding: '10px 12px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, paddingRight: badgeName ? 20 : 0 }}>
             {routeChip}
             <span style={{ marginLeft: 'auto', fontSize: 10.5, fontWeight: 600, color, whiteSpace: 'nowrap' }}>{statusLabel}</span>
           </div>
@@ -1013,7 +1049,7 @@ function TripGridCard({
         {handledBadge}
         <span style={{ width: 4, background: color, flexShrink: 0 }} />
         <div style={{ flex: 1, minWidth: 0, padding: '9px 11px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, paddingRight: badgeName ? 20 : 0 }}>
             {routeChip}
             <Text style={{ fontSize: 12.5, fontWeight: 600, color: '#1a1a1a', minWidth: 0 }} ellipsis>{name}</Text>
             <Text style={{ fontSize: 11.5, color: '#8c8c8c', marginLeft: 'auto', whiteSpace: 'nowrap', flexShrink: 0 }}>{stop.plate}</Text>
@@ -1077,7 +1113,7 @@ function TripGridCard({
           {initials}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, paddingRight: badgeName ? 20 : 0 }}>
             <Text style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1a', minWidth: 0 }} ellipsis>{name}</Text>
             {routeChip}
             <span style={{ marginLeft: 'auto', fontSize: 10.5, fontWeight: 600, color, whiteSpace: 'nowrap', flexShrink: 0 }}>{statusLabel}</span>
@@ -1116,7 +1152,7 @@ function TripGridCard({
         {handledBadge}
         <span style={{ width: 4, background: color, flexShrink: 0 }} />
         <div style={{ flex: 1, minWidth: 0, padding: '9px 11px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, paddingRight: badgeName ? 20 : 0 }}>
             {routeChip}
             <Text style={{ fontSize: 12.5, fontWeight: 600, color: '#1a1a1a', minWidth: 0 }} ellipsis>{name}</Text>
             <span style={{ marginLeft: 'auto', fontSize: 10.5, fontWeight: 600, color, whiteSpace: 'nowrap', flexShrink: 0 }}>{statusLabel}</span>
@@ -1148,7 +1184,7 @@ function TripGridCard({
         style={{ position: 'relative', background: selected ? '#e6f4ff' : '#fff', border: `1px solid ${border}`, borderRadius: 10, cursor: 'pointer', overflow: 'hidden', minWidth: 0 }}
       >
         {handledBadge}
-        <div style={{ background: color, padding: '5px 11px', display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+        <div style={{ background: color, padding: '5px 11px', paddingRight: badgeName ? 24 : 11, display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
           <Text style={{ fontSize: 12, fontWeight: 700, color: '#fff', minWidth: 0 }} ellipsis>{stop.label}</Text>
           <Text style={{ fontSize: 10.5, fontWeight: 700, color: '#fff', marginLeft: 'auto', whiteSpace: 'nowrap', letterSpacing: 0.3 }}>
             {statusLabel.toUpperCase()}
@@ -1239,7 +1275,7 @@ function TripGridCard({
       {handledBadge}
       <span style={{ width: 4, background: color, flexShrink: 0 }} />
       <div style={{ flex: 1, minWidth: 0, padding: '8px 10px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, paddingRight: badgeName ? 20 : 0 }}>
           {routeChip}
           <Text style={{ fontSize: 11.5, color: '#8c8c8c', whiteSpace: 'nowrap' }}>{start}</Text>
           <span style={{ marginLeft: 'auto', fontSize: 10.5, fontWeight: 600, color, whiteSpace: 'nowrap', flexShrink: 0 }}>{statusLabel}</span>
@@ -1450,6 +1486,7 @@ function DhGridCard({
         : { color: STATUS_STYLE[baseStatus].color, bg: STATUS_STYLE[baseStatus].bg, border: STATUS_STYLE[baseStatus].border }
   const slack = slackChipColors(info.slackMin)
   const showDelays = info.l1 !== 'stable'
+  const badgeName = claim ? (claim.claimedBy ?? (claim.actionComplete ? CURRENT_USER : undefined)) : handled ? CURRENT_USER : undefined
   return (
     <div
       ref={innerRef}
@@ -1468,9 +1505,9 @@ function DhGridCard({
         minWidth: 0,
       }}
     >
-      {(claim ? (claim.claimedBy ?? (claim.actionComplete ? CURRENT_USER : undefined)) : handled ? CURRENT_USER : undefined) && (
+      {badgeName && (
         <div
-          title={`Taken by ${claim ? (claim.claimedBy ?? CURRENT_USER) : CURRENT_USER}`}
+          title={`Taken by ${badgeName}`}
           style={{
             position: 'absolute', top: 5, right: 5, width: 18, height: 18, borderRadius: '50%',
             background: '#597ef7', color: '#fff', fontSize: 8.5, fontWeight: 700,
@@ -1478,12 +1515,12 @@ function DhGridCard({
             border: '1.5px solid #fff', boxShadow: '0 1px 3px rgba(0,0,0,.25)', zIndex: 1,
           }}
         >
-          {initialsOf(claim ? (claim.claimedBy ?? CURRENT_USER) : CURRENT_USER)}
+          {initialsOf(badgeName)}
         </div>
       )}
       <span style={{ width: 4, background: accent, flexShrink: 0 }} />
       <div style={{ flex: 1, minWidth: 0, padding: '9px 11px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, paddingRight: badgeName ? 20 : 0 }}>
           <span style={{ background: '#e6f4ff', color: '#1677ff', fontSize: 11.5, fontWeight: 600, padding: '0 7px', borderRadius: 4, whiteSpace: 'nowrap' }}>
             {stop.label}
           </span>
@@ -1920,6 +1957,8 @@ function DisplaySettingsPanel({
   onActionPlacementChange,
   actionModel,
   onActionModelChange,
+  claimButtonStyle,
+  onClaimButtonStyleChange,
   showNeedsAttention,
   onShowNeedsAttentionChange,
   showRoutes,
@@ -1952,6 +1991,8 @@ function DisplaySettingsPanel({
   onActionPlacementChange: (v: ActionPlacement) => void
   actionModel: ActionModel
   onActionModelChange: (v: ActionModel) => void
+  claimButtonStyle: ClaimButtonStyle
+  onClaimButtonStyleChange: (v: ClaimButtonStyle) => void
   showNeedsAttention: boolean
   onShowNeedsAttentionChange: (v: boolean) => void
   showRoutes: boolean
@@ -2029,6 +2070,17 @@ function DisplaySettingsPanel({
         <SettingRow label="Action model">
           <Select size="small" value={actionModel} onChange={onActionModelChange} options={ACTION_MODEL_OPTIONS} style={{ width: 104 }} dropdownStyle={{ zIndex: 2100 }} />
         </SettingRow>
+        <SettingRow label="Claim button style">
+          <Select
+            size="small"
+            value={claimButtonStyle}
+            onChange={onClaimButtonStyleChange}
+            options={CLAIM_BUTTON_STYLE_OPTIONS}
+            disabled={actionModel !== 'claim'}
+            style={{ width: 104 }}
+            dropdownStyle={{ zIndex: 2100 }}
+          />
+        </SettingRow>
         <div style={{ height: 1, background: '#f0f0f0' }} />
         <SettingRow label="Show needs attention">
           <Switch size="small" checked={showNeedsAttention} onChange={onShowNeedsAttentionChange} disabled={highlightStyle === 'two-level'} />
@@ -2063,6 +2115,7 @@ export default function LiveTrackingTesting2Page() {
   const [drawerPosition, setDrawerPosition] = useState<DrawerPosition>('side')
   const [actionPlacement, setActionPlacement] = useState<ActionPlacement>('card')
   const [actionModel, setActionModel] = useState<ActionModel>('take-it')
+  const [claimButtonStyle, setClaimButtonStyle] = useState<ClaimButtonStyle>('text')
   const [handledIds, setHandledIds] = useState<Set<string>>(new Set())
   const [notifiedIds, setNotifiedIds] = useState<Set<string>>(new Set())
   // Claim workflow — who claimed each trip and which ones are wrapped up.
@@ -2286,6 +2339,7 @@ export default function LiveTrackingTesting2Page() {
       actionComplete: complete,
       overdue: !complete && isUrgent(stop) && dhHash(stop.id) % 4 === 0,
       notified: !!stop.notified,
+      buttonStyle: claimButtonStyle,
       onClaim: () => claimTrip(stop.id),
       onRelease: () => releaseTrip(stop.id),
       onTakeOver: () => takeOverTrip(stop.id),
@@ -2619,6 +2673,8 @@ export default function LiveTrackingTesting2Page() {
           onActionPlacementChange={setActionPlacement}
           actionModel={actionModel}
           onActionModelChange={setActionModel}
+          claimButtonStyle={claimButtonStyle}
+          onClaimButtonStyleChange={setClaimButtonStyle}
           showNeedsAttention={showNeedsAttention}
           onShowNeedsAttentionChange={setShowNeedsAttention}
           showRoutes={showRoutes}
