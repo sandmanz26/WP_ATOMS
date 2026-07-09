@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, Component, type ReactNode } from 'react'
 import { GoogleMap, Marker, Polyline, InfoWindow, TrafficLayer, useJsApiLoader } from '@react-google-maps/api'
-import { Typography, Input, Button, Switch, Tooltip, Select, message, Dropdown } from 'antd'
+import { Typography, Input, Button, Switch, Tooltip, Select, message, Dropdown, Modal } from 'antd'
 import {
   SearchOutlined,
   WifiOutlined,
@@ -29,6 +29,7 @@ import {
   FileTextOutlined,
   SoundOutlined,
   AlertOutlined,
+  AppstoreOutlined,
 } from '@ant-design/icons'
 import {
   type VehicleStop,
@@ -1941,6 +1942,7 @@ function DisplaySettingsPanel({
   onMapThemeChange,
   cardStyle,
   onCardStyleChange,
+  onOpenGallery,
   highlightStyle,
   onHighlightStyleChange,
   markerStyle,
@@ -1975,6 +1977,7 @@ function DisplaySettingsPanel({
   onMapThemeChange: (v: MapTheme) => void
   cardStyle: CardStyle
   onCardStyleChange: (v: CardStyle) => void
+  onOpenGallery: () => void
   highlightStyle: HighlightStyle
   onHighlightStyleChange: (v: HighlightStyle) => void
   markerStyle: MarkerStyle
@@ -2045,6 +2048,9 @@ function DisplaySettingsPanel({
         <SettingRow label="Card style">
           <Select size="small" value={cardStyle} onChange={onCardStyleChange} options={CARD_STYLE_OPTIONS} style={{ width: 104 }} dropdownStyle={{ zIndex: 2100 }} />
         </SettingRow>
+        <Button size="small" icon={<AppstoreOutlined />} onClick={onOpenGallery} block>
+          Browse card gallery
+        </Button>
         <SettingRow label="Highlight style">
           <Select size="small" value={highlightStyle} onChange={onHighlightStyleChange} options={HIGHLIGHT_STYLE_OPTIONS} style={{ width: 104 }} dropdownStyle={{ zIndex: 2100 }} />
         </SettingRow>
@@ -2106,6 +2112,82 @@ function DisplaySettingsPanel({
   )
 }
 
+/* ── Card style gallery — every card variant rendered side by side with the
+   same sample trips, so ops can compare designs at a glance and apply one
+   in a single click instead of flipping through the "Card style" dropdown
+   one option at a time. ── */
+function CardStyleGallery({
+  open,
+  onClose,
+  samples,
+  handledIds,
+  showAction,
+  getClaim,
+  activeStyle,
+  onSelect,
+}: {
+  open: boolean
+  onClose: () => void
+  samples: VehicleStop[]
+  handledIds: Set<string>
+  showAction: boolean
+  getClaim?: (stop: VehicleStop) => ClaimBundle | undefined
+  activeStyle: CardStyle
+  onSelect: (v: CardStyle) => void
+}) {
+  return (
+    <Modal open={open} onCancel={onClose} footer={null} width={1060} zIndex={3000} title="Card style gallery">
+      <Text style={{ fontSize: 13, color: '#8c8c8c', display: 'block', margin: '-4px 0 16px' }}>
+        The same sample trips rendered in every card style — pick the one that reads best.
+      </Text>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, maxHeight: '72vh', overflowY: 'auto', paddingRight: 4 }}>
+        {CARD_STYLE_OPTIONS.map((opt) => {
+          const isActive = opt.value === activeStyle
+          return (
+            <div
+              key={opt.value}
+              style={{
+                border: `1.5px solid ${isActive ? '#1677ff' : '#f0f0f0'}`,
+                borderRadius: 12,
+                padding: 12,
+                background: isActive ? '#f0f7ff' : '#fafafa',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 8,
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                <Text style={{ fontSize: 13, fontWeight: 700, color: '#1a1a1a' }}>{opt.label}</Text>
+                <Button size="small" type={isActive ? 'primary' : 'default'} onClick={() => onSelect(opt.value)}>
+                  {isActive ? 'In use' : 'Use this style'}
+                </Button>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {samples.map((stop) => (
+                  <TripGridCard
+                    key={stop.id}
+                    stop={stop}
+                    variant={opt.value}
+                    selected={false}
+                    expanded={false}
+                    handled={handledIds.has(stop.id)}
+                    showAction={showAction}
+                    claim={getClaim?.(stop)}
+                    onClick={() => {}}
+                    onViewDetail={() => {}}
+                    onTake={() => {}}
+                    innerRef={() => {}}
+                  />
+                ))}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </Modal>
+  )
+}
+
 export default function LiveTrackingTesting2Page() {
   const [filter, setFilter] = useState<KpiKey>('all')
   const [search, setSearch] = useState('')
@@ -2129,6 +2211,7 @@ export default function LiveTrackingTesting2Page() {
     return seed
   })
   const [actionCompleteIds, setActionCompleteIds] = useState<Set<string>>(new Set())
+  const [galleryOpen, setGalleryOpen] = useState(false)
 
   // ── Display settings — ported from the main Live Tracking page ──
   const [mapTheme, setMapTheme] = useState<MapTheme>('silver')
@@ -2188,6 +2271,14 @@ export default function LiveTrackingTesting2Page() {
   const counts = Object.fromEntries(KPI_META.map((k) => [k.key, stops.filter((s) => kpiMatch(s, k.key)).length])) as Record<KpiKey, number>
 
   const isUrgent = (s: VehicleStop) => !s.online || deriveStatus(s) === 'Late'
+
+  // A small, status-diverse sample for the card style gallery — one offline,
+  // one late, one on-time trip, so every variant's color coding is visible
+  const gallerySamples = [
+    stops.find((s) => !s.online),
+    stops.find((s) => s.online && deriveStatus(s) === 'Late'),
+    stops.find((s) => s.online && deriveStatus(s) === 'On Time'),
+  ].filter((s): s is VehicleStop => !!s)
 
   // Double-highlight classification for every trip. Claim workflow biz req 3:
   // marking a trip's action complete re-categorises it as Stable regardless
@@ -2657,6 +2748,7 @@ export default function LiveTrackingTesting2Page() {
           onMapThemeChange={setMapTheme}
           cardStyle={cardStyle}
           onCardStyleChange={setCardStyle}
+          onOpenGallery={() => setGalleryOpen(true)}
           highlightStyle={highlightStyle}
           onHighlightStyleChange={setHighlightStyle}
           markerStyle={markerStyle}
@@ -2702,6 +2794,17 @@ export default function LiveTrackingTesting2Page() {
           title="Show display settings"
         />
       )}
+
+      <CardStyleGallery
+        open={galleryOpen}
+        onClose={() => setGalleryOpen(false)}
+        samples={gallerySamples}
+        handledIds={handledIds}
+        showAction={actionPlacement === 'card'}
+        getClaim={actionModel === 'claim' ? claimBundle : undefined}
+        activeStyle={cardStyle}
+        onSelect={(v) => { setCardStyle(v); setGalleryOpen(false) }}
+      />
     </div>
   )
 }
