@@ -25,6 +25,10 @@ import {
   SwapOutlined,
   LogoutOutlined,
   FlagOutlined,
+  AimOutlined,
+  FileTextOutlined,
+  SoundOutlined,
+  AlertOutlined,
 } from '@ant-design/icons'
 import {
   type VehicleStop,
@@ -579,14 +583,13 @@ function TripSummary({
           <span style={{ background: '#e6f4ff', color: '#1677ff', fontSize: 11.5, fontWeight: 600, padding: '0 7px', borderRadius: 4, whiteSpace: 'nowrap', flexShrink: 0 }}>
             {stop.label}
           </span>
-          <Text style={{ fontSize: 11.5, color: '#8c8c8c', flexShrink: 0 }}>{stop.customerCode}</Text>
           <span style={{ marginLeft: 'auto', flexShrink: 0, background: s.bg, color: s.color, border: `1px solid ${s.border}`, fontSize: 11, fontWeight: 500, padding: '1px 8px', borderRadius: 6, whiteSpace: 'nowrap' }}>
             {statusLabel}
           </span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, minWidth: 0 }}>
           <WifiOutlined style={{ color: stop.online ? '#52c41a' : '#ff4d4f', fontSize: 13, flexShrink: 0 }} />
-          <Text style={{ fontSize: 13, fontWeight: 600, minWidth: 0 }} ellipsis>{stop.driver}</Text>
+          <Text style={{ fontSize: 13, fontWeight: 600, minWidth: 0 }} ellipsis>{firstName(stop.driver)}</Text>
           <Text style={{ fontSize: 11.5, color: stop.online ? '#16a34a' : '#ff4d4f', flexShrink: 0 }}>{stop.online ? 'Online' : 'Offline'}</Text>
         </div>
         {stop.from && stop.to && (
@@ -609,7 +612,6 @@ function TripSummary({
             )}
           </Text>
           <Text style={{ fontSize: 11.5, color: '#8c8c8c' }}>Vehicle: <strong style={{ color: '#1a1a1a' }}>{stop.plate}</strong></Text>
-          <Text style={{ fontSize: 11.5, color: '#8c8c8c' }} ellipsis>Fleet owner: <strong style={{ color: '#1a1a1a' }}>{stop.fleetOwner}</strong></Text>
         </div>
         <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
           <Button size="small" type="primary" icon={<EyeOutlined />} onClick={onViewDetail} style={{ flex: 1, fontSize: 12, minWidth: 0 }}>
@@ -626,7 +628,7 @@ function TripSummary({
     <div style={{ width: 272, maxWidth: '100%', boxSizing: 'border-box', overflow: 'hidden' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
         <WifiOutlined style={{ color: stop.online ? '#52c41a' : '#ff4d4f', fontSize: 13, flexShrink: 0 }} />
-        <Text style={{ fontSize: 13, fontWeight: 600, minWidth: 0 }} ellipsis>{stop.driver}</Text>
+        <Text style={{ fontSize: 13, fontWeight: 600, minWidth: 0 }} ellipsis>{firstName(stop.driver)}</Text>
         <span style={{ marginLeft: 'auto', flexShrink: 0, background: s.bg, color: s.color, border: `1px solid ${s.border}`, fontSize: 11, fontWeight: 500, padding: '1px 8px', borderRadius: 6, whiteSpace: 'nowrap' }}>
           {statusLabel}
         </span>
@@ -656,7 +658,7 @@ function TripSummary({
         </Text>
       )}
       <Text style={{ fontSize: 11.5, color: '#8c8c8c', display: 'block', marginTop: 4 }} ellipsis>
-        {stop.plate} · {stop.fleetOwner}
+        {stop.plate}
       </Text>
       <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
         <Button size="small" type="primary" icon={<EyeOutlined />} onClick={onViewDetail} style={{ flex: 1, fontSize: 12, minWidth: 0 }}>
@@ -714,10 +716,16 @@ interface ClaimBundle {
   claimedBy?: string
   actionComplete: boolean
   overdue: boolean
+  notified: boolean
   onClaim: () => void
   onRelease: () => void
   onTakeOver: () => void
   onMarkComplete: () => void
+  onNotify: () => void
+  onViewGps: () => void
+  onViewSchedule: () => void
+  onSendAnnouncement: () => void
+  onCreateIncident: () => void
 }
 
 /* ── Claim / release / take-over / mark-complete control. Button UI
@@ -726,18 +734,29 @@ interface ClaimBundle {
    (grey) once marked complete — plus a "More actions" menu for
    release/take-over/mark-complete. ── */
 function ClaimControl({ accent, claim, compact }: { accent: string; claim: ClaimBundle; compact?: boolean }) {
-  const { claimedBy, actionComplete, overdue, onClaim, onRelease, onTakeOver, onMarkComplete } = claim
+  const {
+    claimedBy, actionComplete, overdue, notified,
+    onClaim, onRelease, onTakeOver, onMarkComplete,
+    onNotify, onViewGps, onViewSchedule, onSendAnnouncement, onCreateIncident,
+  } = claim
   const isMine = claimedBy === CURRENT_USER
   const label = actionComplete ? 'Action complete' : claimedBy ? `Claimed by ${firstName(claimedBy)}` : 'Claim'
 
+  // Order follows biz req 2.3's "More actions" list verbatim
   const items = [
-    { key: 'complete', label: 'Mark action complete', icon: <FlagOutlined />, disabled: actionComplete, onClick: onMarkComplete },
+    { key: 'gps', label: 'View trip GPS report', icon: <AimOutlined />, onClick: onViewGps },
+    { key: 'schedule', label: 'View daily schedule details', icon: <FileTextOutlined />, onClick: onViewSchedule },
+    { key: 'notify', label: notified ? 'Notified' : 'Send notification to driver', icon: <BellOutlined />, disabled: notified, onClick: onNotify },
+    { key: 'announce', label: 'Send announcement to passengers', icon: <SoundOutlined />, onClick: onSendAnnouncement },
+    { key: 'incident', label: 'Create incident', icon: <AlertOutlined />, onClick: onCreateIncident },
     ...(claimedBy && isMine && !actionComplete
       ? [{ key: 'release', label: 'Release trip', icon: <LogoutOutlined />, onClick: onRelease }]
       : []),
     ...(claimedBy && !isMine && !actionComplete
       ? [{ key: 'takeover', label: 'Take over trip', icon: <SwapOutlined />, onClick: onTakeOver }]
       : []),
+    { key: 'complete', label: 'Mark as action complete', icon: <FlagOutlined />, disabled: actionComplete, onClick: onMarkComplete },
+    { key: 'maps', label: 'Open driver location in Google Maps', icon: <EnvironmentOutlined />, disabled: true },
   ]
 
   return (
@@ -747,7 +766,7 @@ function ClaimControl({ accent, claim, compact }: { accent: string; claim: Claim
           size="small"
           className={!claimedBy && !actionComplete ? 'claim-flash' : undefined}
           onClick={() => !claimedBy && !actionComplete && onClaim()}
-          disabled={actionComplete}
+          disabled={actionComplete || !!claimedBy}
           style={{
             flex: compact ? undefined : 1,
             width: compact ? '100%' : undefined,
@@ -946,7 +965,6 @@ function TripGridCard({
         <div style={{ flex: 1, minWidth: 0, padding: '10px 12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
             {routeChip}
-            <Text style={{ fontSize: 11.5, color: '#8c8c8c' }}>{stop.customerCode}</Text>
             <span style={{ marginLeft: 'auto', fontSize: 10.5, fontWeight: 600, color, whiteSpace: 'nowrap' }}>{statusLabel}</span>
           </div>
           {stop.from && stop.to && (
@@ -963,7 +981,6 @@ function TripGridCard({
             <Text style={{ fontSize: 12, fontWeight: 600, color: '#1a1a1a' }} ellipsis>{name}</Text>
             <Text style={{ fontSize: 11.5, color: '#8c8c8c', marginLeft: 'auto', whiteSpace: 'nowrap' }}>{stop.plate}</Text>
           </div>
-          <Text style={{ fontSize: 10.5, color: '#bfbfbf', display: 'block', marginTop: 4 }}>{stop.fleetOwner}</Text>
           {actionControl}
         </div>
       </div>
@@ -1001,7 +1018,6 @@ function TripGridCard({
               <Text style={{ fontSize: 11.5, color: '#8c8c8c' }}>
                 {start} · {statusLabel}
               </Text>
-              <Text style={{ fontSize: 11.5, color: '#8c8c8c' }}>{stop.fleetOwner}</Text>
               <div style={{ display: 'flex', gap: 6, marginTop: 2 }}>
                 <Button size="small" type="primary" icon={<EyeOutlined />} onClick={(e) => { e.stopPropagation(); onViewDetail() }} style={{ flex: 1, fontSize: 11.5 }}>
                   View detail
@@ -1738,6 +1754,7 @@ function TripDetailPanel({
   onMarkHandled,
   urgent,
   handled,
+  claim,
 }: {
   stop: VehicleStop
   position: DrawerPosition
@@ -1746,12 +1763,17 @@ function TripDetailPanel({
   onMarkHandled: () => void
   urgent: boolean
   handled: boolean
+  claim?: ClaimBundle
 }) {
   const status = deriveStatus(stop)
   const style = STATUS_STYLE[status]
   const statusLabel = stop.online ? status : 'Offline'
   const lateMin = stop.online && status === 'Late' && stop.eta ? toMinutes(stop.eta) - toMinutes(stop.scheduled) : 0
+  const accent = statusColor(stop)
 
+  // Trip details from Daily Schedule (biz req 1.1) — route code, trip start
+  // time, driver's given name, vehicle plate. Customer code / fleet owner
+  // are intentionally excluded per the requirement.
   const fields = (
     <>
       <DetailItem label="Route">
@@ -1777,9 +1799,8 @@ function TripDetailPanel({
           <span style={{ color: '#8c8c8c' }}>—</span>
         )}
       </DetailItem>
-      <DetailItem label="Driver">{stop.driver}</DetailItem>
+      <DetailItem label="Driver">{firstName(stop.driver)}</DetailItem>
       <DetailItem label="Vehicle">{stop.plate}</DetailItem>
-      <DetailItem label="Fleet owner">{stop.fleetOwner}</DetailItem>
       {!stop.online && (
         <DetailItem label="Last online">
           <span style={{ color: '#ff4d4f', fontWeight: 600 }}>{stop.lastOnline ?? 'Position unknown'}</span>
@@ -1813,24 +1834,29 @@ function TripDetailPanel({
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
           <WifiOutlined style={{ color: stop.online ? '#52c41a' : '#ff4d4f', fontSize: 15 }} />
           <span style={{ background: '#e6f4ff', color: '#1677ff', fontSize: 12, fontWeight: 600, padding: '1px 8px', borderRadius: 5 }}>{stop.label}</span>
-          <span style={{ background: '#f5f5f5', color: '#595959', fontSize: 12, padding: '1px 8px', borderRadius: 5 }}>{stop.customerCode}</span>
           <span style={{ background: style.bg, color: style.color, border: `1px solid ${style.border}`, fontSize: 11.5, fontWeight: 600, padding: '1px 9px', borderRadius: 6 }}>{statusLabel}</span>
           <Button size="small" type="text" icon={<CloseOutlined />} onClick={onClose} title="Close" />
         </div>
       </div>
 
       <div style={{ padding: 16, overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 14 }}>
-        <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-          <Button type="primary" icon={<BellOutlined />} disabled={stop.notified} onClick={onNotify} style={{ flex: 1 }}>
-            {stop.notified ? 'Notified' : 'Notify driver'}
-          </Button>
-          <Button icon={<CheckOutlined />} disabled={!urgent || handled} onClick={onMarkHandled} style={{ flex: 1 }}>
-            {handled ? 'Handled' : 'Mark handled'}
-          </Button>
-          <Tooltip title="Demo only">
-            <Button icon={<PhoneOutlined />} />
-          </Tooltip>
-        </div>
+        {claim ? (
+          <div style={{ flexShrink: 0 }}>
+            <ClaimControl accent={accent} claim={claim} />
+          </div>
+        ) : (
+          <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+            <Button type="primary" icon={<BellOutlined />} disabled={stop.notified} onClick={onNotify} style={{ flex: 1 }}>
+              {stop.notified ? 'Notified' : 'Notify driver'}
+            </Button>
+            <Button icon={<CheckOutlined />} disabled={!urgent || handled} onClick={onMarkHandled} style={{ flex: 1 }}>
+              {handled ? 'Handled' : 'Mark handled'}
+            </Button>
+            <Tooltip title="Demo only">
+              <Button icon={<PhoneOutlined />} />
+            </Tooltip>
+          </div>
+        )}
         {position === 'bottom' ? (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '14px 32px' }}>{fields}</div>
         ) : (
@@ -2196,6 +2222,12 @@ export default function LiveTrackingTesting2Page() {
     setActionCompleteIds((prev) => new Set(prev).add(id))
     messageApi.success('Action marked complete — trip is now Stable')
   }
+  // "More actions" stubs (biz req 2.3) — no real GPS/schedule/announcement/
+  // incident systems in this sandbox, so these just confirm the action fired
+  const viewGpsReport = () => messageApi.info('Opening trip GPS report (demo)')
+  const viewScheduleDetails = () => messageApi.info('Opening daily schedule details (demo)')
+  const sendAnnouncement = () => messageApi.success('Announcement sent to passengers')
+  const createIncident = () => messageApi.warning('Incident created (demo)')
 
   const clearFilters = () => {
     setFilter('all')
@@ -2237,10 +2269,16 @@ export default function LiveTrackingTesting2Page() {
       claimedBy: claimedBy[stop.id],
       actionComplete: complete,
       overdue: !complete && isUrgent(stop) && dhHash(stop.id) % 4 === 0,
+      notified: !!stop.notified,
       onClaim: () => claimTrip(stop.id),
       onRelease: () => releaseTrip(stop.id),
       onTakeOver: () => takeOverTrip(stop.id),
       onMarkComplete: () => markActionComplete(stop.id),
+      onNotify: () => notifyDriver(stop.id),
+      onViewGps: viewGpsReport,
+      onViewSchedule: viewScheduleDetails,
+      onSendAnnouncement: sendAnnouncement,
+      onCreateIncident: createIncident,
     }
   }
 
@@ -2503,6 +2541,7 @@ export default function LiveTrackingTesting2Page() {
               onMarkHandled={() => markHandled(selectedStop.id)}
               urgent={isUrgent(selectedStop)}
               handled={handledIds.has(selectedStop.id)}
+              claim={actionModel === 'claim' ? claimBundle(selectedStop) : undefined}
             />
           )}
         </div>
@@ -2517,6 +2556,7 @@ export default function LiveTrackingTesting2Page() {
             onMarkHandled={() => markHandled(selectedStop.id)}
             urgent={isUrgent(selectedStop)}
             handled={handledIds.has(selectedStop.id)}
+            claim={actionModel === 'claim' ? claimBundle(selectedStop) : undefined}
           />
         )}
       </div>
@@ -2533,6 +2573,7 @@ export default function LiveTrackingTesting2Page() {
           onMarkHandled={() => markHandled(selectedStop.id)}
           urgent={isUrgent(selectedStop)}
           handled={handledIds.has(selectedStop.id)}
+          claim={actionModel === 'claim' ? claimBundle(selectedStop) : undefined}
         />
       )}
 
