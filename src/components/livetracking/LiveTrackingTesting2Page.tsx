@@ -771,6 +771,14 @@ const SLACK_POSITION_OPTIONS: { value: SlackPosition; label: string }[] = [
 // The regular Card style only affects TripGridCard (not DhGridCard), so 2-level
 // mode gets its own density selector to avoid a dead control in the panel.
 type DhCardStyle = 'standard' | 'info' | 'compact' | 'minimal' | 'slim'
+type L2Spacing = 12 | 16 | 20 | 24
+
+const L2_SPACING_OPTIONS: { value: L2Spacing; label: string }[] = [
+  { value: 12, label: '12px' },
+  { value: 16, label: '16px' },
+  { value: 20, label: '20px' },
+  { value: 24, label: '24px' },
+]
 
 const DH_CARD_STYLE_OPTIONS: { value: DhCardStyle; label: string }[] = [
   { value: 'standard', label: 'Standard' },
@@ -833,17 +841,10 @@ function ClaimControl({ accent, claim, compact }: { accent: string; claim: Claim
   const label = actionComplete ? 'Action complete' : claimedBy ? `Claimed by ${firstName(claimedBy)}` : 'Claim'
   const showIcon = buttonStyle !== 'text'
   const showText = buttonStyle !== 'icon'
-  // Color logic: urgency mode ignores accent and uses fixed red/outlined;
-  // category mode = current behavior (accent from category).
-  const btnBg = colorMode === 'urgency'
-    ? (urgent ? '#ff4d4f' : 'transparent')
-    : (urgent ? accent : 'transparent')
-  const btnColor = colorMode === 'urgency'
-    ? (urgent ? '#fff' : accent)
-    : (urgent ? '#fff' : accent)
-  const btnBorder = colorMode === 'urgency'
-    ? (urgent ? '#ff4d4f' : accent)
-    : accent
+  // Claim button is always red regardless of color mode or urgency.
+  const btnBg = '#ff4d4f'
+  const btnColor = '#fff'
+  const btnBorder = '#ff4d4f'
   const isFullWidth = buttonWidth === 'full'
 
   // Order follows biz req 2.3's "More actions" list verbatim
@@ -873,8 +874,8 @@ function ClaimControl({ accent, claim, compact }: { accent: string; claim: Claim
         minWidth: 0,
         height: 24,
         fontSize: 11.5,
-        fontWeight: 600,
-        color: actionComplete ? '#bfbfbf' : accent,
+        fontWeight: 400,
+        color: '#8c8c8c',
         whiteSpace: 'nowrap',
         overflow: 'hidden',
         textOverflow: 'ellipsis',
@@ -1377,22 +1378,22 @@ type DhLevel1 = 'immediate' | 'risk' | 'stable'
 type DhLevel2 = 'cur-first' | 'cur-other' | 'next' | 'offline' | 'will-first' | 'will-other' | 'no-slack'
 
 const DH_L1_META: { key: DhLevel1; label: string; color: string; soft: string; border: string }[] = [
-  { key: 'immediate', label: 'Immediate attention', color: '#ff4d4f', soft: '#fff1f0', border: '#ffccc7' },
-  { key: 'risk', label: 'At risk', color: '#faad14', soft: '#fffbe6', border: '#ffe58f' },
+  { key: 'immediate', label: 'Immediate Attention', color: '#ff4d4f', soft: '#fff1f0', border: '#ffccc7' },
+  { key: 'risk', label: 'At Risk', color: '#faad14', soft: '#fffbe6', border: '#ffe58f' },
   { key: 'stable', label: 'Stable', color: '#16a34a', soft: '#f6ffed', border: '#b7eb8f' },
 ]
 
-const DH_L2_META: Record<Exclude<DhLevel1, 'stable'>, { key: DhLevel2; label: string }[]> = {
+const DH_L2_META: Record<Exclude<DhLevel1, 'stable'>, { key: DhLevel2; label: string; short: string }[]> = {
   immediate: [
-    { key: 'cur-first', label: 'Current trip delayed (first point)' },
-    { key: 'cur-other', label: 'Current trip delayed (other points)' },
-    { key: 'next', label: 'Next trip delayed' },
-    { key: 'offline', label: 'Driver offline' },
+    { key: 'cur-first', label: 'Current trip delayed (first point)', short: 'Late · 1st stop' },
+    { key: 'cur-other', label: 'Current trip delayed (other points)', short: 'Late · en route' },
+    { key: 'next', label: 'Next trip delayed', short: 'Next trip' },
+    { key: 'offline', label: 'Driver offline', short: 'Offline' },
   ],
   risk: [
-    { key: 'will-first', label: 'Current trip will be delayed (first point)' },
-    { key: 'will-other', label: 'Current trip will be delayed (other points)' },
-    { key: 'no-slack', label: 'No schedule slack' },
+    { key: 'will-first', label: 'Current trip will be delayed (first point)', short: 'Will late · 1st' },
+    { key: 'will-other', label: 'Current trip will be delayed (other points)', short: 'Will late · route' },
+    { key: 'no-slack', label: 'No schedule slack', short: 'No slack' },
   ],
 }
 
@@ -1413,6 +1414,7 @@ function TwoLevelCardHeader({
   onLevel1Change,
   onLevel2Change,
   rightSlot,
+  l2Spacing = 12,
 }: {
   level1: DhLevel1
   level2: DhLevel2 | null
@@ -1421,6 +1423,7 @@ function TwoLevelCardHeader({
   onLevel1Change: (v: DhLevel1) => void
   onLevel2Change: (v: DhLevel2 | null) => void
   rightSlot?: React.ReactNode
+  l2Spacing?: L2Spacing
 }) {
   return (
     <>
@@ -1439,7 +1442,7 @@ function TwoLevelCardHeader({
                 display: 'flex',
                 alignItems: 'center',
                 gap: 10,
-                padding: '8px 14px 8px 8px',
+                padding: '10px 14px 10px 10px',
                 borderRadius: 10,
                 border: `1.5px solid ${active ? m.color : '#f0f0f0'}`,
                 background: active ? m.soft : '#fff',
@@ -1448,14 +1451,14 @@ function TwoLevelCardHeader({
                 transition: 'all .15s',
               }}
             >
-              <div style={{ width: 34, height: 34, borderRadius: 9, background: m.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <Icon style={{ color: '#fff', fontSize: 16 }} />
+              <div style={{ width: 38, height: 38, borderRadius: 10, background: m.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <Icon style={{ color: '#fff', fontSize: 18 }} />
               </div>
               <div style={{ minWidth: 0 }}>
-                <Text style={{ fontSize: 19, fontWeight: 700, color: active ? m.color : '#1a1a1a', lineHeight: 1, display: 'block' }}>
+                <Text style={{ fontSize: 26, fontWeight: 700, color: active ? m.color : '#1a1a1a', lineHeight: 1, display: 'block' }}>
                   {l1Counts[m.key]}
                 </Text>
-                <Text style={{ fontSize: 11.5, color: '#8c8c8c', whiteSpace: 'nowrap' }}>{m.label}</Text>
+                <Text style={{ fontSize: 12, fontWeight: 700, color: active ? m.color : '#595959', whiteSpace: 'nowrap' }}>{m.label}</Text>
               </div>
             </button>
           )
@@ -1464,7 +1467,7 @@ function TwoLevelCardHeader({
       {rightSlot && <div style={{ flexShrink: 0 }}>{rightSlot}</div>}
       </div>
       {level1 !== 'stable' && (
-        <div style={{ display: 'flex', gap: 0, flexWrap: 'nowrap', borderBottom: '1px solid #f0f0f0', marginTop: 12 }}>
+        <div style={{ display: 'flex', gap: 0, flexWrap: 'nowrap', borderBottom: '1px solid #f0f0f0', marginTop: l2Spacing }}>
           {DH_L2_META[level1].map((m) => {
             const active = level2 === m.key
             const count = l2Counts[m.key] ?? 0
@@ -1474,6 +1477,7 @@ function TwoLevelCardHeader({
                 onClick={() => onLevel2Change(active ? null : m.key)}
                 style={{
                   flex: 1,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
                   textAlign: 'center',
                   padding: '8px 10px',
                   marginBottom: -1,
@@ -1481,14 +1485,22 @@ function TwoLevelCardHeader({
                   borderBottom: `2px solid ${active ? '#1677ff' : 'transparent'}`,
                   background: 'transparent',
                   color: active ? '#1677ff' : count === 0 ? '#bfbfbf' : '#595959',
-                  fontSize: 12.5,
-                  fontWeight: active ? 600 : 500,
+                  fontSize: 12,
+                  fontWeight: active ? 500 : 400,
                   cursor: 'pointer',
                   whiteSpace: 'nowrap',
                   transition: 'all .15s',
                 }}
               >
-                {m.label} ({count})
+                {m.short}
+                <span style={{
+                  minWidth: 18, height: 18, borderRadius: 9, padding: '0 5px',
+                  background: active ? '#1677ff' : '#f0f0f0',
+                  color: active ? '#fff' : count === 0 ? '#bfbfbf' : '#595959',
+                  fontSize: 10, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  {count}
+                </span>
               </button>
             )
           })}
@@ -1509,6 +1521,7 @@ function TwoLevelMinimalHeader({
   onLevel1Change,
   onLevel2Change,
   rightSlot,
+  l2Spacing = 12,
 }: {
   level1: DhLevel1
   level2: DhLevel2 | null
@@ -1517,6 +1530,7 @@ function TwoLevelMinimalHeader({
   onLevel1Change: (v: DhLevel1) => void
   onLevel2Change: (v: DhLevel2 | null) => void
   rightSlot?: React.ReactNode
+  l2Spacing?: L2Spacing
 }) {
   return (
     <>
@@ -1561,7 +1575,7 @@ function TwoLevelMinimalHeader({
         {rightSlot && <div style={{ flexShrink: 0, paddingBottom: 6 }}>{rightSlot}</div>}
       </div>
       {level1 !== 'stable' && (
-        <div style={{ display: 'flex', flexWrap: 'nowrap', gap: 6, marginTop: 8 }}>
+        <div style={{ display: 'flex', flexWrap: 'nowrap', gap: 6, marginTop: l2Spacing }}>
           {DH_L2_META[level1].map((m) => {
             const active = level2 === m.key
             const count = l2Counts[m.key] ?? 0
@@ -1571,16 +1585,26 @@ function TwoLevelMinimalHeader({
                 onClick={() => onLevel2Change(active ? null : m.key)}
                 style={{
                   flex: 1,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
                   textAlign: 'center',
                   padding: '4px 8px',
                   borderRadius: 6,
                   border: `1px solid ${active ? '#1677ff' : '#e8e8e8'}`,
                   background: active ? '#e6f4ff' : '#fafafa',
                   color: active ? '#1677ff' : count === 0 ? '#bfbfbf' : '#595959',
-                  fontSize: 11.5, fontWeight: active ? 600 : 400, cursor: 'pointer', transition: 'all .15s',
+                  fontSize: 11.5, fontWeight: active ? 500 : 400, cursor: 'pointer', transition: 'all .15s',
+                  whiteSpace: 'nowrap',
                 }}
               >
-                {m.label} ({count})
+                {m.short}
+                <span style={{
+                  minWidth: 18, height: 18, borderRadius: 9, padding: '0 5px',
+                  background: active ? '#1677ff' : '#f0f0f0',
+                  color: active ? '#fff' : count === 0 ? '#bfbfbf' : '#595959',
+                  fontSize: 10, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  {count}
+                </span>
               </button>
             )
           })}
@@ -1599,16 +1623,18 @@ interface TwoLevelHeaderProps {
   onLevel1Change: (v: DhLevel1) => void
   onLevel2Change: (v: DhLevel2 | null) => void
   rightSlot?: React.ReactNode
+  l2Spacing?: L2Spacing
 }
 
 // Shared L2 chip row used by banner, stats, badge, progress variants
-function TwoLevelL2Chips({ level1, level2, l2Counts, onLevel2Change }: {
+function TwoLevelL2Chips({ level1, level2, l2Counts, onLevel2Change, l2Spacing = 12 }: {
   level1: DhLevel1; level2: DhLevel2 | null
   l2Counts: Record<string, number>; onLevel2Change: (v: DhLevel2 | null) => void
+  l2Spacing?: L2Spacing
 }) {
   if (level1 === 'stable') return null
   return (
-    <div style={{ display: 'flex', gap: 0, flexWrap: 'nowrap', marginTop: 8, borderBottom: '1px solid #f0f0f0' }}>
+    <div style={{ display: 'flex', gap: 0, flexWrap: 'nowrap', marginTop: l2Spacing, borderBottom: '1px solid #f0f0f0' }}>
       {DH_L2_META[level1].map((m) => {
         const active = level2 === m.key
         const count = l2Counts[m.key] ?? 0
@@ -1617,14 +1643,24 @@ function TwoLevelL2Chips({ level1, level2, l2Counts, onLevel2Change }: {
             key={m.key}
             onClick={() => onLevel2Change(active ? null : m.key)}
             style={{
-              flex: 1, textAlign: 'center', padding: '6px 8px', marginBottom: -1,
+              flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+              textAlign: 'center', padding: '6px 8px', marginBottom: -1,
               border: 'none', borderBottom: `2px solid ${active ? '#1677ff' : 'transparent'}`,
               background: 'transparent',
               color: active ? '#1677ff' : count === 0 ? '#bfbfbf' : '#595959',
-              fontSize: 11.5, fontWeight: active ? 600 : 400, cursor: 'pointer', transition: 'all .15s',
+              fontSize: 11.5, fontWeight: active ? 500 : 400, cursor: 'pointer', transition: 'all .15s',
+              whiteSpace: 'nowrap',
             }}
           >
-            {m.label} ({count})
+            {m.short}
+            <span style={{
+              minWidth: 18, height: 18, borderRadius: 9, padding: '0 5px',
+              background: active ? '#1677ff' : count === 0 ? '#f0f0f0' : '#f0f0f0',
+              color: active ? '#fff' : count === 0 ? '#bfbfbf' : '#595959',
+              fontSize: 10, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              {count}
+            </span>
           </button>
         )
       })}
@@ -1634,7 +1670,7 @@ function TwoLevelL2Chips({ level1, level2, l2Counts, onLevel2Change }: {
 
 /* ── Banner variant: active category fills with its color, inactive categories
    are compact text segments. Equal-width columns, no icon badges. ── */
-function TwoLevelBannerHeader({ level1, level2, l1Counts, l2Counts, onLevel1Change, onLevel2Change, rightSlot }: TwoLevelHeaderProps) {
+function TwoLevelBannerHeader({ level1, level2, l1Counts, l2Counts, onLevel1Change, onLevel2Change, rightSlot, l2Spacing }: TwoLevelHeaderProps) {
   return (
     <>
       <div style={{ display: 'flex', alignItems: 'stretch', gap: 12 }}>
@@ -1669,14 +1705,14 @@ function TwoLevelBannerHeader({ level1, level2, l1Counts, l2Counts, onLevel1Chan
         </div>
         {rightSlot && <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center' }}>{rightSlot}</div>}
       </div>
-      <TwoLevelL2Chips level1={level1} level2={level2} l2Counts={l2Counts} onLevel2Change={onLevel2Change} />
+      <TwoLevelL2Chips level1={level1} level2={level2} l2Counts={l2Counts} onLevel2Change={onLevel2Change} l2Spacing={l2Spacing} />
     </>
   )
 }
 
 /* ── Stats variant: horizontal strip with a large colored number, label, and
    a colored left-accent bar on the active item. Clean and data-table-like. ── */
-function TwoLevelStatsHeader({ level1, level2, l1Counts, l2Counts, onLevel1Change, onLevel2Change, rightSlot }: TwoLevelHeaderProps) {
+function TwoLevelStatsHeader({ level1, level2, l1Counts, l2Counts, onLevel1Change, onLevel2Change, rightSlot, l2Spacing }: TwoLevelHeaderProps) {
   return (
     <>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -1709,7 +1745,7 @@ function TwoLevelStatsHeader({ level1, level2, l1Counts, l2Counts, onLevel1Chang
         </div>
         {rightSlot && <div style={{ flexShrink: 0 }}>{rightSlot}</div>}
       </div>
-      <TwoLevelL2Chips level1={level1} level2={level2} l2Counts={l2Counts} onLevel2Change={onLevel2Change} />
+      <TwoLevelL2Chips level1={level1} level2={level2} l2Counts={l2Counts} onLevel2Change={onLevel2Change} l2Spacing={l2Spacing} />
     </>
   )
 }
@@ -1717,7 +1753,7 @@ function TwoLevelStatsHeader({ level1, level2, l1Counts, l2Counts, onLevel1Chang
 /* ── Badge variant: compact pill-shaped buttons, each with a small filled
    count circle + label. Fits alongside other header controls without
    dominating the space. ── */
-function TwoLevelBadgeHeader({ level1, level2, l1Counts, l2Counts, onLevel1Change, onLevel2Change, rightSlot }: TwoLevelHeaderProps) {
+function TwoLevelBadgeHeader({ level1, level2, l1Counts, l2Counts, onLevel1Change, onLevel2Change, rightSlot, l2Spacing }: TwoLevelHeaderProps) {
   return (
     <>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -1753,7 +1789,7 @@ function TwoLevelBadgeHeader({ level1, level2, l1Counts, l2Counts, onLevel1Chang
         </div>
         {rightSlot && <div style={{ flexShrink: 0 }}>{rightSlot}</div>}
       </div>
-      <TwoLevelL2Chips level1={level1} level2={level2} l2Counts={l2Counts} onLevel2Change={onLevel2Change} />
+      <TwoLevelL2Chips level1={level1} level2={level2} l2Counts={l2Counts} onLevel2Change={onLevel2Change} l2Spacing={l2Spacing} />
     </>
   )
 }
@@ -1761,7 +1797,7 @@ function TwoLevelBadgeHeader({ level1, level2, l1Counts, l2Counts, onLevel1Chang
 /* ── Progress variant: a proportional stacked bar showing the share of trips
    in each category + compact label row below. The bar itself is clickable.
    Gives a clear at-a-glance sense of how many trips are at each severity. ── */
-function TwoLevelProgressHeader({ level1, level2, l1Counts, l2Counts, onLevel1Change, onLevel2Change, rightSlot }: TwoLevelHeaderProps) {
+function TwoLevelProgressHeader({ level1, level2, l1Counts, l2Counts, onLevel1Change, onLevel2Change, rightSlot, l2Spacing }: TwoLevelHeaderProps) {
   const total = (l1Counts.immediate + l1Counts.risk + l1Counts.stable) || 1
   return (
     <>
@@ -1817,7 +1853,7 @@ function TwoLevelProgressHeader({ level1, level2, l1Counts, l2Counts, onLevel1Ch
         </div>
         {rightSlot && <div style={{ flexShrink: 0 }}>{rightSlot}</div>}
       </div>
-      <TwoLevelL2Chips level1={level1} level2={level2} l2Counts={l2Counts} onLevel2Change={onLevel2Change} />
+      <TwoLevelL2Chips level1={level1} level2={level2} l2Counts={l2Counts} onLevel2Change={onLevel2Change} l2Spacing={l2Spacing} />
     </>
   )
 }
@@ -1873,6 +1909,7 @@ function DhGridCard({
   showDelayText = true,
   showDriverStatusText = true,
   slackPosition = 'row',
+  showSlack = true,
 }: {
   stop: VehicleStop
   info: DhInfo
@@ -1886,6 +1923,7 @@ function DhGridCard({
   showDelayText?: boolean
   showDriverStatusText?: boolean
   slackPosition?: SlackPosition
+  showSlack?: boolean
 }) {
   const accent = info.l1 === 'immediate' ? '#ff4d4f' : info.l1 === 'risk' ? '#faad14' : '#16a34a'
   const baseStatus = deriveStatus(stop)
@@ -1931,17 +1969,16 @@ function DhGridCard({
           {initialsOf(badgeName)}
         </div>
       )}
-      <span style={{ width: 4, background: accent, flexShrink: 0 }} />
       <div style={{ flex: 1, minWidth: 0, padding: '9px 11px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, paddingRight: badgeName ? 20 : 0 }}>
-          <span style={{ background: '#e6f4ff', color: '#1677ff', fontSize: 11.5, fontWeight: 600, padding: '0 7px', borderRadius: 4, whiteSpace: 'nowrap' }}>
+          <span style={{ background: '#e6f4ff', color: '#1677ff', fontSize: 11.5, fontWeight: 600, padding: '0 7px', borderRadius: 4, whiteSpace: 'nowrap', flexShrink: 0, maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {stop.label}
           </span>
           <ClockCircleOutlined style={{ fontSize: 11, color: '#8c8c8c', flexShrink: 0 }} />
           <Text style={{ fontSize: 11.5, color: '#8c8c8c', whiteSpace: 'nowrap' }}>{formatTimeAmPm(stop.scheduled)}</Text>
-          {slackPosition === 'inline' && (
+          {slackPosition === 'inline' && showSlack && (
             <span style={{ background: slack.bg, color: slack.color, border: `1px solid ${slack.border}`, fontSize: 10.5, fontWeight: 600, padding: '0 6px', borderRadius: 6, whiteSpace: 'nowrap', flexShrink: 0 }}>
-              {info.slackMin > 0 ? `+${info.slackMin}` : info.slackMin}m
+              Slack {info.slackMin > 0 ? `+${info.slackMin}` : info.slackMin} min
             </span>
           )}
           <span
@@ -1955,15 +1992,15 @@ function DhGridCard({
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, minWidth: 0 }}>
           <WifiOutlined style={{ color: stop.online ? '#52c41a' : '#ff4d4f', fontSize: 11.5, flexShrink: 0 }} />
-          <Text style={{ fontSize: 12.5, fontWeight: 600, color: '#1a1a1a', minWidth: 0 }} ellipsis>{firstName(stop.driver)}</Text>
+          <Text style={{ fontSize: 12.5, fontWeight: 600, color: '#1a1a1a', whiteSpace: 'nowrap', flexShrink: 0 }}>{firstName(stop.driver)}</Text>
+          <Text style={{ fontSize: 11, color: '#8c8c8c', whiteSpace: 'nowrap', flexShrink: 0 }}>{stop.plate}</Text>
           {showDriverStatusText && (
-            <Text style={{ fontSize: 10.5, color: stop.online ? '#16a34a' : '#ff4d4f', flexShrink: 0 }}>{stop.online ? 'Online' : 'Offline'}</Text>
+            <Text style={{ fontSize: 10.5, color: stop.online ? '#16a34a' : '#ff4d4f', marginLeft: 'auto', flexShrink: 0 }}>{stop.online ? 'Online' : 'Offline'}</Text>
           )}
-          <Text style={{ fontSize: 11.5, color: '#8c8c8c', marginLeft: 'auto', whiteSpace: 'nowrap', flexShrink: 0 }}>{stop.plate}</Text>
         </div>
-        {(slackPosition === 'row' || (showDelays && showDelayText)) && (
+        {((slackPosition === 'row' && showSlack) || (showDelays && showDelayText)) && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 7, flexWrap: 'wrap' }}>
-            {slackPosition === 'row' && (
+            {slackPosition === 'row' && showSlack && (
               <span style={{ background: slack.bg, color: slack.color, border: `1px solid ${slack.border}`, fontSize: 10.5, fontWeight: 600, padding: '0 7px', borderRadius: 6, whiteSpace: 'nowrap' }}>
                 Slack {info.slackMin > 0 ? `+${info.slackMin}` : info.slackMin} min
               </span>
@@ -2399,6 +2436,8 @@ function DisplaySettingsPanel({
   onShowDriverStatusTextChange,
   slackPosition,
   onSlackPositionChange,
+  l2Spacing,
+  onL2SpacingChange,
   showNeedsAttention,
   onShowNeedsAttentionChange,
   showRoutes,
@@ -2449,6 +2488,8 @@ function DisplaySettingsPanel({
   onShowDriverStatusTextChange: (v: boolean) => void
   slackPosition: SlackPosition
   onSlackPositionChange: (v: SlackPosition) => void
+  l2Spacing: L2Spacing
+  onL2SpacingChange: (v: L2Spacing) => void
   showNeedsAttention: boolean
   onShowNeedsAttentionChange: (v: boolean) => void
   showRoutes: boolean
@@ -2565,6 +2606,9 @@ function DisplaySettingsPanel({
             </SettingRow>
             <SettingRow label="Driver status text">
               <Switch size="small" checked={showDriverStatusText} onChange={onShowDriverStatusTextChange} />
+            </SettingRow>
+            <SettingRow label="L2 spacing">
+              <Select size="small" value={l2Spacing} onChange={onL2SpacingChange} options={L2_SPACING_OPTIONS} style={{ width: 104 }} dropdownStyle={{ zIndex: 2100 }} />
             </SettingRow>
           </>
         )}
@@ -2685,6 +2729,7 @@ export default function LiveTrackingTesting2Page() {
   const [claimButtonStyle, setClaimButtonStyle] = useState<ClaimButtonStyle>('text')
   const [claimCardScope, setClaimCardScope] = useState<ClaimCardScope>('all')
   const [dhCardStyle, setDhCardStyle] = useState<DhCardStyle>('standard')
+  const [l2Spacing, setL2Spacing] = useState<L2Spacing>(12)
   const [claimColorMode, setClaimColorMode] = useState<ClaimColorMode>('category')
   const [claimButtonWidth, setClaimButtonWidth] = useState<ClaimButtonWidth>('full')
   const [showDelayText, setShowDelayText] = useState(true)
@@ -2988,6 +3033,7 @@ export default function LiveTrackingTesting2Page() {
           showDelayText={dhPreset.showDelayText}
           showDriverStatusText={dhPreset.showDriverStatusText}
           slackPosition={dhPreset.slackPosition}
+          showSlack={dhPreset.showSlack}
         />
       )
     }
@@ -3096,16 +3142,29 @@ export default function LiveTrackingTesting2Page() {
       trigger="click"
       placement="bottomRight"
     >
-      <Button
-        size="middle"
-        icon={<FilterOutlined />}
-        style={{
-          borderColor: activeFilterCount > 0 ? '#1677ff' : undefined,
-          color: activeFilterCount > 0 ? '#1677ff' : undefined,
-        }}
-      >
-        Filter{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
-      </Button>
+      <div style={{ position: 'relative', display: 'inline-flex' }}>
+        <Button
+          size="middle"
+          icon={<FilterOutlined />}
+          style={{
+            padding: '0 10px',
+            borderColor: activeFilterCount > 0 ? '#1677ff' : undefined,
+            color: activeFilterCount > 0 ? '#1677ff' : undefined,
+          }}
+        />
+        {activeFilterCount > 0 && (
+          <span style={{
+            position: 'absolute', top: -6, right: -6,
+            minWidth: 16, height: 16, borderRadius: 8, padding: '0 4px',
+            background: '#1677ff', color: '#fff',
+            fontSize: 10, fontWeight: 700,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            pointerEvents: 'none',
+          }}>
+            {activeFilterCount}
+          </span>
+        )}
+      </div>
     </Popover>
   )
 
@@ -3127,10 +3186,10 @@ export default function LiveTrackingTesting2Page() {
         {/* ── Header: KPI/highlight bar + search + sort ── */}
         <div style={{ flexShrink: 0 }}>
           {isTwoLevel ? (() => {
-            const l2Props = { level1: dhLevel1, level2: dhLevel2, l1Counts: dhL1Counts, l2Counts: dhL2Counts, onLevel1Change: setDhLevel1, onLevel2Change: setDhLevel2 }
+            const l2Props = { level1: dhLevel1, level2: dhLevel2, l1Counts: dhL1Counts, l2Counts: dhL2Counts, onLevel1Change: setDhLevel1, onLevel2Change: setDhLevel2, l2Spacing }
             const rightSlot = (
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <Input value={search} onChange={(e) => setSearch(e.target.value)} prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />} placeholder="Search route, driver, plate..." style={{ borderRadius: 8, width: 210 }} allowClear />
+                <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search route, driver, plate..." style={{ borderRadius: 8, width: 210 }} allowClear />
                 {filterBtn}
                 <Select size="middle" value={sortBy} onChange={setSortBy} options={SORT_OPTIONS} style={{ width: 118 }} />
               </div>
@@ -3159,7 +3218,7 @@ export default function LiveTrackingTesting2Page() {
                   </div>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>{rightSlot}</div>
                 </div>
-                <TwoLevelL2Chips level1={dhLevel1} level2={dhLevel2} l2Counts={dhL2Counts} onLevel2Change={setDhLevel2} />
+                <TwoLevelL2Chips level1={dhLevel1} level2={dhLevel2} l2Counts={dhL2Counts} onLevel2Change={setDhLevel2} l2Spacing={l2Spacing} />
               </>
             )
           })() : (
@@ -3169,7 +3228,6 @@ export default function LiveTrackingTesting2Page() {
                 <Input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
                   placeholder="Search route, driver, plate..."
                   style={{ borderRadius: 8, width: 240 }}
                   allowClear
@@ -3356,6 +3414,8 @@ export default function LiveTrackingTesting2Page() {
           onShowDriverStatusTextChange={setShowDriverStatusText}
           slackPosition={slackPosition}
           onSlackPositionChange={setSlackPosition}
+          l2Spacing={l2Spacing}
+          onL2SpacingChange={setL2Spacing}
           showNeedsAttention={showNeedsAttention}
           onShowNeedsAttentionChange={setShowNeedsAttention}
           showRoutes={showRoutes}
