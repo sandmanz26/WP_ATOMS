@@ -1507,9 +1507,9 @@ function TwoLevelMinimalHeader({
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
               <span style={{ width: 7, height: 7, borderRadius: '50%', background: m.color, flexShrink: 0 }} />
-              <Text style={{ fontSize: 20, fontWeight: 700, color: active ? m.color : '#1a1a1a', lineHeight: 1 }}>{l1Counts[m.key]}</Text>
+              <Text style={{ fontSize: 20, fontWeight: active ? 800 : 600, color: active ? m.color : '#1a1a1a', lineHeight: 1 }}>{l1Counts[m.key]}</Text>
             </div>
-            <Text style={{ fontSize: 11, color: active ? m.color : '#8c8c8c', whiteSpace: 'nowrap' }}>{m.label}</Text>
+            <Text style={{ fontSize: 11, fontWeight: active ? 700 : 400, color: active ? m.color : '#8c8c8c', whiteSpace: 'nowrap' }}>{m.label}</Text>
           </button>
         )
       })}
@@ -3479,30 +3479,7 @@ export default function LiveTrackingTesting2Page() {
               </MapErrorBoundary>
             )}
 
-            {/* Compact traffic legend for the narrow map */}
-            <div
-              style={{
-                position: 'absolute',
-                left: 10,
-                bottom: 10,
-                zIndex: 500,
-                background: 'rgba(255,255,255,.96)',
-                border: '1px solid #f0f0f0',
-                borderRadius: 8,
-                padding: '5px 9px',
-                boxShadow: '0 4px 14px rgba(15,23,42,.1)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-              }}
-            >
-              {(['smooth', 'moderate', 'heavy'] as const).map((lvl) => (
-                <div key={lvl} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <span style={{ width: 12, height: 4, borderRadius: 2, background: TRAFFIC_COLOR[lvl] }} />
-                  <Text style={{ fontSize: 11, color: '#64748b' }}>{TRAFFIC_LABEL[lvl]}</Text>
-                </div>
-              ))}
-            </div>
+
           </div>
 
           {/* Docked trip detail — side: a third flex column, laid out next
