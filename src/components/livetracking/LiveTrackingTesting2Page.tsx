@@ -350,6 +350,7 @@ type HighlightStyle =
   | 'default' | 'segment' | 'color'
   | 'two-level' | 'two-level-cards' | 'two-level-minimal'
   | 'two-level-banner' | 'two-level-stats' | 'two-level-badge' | 'two-level-progress'
+  | 'two-level-inline' | 'two-level-panel' | 'two-level-metro'
 
 const HIGHLIGHT_STYLE_OPTIONS: { value: HighlightStyle; label: string }[] = [
   { value: 'default', label: 'Default' },
@@ -362,6 +363,9 @@ const HIGHLIGHT_STYLE_OPTIONS: { value: HighlightStyle; label: string }[] = [
   { value: 'two-level-stats', label: '2L — Stats' },
   { value: 'two-level-badge', label: '2L — Badge' },
   { value: 'two-level-progress', label: '2L — Progress' },
+  { value: 'two-level-inline', label: '2L — Inline' },
+  { value: 'two-level-panel', label: '2L — Panel' },
+  { value: 'two-level-metro', label: '2L — Metro' },
 ]
 
 function KpiBar({
@@ -1858,6 +1862,119 @@ function TwoLevelProgressHeader({ level1, level2, l1Counts, l2Counts, onLevel1Ch
   )
 }
 
+/* ── Inline variant: single left-aligned row — count + label per category,
+   no box chrome, only the active item gets a colored underline. ── */
+function TwoLevelInlineHeader({ level1, level2, l1Counts, l2Counts, onLevel1Change, onLevel2Change, rightSlot, l2Spacing }: TwoLevelHeaderProps) {
+  return (
+    <>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          {DH_L1_META.map((m, i) => {
+            const active = level1 === m.key
+            const hot = m.key === 'immediate' && l1Counts.immediate > 0
+            return (
+              <>
+                {i > 0 && <span key={`sep-${m.key}`} style={{ width: 1, height: 22, background: '#e8e8e8', flexShrink: 0, margin: '0 6px' }} />}
+                <button
+                  key={m.key}
+                  onClick={() => { onLevel1Change(m.key); onLevel2Change(null) }}
+                  className={hot && !active ? 'tab-urgent-pulse' : undefined}
+                  style={{
+                    display: 'flex', alignItems: 'baseline', gap: 6,
+                    background: 'none', border: 'none', borderBottom: `2px solid ${active ? m.color : 'transparent'}`,
+                    padding: '6px 4px 7px', cursor: 'pointer', transition: 'all .15s',
+                  }}
+                >
+                  <Text style={{ fontSize: 24, fontWeight: 800, color: m.color, lineHeight: 1 }}>{l1Counts[m.key]}</Text>
+                  <Text style={{ fontSize: 12.5, fontWeight: active ? 700 : 400, color: active ? m.color : '#595959', whiteSpace: 'nowrap' }}>{m.label}</Text>
+                </button>
+              </>
+            )
+          })}
+        </div>
+        <div style={{ marginLeft: 'auto', flexShrink: 0 }}>{rightSlot}</div>
+      </div>
+      <TwoLevelL2Chips level1={level1} level2={level2} l2Counts={l2Counts} onLevel2Change={onLevel2Change} l2Spacing={l2Spacing} />
+    </>
+  )
+}
+
+/* ── Panel variant: left-aligned natural-width cards, each with a colored
+   top accent border, big count, and label. Cards don't stretch. ── */
+function TwoLevelPanelHeader({ level1, level2, l1Counts, l2Counts, onLevel1Change, onLevel2Change, rightSlot, l2Spacing }: TwoLevelHeaderProps) {
+  return (
+    <>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {DH_L1_META.map((m) => {
+            const active = level1 === m.key
+            const hot = m.key === 'immediate' && l1Counts.immediate > 0
+            return (
+              <button
+                key={m.key}
+                onClick={() => { onLevel1Change(m.key); onLevel2Change(null) }}
+                className={hot && !active ? 'tab-urgent-pulse' : undefined}
+                style={{
+                  display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
+                  padding: '10px 16px 10px 14px',
+                  borderRadius: 10,
+                  border: `1.5px solid ${active ? m.color : '#f0f0f0'}`,
+                  borderTop: `3px solid ${m.color}`,
+                  background: active ? m.soft : '#fff',
+                  cursor: 'pointer', transition: 'all .15s',
+                  minWidth: 106,
+                }}
+              >
+                <Text style={{ fontSize: 28, fontWeight: 800, color: m.color, lineHeight: 1, display: 'block' }}>{l1Counts[m.key]}</Text>
+                <Text style={{ fontSize: 12, fontWeight: 700, color: active ? m.color : '#595959', marginTop: 4, whiteSpace: 'nowrap', lineHeight: 1.3 }}>{m.label}</Text>
+              </button>
+            )
+          })}
+        </div>
+        <div style={{ marginLeft: 'auto', flexShrink: 0 }}>{rightSlot}</div>
+      </div>
+      <TwoLevelL2Chips level1={level1} level2={level2} l2Counts={l2Counts} onLevel2Change={onLevel2Change} l2Spacing={l2Spacing} />
+    </>
+  )
+}
+
+/* ── Metro variant: fixed-width solid-color tiles, left-aligned. Active tile
+   fills with its category color; inactive tiles show a soft tint. ── */
+function TwoLevelMetroHeader({ level1, level2, l1Counts, l2Counts, onLevel1Change, onLevel2Change, rightSlot, l2Spacing }: TwoLevelHeaderProps) {
+  return (
+    <>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {DH_L1_META.map((m) => {
+            const active = level1 === m.key
+            const hot = m.key === 'immediate' && l1Counts.immediate > 0
+            return (
+              <button
+                key={m.key}
+                onClick={() => { onLevel1Change(m.key); onLevel2Change(null) }}
+                className={hot && !active ? 'tab-urgent-pulse' : undefined}
+                style={{
+                  width: 114, display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
+                  padding: '12px 14px',
+                  borderRadius: 10,
+                  background: active ? m.color : m.soft,
+                  border: `1.5px solid ${active ? m.color : m.border}`,
+                  cursor: 'pointer', transition: 'all .2s',
+                }}
+              >
+                <Text style={{ fontSize: 30, fontWeight: 800, color: active ? '#fff' : m.color, lineHeight: 1, display: 'block' }}>{l1Counts[m.key]}</Text>
+                <Text style={{ fontSize: 11.5, fontWeight: 700, color: active ? 'rgba(255,255,255,.88)' : '#595959', marginTop: 5, lineHeight: 1.3 }}>{m.label}</Text>
+              </button>
+            )
+          })}
+        </div>
+        <div style={{ marginLeft: 'auto', flexShrink: 0 }}>{rightSlot}</div>
+      </div>
+      <TwoLevelL2Chips level1={level1} level2={level2} l2Counts={l2Counts} onLevel2Change={onLevel2Change} l2Spacing={l2Spacing} />
+    </>
+  )
+}
+
 interface DhInfo {
   l1: DhLevel1
   l2: DhLevel2 | null
@@ -3200,6 +3317,9 @@ export default function LiveTrackingTesting2Page() {
             if (highlightStyle === 'two-level-stats') return <TwoLevelStatsHeader {...l2Props} rightSlot={rightSlot} />
             if (highlightStyle === 'two-level-badge') return <TwoLevelBadgeHeader {...l2Props} rightSlot={rightSlot} />
             if (highlightStyle === 'two-level-progress') return <TwoLevelProgressHeader {...l2Props} rightSlot={rightSlot} />
+            if (highlightStyle === 'two-level-inline') return <TwoLevelInlineHeader {...l2Props} rightSlot={rightSlot} />
+            if (highlightStyle === 'two-level-panel') return <TwoLevelPanelHeader {...l2Props} rightSlot={rightSlot} />
+            if (highlightStyle === 'two-level-metro') return <TwoLevelMetroHeader {...l2Props} rightSlot={rightSlot} />
             // Default 'two-level' pills
             return (
               <>
