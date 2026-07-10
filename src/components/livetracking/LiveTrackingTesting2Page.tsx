@@ -2107,10 +2107,8 @@ function DhGridCard({
 }
 
 /* ── Internal card variant — suggested by the internal team.
-   Three neutral-gray pill badges across the top (route code, trip status,
-   schedule slack) give a quick read at a glance. Below that: wifi signal +
-   plate + driver name on the left, trip start time right. Actions sit at
-   the bottom-right, same as a typical data table row. ── */
+   Route code badge left; trip status + slack chips right-aligned in the
+   same row. Driver row below. Actions pinned bottom-right. ── */
 function DhInternalCard({
   stop, info, selected, handled, showAction, claim, onClick, onTake, innerRef,
 }: {
@@ -2123,11 +2121,13 @@ function DhInternalCard({
   const baseStatus = deriveStatus(stop)
   const statusLabel = !stop.online ? 'Offline' : info.currentDelayMin > 0 ? 'Late' : info.predictedDelayMin > 0 ? 'Will be late' : baseStatus
   const urgent = !stop.online || statusLabel === 'Late'
+  const statusStyle =
+    statusLabel === 'Will be late'
+      ? { color: '#d48806', bg: '#fffbe6', border: '#ffe58f' }
+      : statusLabel === 'Offline'
+        ? { color: STATUS_STYLE['To Check'].color, bg: STATUS_STYLE['To Check'].bg, border: STATUS_STYLE['To Check'].border }
+        : { color: STATUS_STYLE[baseStatus].color, bg: STATUS_STYLE[baseStatus].bg, border: STATUS_STYLE[baseStatus].border }
   const slack = slackChipColors(info.slackMin)
-  const statusColor_ =
-    statusLabel === 'Late' || statusLabel === 'Offline' ? '#ff4d4f'
-    : statusLabel === 'Will be late' ? '#d48806'
-    : '#52c41a'
   const pill: React.CSSProperties = {
     display: 'inline-flex', alignItems: 'center',
     background: '#f5f5f5', color: '#595959',
@@ -2149,19 +2149,26 @@ function DhInternalCard({
         padding: '10px 12px', minWidth: 0,
       }}
     >
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+      {/* Row 1: route code left | status + slack right */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
         <span style={pill}>{stop.label}</span>
-        <span style={{ ...pill, color: statusColor_ }}>{statusLabel}</span>
-        <span style={{ ...pill, color: slack.color, background: slack.bg, borderColor: slack.border }}>
-          Slack: {info.slackMin > 0 ? `+${info.slackMin}` : info.slackMin} min
-        </span>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, flexShrink: 0 }}>
+          <span style={{ ...pill, color: statusStyle.color, background: statusStyle.bg, borderColor: statusStyle.border }}>
+            {statusLabel}
+          </span>
+          <span style={{ ...pill, color: slack.color, background: slack.bg, borderColor: slack.border }}>
+            Slack: {info.slackMin > 0 ? `+${info.slackMin}` : info.slackMin} min
+          </span>
+        </div>
       </div>
+      {/* Row 2: wifi + plate + driver | start time */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
         <WifiOutlined style={{ color: stop.online ? '#52c41a' : '#ff4d4f', fontSize: 11.5, flexShrink: 0 }} />
         <Text style={{ fontSize: 12, color: '#8c8c8c', whiteSpace: 'nowrap', flexShrink: 0 }}>({stop.plate})</Text>
         <Text style={{ fontSize: 12.5, fontWeight: 600, color: '#1a1a1a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{firstName(stop.driver)}</Text>
         <Text style={{ fontSize: 12, color: '#8c8c8c', whiteSpace: 'nowrap', marginLeft: 'auto', flexShrink: 0 }}>{formatTimeAmPm(stop.scheduled)}</Text>
       </div>
+      {/* Row 3: actions right-aligned */}
       {showAction && (
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6 }}>
           {claim ? (
