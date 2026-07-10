@@ -1447,7 +1447,7 @@ function TwoLevelCardHeader({
     </div>
   )
   const l2Tabs = level1 !== 'stable' && (
-    <div style={{ display: 'flex', gap: 0, flexWrap: 'nowrap', borderBottom: '1px solid #f0f0f0', marginTop: l2Spacing }}>
+    <div style={{ display: 'flex', gap: 0, flexWrap: 'nowrap', borderBottom: '1px solid #f0f0f0', marginTop: 8 }}>
       {DH_L2_META[level1].map((m) => {
         const active = level2 === m.key
         const count = l2Counts[m.key] ?? 0
@@ -1516,7 +1516,7 @@ function TwoLevelMinimalHeader({
     </div>
   )
   const l2Chips = level1 !== 'stable' && (
-    <div style={{ display: 'flex', flexWrap: 'nowrap', gap: 6, marginTop: l2Spacing }}>
+    <div style={{ display: 'flex', flexWrap: 'nowrap', gap: 6, marginTop: 8 }}>
       {DH_L2_META[level1].map((m) => {
         const active = level2 === m.key
         const count = l2Counts[m.key] ?? 0
@@ -1584,7 +1584,7 @@ function TwoLevelL2Chips({ level1, level2, l2Counts, onLevel2Change, l2Spacing =
   if (level1 === 'stable') return null
   if (flushLeft) {
     return (
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: l2Spacing }}>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
         {DH_L2_META[level1].map((m) => {
           const active = level2 === m.key
           const count = l2Counts[m.key] ?? 0
@@ -1618,7 +1618,7 @@ function TwoLevelL2Chips({ level1, level2, l2Counts, onLevel2Change, l2Spacing =
     )
   }
   return (
-    <div style={{ display: 'flex', gap: 0, flexWrap: 'nowrap', marginTop: l2Spacing, borderBottom: '1px solid #f0f0f0' }}>
+    <div style={{ display: 'flex', gap: 0, flexWrap: 'nowrap', marginTop: 8, borderBottom: '1px solid #f0f0f0' }}>
       {DH_L2_META[level1].map((m) => {
         const active = level2 === m.key
         const count = l2Counts[m.key] ?? 0
@@ -3345,7 +3345,7 @@ export default function LiveTrackingTesting2Page() {
           padding: 16,
           display: 'flex',
           flexDirection: 'column',
-          gap: 12,
+          gap: isTwoLevel ? l2Spacing : 12,
           height: 'calc(100vh - 96px)',
         }}
       >
