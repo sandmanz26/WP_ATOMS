@@ -11,6 +11,7 @@ import {
   RightOutlined,
   SettingOutlined,
   ExperimentOutlined,
+  FileTextOutlined,
 } from '@ant-design/icons'
 import type { AppPage } from '@/App'
 import { version as appVersion } from '../../../package.json'
@@ -22,6 +23,8 @@ interface AppLayoutProps {
   children: React.ReactNode
   activeKey?: string
   breadcrumbLabel?: string
+  breadcrumbItems?: string[]
+  topBarRight?: React.ReactNode
   onNavigate?: (page: AppPage) => void
 }
 
@@ -29,6 +32,8 @@ export default function AppLayout({
   children,
   activeKey = 'customer-contracts',
   breadcrumbLabel = 'Customer Contracts',
+  breadcrumbItems,
+  topBarRight,
   onNavigate,
 }: AppLayoutProps) {
   const [collapsed, setCollapsed] = useState(false)
@@ -135,6 +140,12 @@ export default function AppLayout({
         ]
       : []),
     {
+      key: 'invoice',
+      icon: <FileTextOutlined style={{ fontSize: 16, color: '#595959' }} />,
+      label: 'Invoice',
+      onClick: () => onNavigate?.({ type: 'invoice' }),
+    },
+    {
       key: 'testing',
       icon: <ExperimentOutlined style={{ fontSize: 16, color: '#595959' }} />,
       label: 'Testing',
@@ -236,6 +247,8 @@ export default function AppLayout({
         >
           {activeKey === 'live-tracking' || activeKey === 'live-tracking-legacy' || activeKey === 'live-tracking-testing' || activeKey === 'live-tracking-testing-2' || activeKey === 'tracking-2' ? (
             <EnvironmentOutlined style={{ color: '#1677ff', fontSize: 14 }} />
+          ) : activeKey === 'invoice' ? (
+            <FileTextOutlined style={{ color: '#1677ff', fontSize: 14 }} />
           ) : (
             <TeamOutlined style={{ color: '#1677ff', fontSize: 14 }} />
           )}
@@ -264,9 +277,13 @@ export default function AppLayout({
           }}
         >
           <Text style={{ fontSize: 13, color: '#8c8c8c' }}>
-            / {breadcrumbLabel}
+            {breadcrumbItems
+              ? breadcrumbItems.map((item, i) => (
+                  <span key={i}>{i === 0 ? '/ ' : ' / '}{item}</span>
+                ))
+              : `/ ${breadcrumbLabel}`}
           </Text>
-          <Text style={{ fontSize: 12, color: '#bfbfbf' }}>v{appVersion}</Text>
+          {topBarRight ?? <Text style={{ fontSize: 12, color: '#bfbfbf' }}>v{appVersion}</Text>}
         </div>
 
         <Content style={{ background: '#f5f5f5' }}>{children}</Content>

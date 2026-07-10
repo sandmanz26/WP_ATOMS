@@ -11,6 +11,10 @@ import LiveTrackingTestingPage from '@/components/livetracking/LiveTrackingTesti
 import LiveTrackingTesting2Page from '@/components/livetracking/LiveTrackingTesting2Page'
 import Tracking2Page from '@/components/livetracking/Tracking2Page'
 import TestingPage from '@/components/testing/TestingPage'
+import InvoicePage from '@/components/invoice/InvoicePage'
+import InvoiceDetailPage from '@/components/invoice/InvoiceDetailPage'
+import { Button } from 'antd'
+import { ArrowLeftOutlined } from '@ant-design/icons'
 
 export type AppPage =
   | { type: 'listing' }
@@ -24,6 +28,8 @@ export type AppPage =
   | { type: 'live-tracking-testing-2' }
   | { type: 'tracking-2' }
   | { type: 'testing' }
+  | { type: 'invoice' }
+  | { type: 'invoice-detail'; invoiceId: string }
 
 export default function App() {
   const [page, setPage] = useState<AppPage>({ type: 'live-tracking-testing-2' })
@@ -79,6 +85,36 @@ export default function App() {
     return (
       <AppLayout activeKey="testing" breadcrumbLabel="Testing" onNavigate={navigate}>
         <TestingPage />
+      </AppLayout>
+    )
+  }
+
+  if (page.type === 'invoice') {
+    return (
+      <AppLayout activeKey="invoice" breadcrumbLabel="Invoice" onNavigate={navigate}>
+        <InvoicePage onNavigate={navigate} />
+      </AppLayout>
+    )
+  }
+
+  if (page.type === 'invoice-detail') {
+    return (
+      <AppLayout
+        activeKey="invoice"
+        breadcrumbItems={['Invoice', 'Invoice Detail']}
+        topBarRight={
+          <Button
+            size="small"
+            icon={<ArrowLeftOutlined />}
+            onClick={() => navigate({ type: 'invoice' })}
+            style={{ borderRadius: 6 }}
+          >
+            Return to Invoice
+          </Button>
+        }
+        onNavigate={navigate}
+      >
+        <InvoiceDetailPage invoiceId={page.invoiceId} onBack={() => navigate({ type: 'invoice' })} />
       </AppLayout>
     )
   }
