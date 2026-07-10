@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, Component, type ReactNode } from 'react'
 import { GoogleMap, Marker, Polyline, InfoWindow, TrafficLayer, useJsApiLoader } from '@react-google-maps/api'
-import { Typography, Input, Button, Switch, Tooltip, Select, message, Dropdown, Modal } from 'antd'
+import { Typography, Input, Button, Switch, Tooltip, Select, message, Dropdown, Modal, Popover } from 'antd'
 import {
   SearchOutlined,
   WifiOutlined,
@@ -30,6 +30,7 @@ import {
   SoundOutlined,
   AlertOutlined,
   AppstoreOutlined,
+  FilterOutlined,
 } from '@ant-design/icons'
 import {
   type VehicleStop,
@@ -723,6 +724,45 @@ const CLAIM_BUTTON_STYLE_OPTIONS: { value: ClaimButtonStyle; label: string }[] =
   { value: 'icon', label: 'Icon only' },
 ]
 
+// Version 1 (Denise): claim component on all cards, urgent UI for "immediate
+// attention", calm UI (no flash, outlined) for "at risk" / "stable".
+// Version 2: claim component only on "immediate attention" + "at risk" cards.
+type ClaimCardScope = 'all' | 'at-risk-up'
+
+const CLAIM_CARD_SCOPE_OPTIONS: { value: ClaimCardScope; label: string }[] = [
+  { value: 'all', label: 'All cards (v1)' },
+  { value: 'at-risk-up', label: 'Immed. + At risk (v2)' },
+]
+
+// Feedback idea 1: instead of category accent, use fixed urgency signal —
+// urgent = solid red flash, non-urgent = border-only outlined.
+type ClaimColorMode = 'category' | 'urgency'
+
+const CLAIM_COLOR_MODE_OPTIONS: { value: ClaimColorMode; label: string }[] = [
+  { value: 'category', label: 'Category color' },
+  { value: 'urgency', label: 'Urgency (red/outline)' },
+]
+
+// Feedback idea 2: claim CTA fills card width (current) or is compact/auto-width.
+type ClaimButtonWidth = 'full' | 'compact'
+
+const CLAIM_BUTTON_WIDTH_OPTIONS: { value: ClaimButtonWidth; label: string }[] = [
+  { value: 'full', label: 'Full width' },
+  { value: 'compact', label: 'Compact' },
+]
+
+// Slack chip placement: its own row (current) or inline next to the status badge.
+type SlackPosition = 'row' | 'inline'
+
+const SLACK_POSITION_OPTIONS: { value: SlackPosition; label: string }[] = [
+  { value: 'row', label: 'Row' },
+  { value: 'inline', label: 'Inline (by status)' },
+]
+
+/* ── Additional filter dimensions beyond the KPI/highlight bar ── */
+type FilterDriverStatus = 'all' | 'online' | 'offline'
+type FilterAttention = 'all' | 'unclaimed' | 'mine' | 'others' | 'complete'
+
 // The only "logged in" identity in this sandbox
 const CURRENT_USER = 'Heikke Ekkieh'
 
@@ -742,6 +782,9 @@ interface ClaimBundle {
   overdue: boolean
   notified: boolean
   buttonStyle: ClaimButtonStyle
+  urgent: boolean
+  colorMode: ClaimColorMode
+  buttonWidth: ClaimButtonWidth
   onClaim: () => void
   onRelease: () => void
   onTakeOver: () => void
@@ -760,7 +803,7 @@ interface ClaimBundle {
    "More actions" menu for release/take-over/mark-complete. ── */
 function ClaimControl({ accent, claim, compact }: { accent: string; claim: ClaimBundle; compact?: boolean }) {
   const {
-    claimedBy, actionComplete, overdue, notified, buttonStyle,
+    claimedBy, actionComplete, overdue, notified, buttonStyle, urgent, colorMode, buttonWidth,
     onClaim, onRelease, onTakeOver, onMarkComplete,
     onNotify, onViewGps, onViewSchedule, onSendAnnouncement, onCreateIncident,
   } = claim
@@ -769,6 +812,18 @@ function ClaimControl({ accent, claim, compact }: { accent: string; claim: Claim
   const label = actionComplete ? 'Action complete' : claimedBy ? `Claimed by ${firstName(claimedBy)}` : 'Claim'
   const showIcon = buttonStyle !== 'text'
   const showText = buttonStyle !== 'icon'
+  // Color logic: urgency mode ignores accent and uses fixed red/outlined;
+  // category mode = current behavior (accent from category).
+  const btnBg = colorMode === 'urgency'
+    ? (urgent ? '#ff4d4f' : 'transparent')
+    : (urgent ? accent : 'transparent')
+  const btnColor = colorMode === 'urgency'
+    ? (urgent ? '#fff' : accent)
+    : (urgent ? '#fff' : accent)
+  const btnBorder = colorMode === 'urgency'
+    ? (urgent ? '#ff4d4f' : accent)
+    : accent
+  const isFullWidth = buttonWidth === 'full'
 
   // Order follows biz req 2.3's "More actions" list verbatim
   const items = [
@@ -809,19 +864,19 @@ function ClaimControl({ accent, claim, compact }: { accent: string; claim: Claim
   ) : (
     <Button
       size="small"
-      className="claim-flash"
+      className={urgent ? 'claim-flash' : undefined}
       icon={showIcon ? <CheckOutlined style={{ fontSize: 10 }} /> : undefined}
       onClick={onClaim}
       style={{
-        flex: compact ? undefined : 1,
-        width: compact ? '100%' : undefined,
+        flex: (!compact && isFullWidth) ? 1 : undefined,
+        width: (compact || !isFullWidth) ? undefined : undefined,
         height: 24,
         fontSize: 11.5,
         fontWeight: 600,
         padding: showText ? undefined : 0,
-        background: accent,
-        color: '#fff',
-        borderColor: accent,
+        background: btnBg,
+        color: btnColor,
+        borderColor: btnBorder,
       }}
     >
       {showText ? 'Claim' : undefined}
@@ -830,7 +885,7 @@ function ClaimControl({ accent, claim, compact }: { accent: string; claim: Claim
 
   return (
     <div style={{ marginTop: compact ? 0 : 8 }} onClick={(e) => e.stopPropagation()}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: !settled && !isFullWidth ? 'flex-end' : undefined }}>
         {!settled && !showText ? <Tooltip title="Claim">{cta}</Tooltip> : cta}
         <Dropdown menu={{ items }} trigger={['click']} placement="bottomRight">
           <Button size="small" icon={<MoreOutlined />} style={{ height: 24, width: 24, padding: 0, flexShrink: 0 }} onClick={(e) => e.stopPropagation()} />
@@ -1336,6 +1391,7 @@ function TwoLevelCardHeader({
   l2Counts,
   onLevel1Change,
   onLevel2Change,
+  rightSlot,
 }: {
   level1: DhLevel1
   level2: DhLevel2 | null
@@ -1343,10 +1399,12 @@ function TwoLevelCardHeader({
   l2Counts: Record<string, number>
   onLevel1Change: (v: DhLevel1) => void
   onLevel2Change: (v: DhLevel2 | null) => void
+  rightSlot?: React.ReactNode
 }) {
   return (
     <>
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', flex: 1 }}>
         {DH_L1_META.map((m) => {
           const active = level1 === m.key
           const Icon = DH_L1_ICON[m.key]
@@ -1383,8 +1441,10 @@ function TwoLevelCardHeader({
           )
         })}
       </div>
+      {rightSlot && <div style={{ flexShrink: 0 }}>{rightSlot}</div>}
+      </div>
       {level1 !== 'stable' && (
-        <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', borderBottom: '1px solid #f0f0f0', marginTop: 12 }}>
+        <div style={{ display: 'flex', gap: 0, flexWrap: 'nowrap', borderBottom: '1px solid #f0f0f0', marginTop: 12 }}>
           {DH_L2_META[level1].map((m) => {
             const active = level2 === m.key
             const count = l2Counts[m.key] ?? 0
@@ -1393,7 +1453,9 @@ function TwoLevelCardHeader({
                 key={m.key}
                 onClick={() => onLevel2Change(active ? null : m.key)}
                 style={{
-                  padding: '8px 2px',
+                  flex: 1,
+                  textAlign: 'center',
+                  padding: '8px 10px',
                   marginBottom: -1,
                   border: 'none',
                   borderBottom: `2px solid ${active ? '#1677ff' : 'transparent'}`,
@@ -1464,6 +1526,9 @@ function DhGridCard({
   onClick,
   onTake,
   innerRef,
+  showDelayText = true,
+  showDriverStatusText = true,
+  slackPosition = 'row',
 }: {
   stop: VehicleStop
   info: DhInfo
@@ -1474,6 +1539,9 @@ function DhGridCard({
   onClick: () => void
   onTake: () => void
   innerRef: (el: HTMLDivElement | null) => void
+  showDelayText?: boolean
+  showDriverStatusText?: boolean
+  slackPosition?: SlackPosition
 }) {
   const accent = info.l1 === 'immediate' ? '#ff4d4f' : info.l1 === 'risk' ? '#faad14' : '#16a34a'
   const baseStatus = deriveStatus(stop)
@@ -1527,6 +1595,11 @@ function DhGridCard({
           </span>
           <ClockCircleOutlined style={{ fontSize: 11, color: '#8c8c8c', flexShrink: 0 }} />
           <Text style={{ fontSize: 11.5, color: '#8c8c8c', whiteSpace: 'nowrap' }}>{formatTimeAmPm(stop.scheduled)}</Text>
+          {slackPosition === 'inline' && (
+            <span style={{ background: slack.bg, color: slack.color, border: `1px solid ${slack.border}`, fontSize: 10.5, fontWeight: 600, padding: '0 6px', borderRadius: 6, whiteSpace: 'nowrap', flexShrink: 0 }}>
+              {info.slackMin > 0 ? `+${info.slackMin}` : info.slackMin}m
+            </span>
+          )}
           <span
             style={{
               marginLeft: 'auto', background: statusStyle.bg, color: statusStyle.color, border: `1px solid ${statusStyle.border}`,
@@ -1539,28 +1612,34 @@ function DhGridCard({
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, minWidth: 0 }}>
           <WifiOutlined style={{ color: stop.online ? '#52c41a' : '#ff4d4f', fontSize: 11.5, flexShrink: 0 }} />
           <Text style={{ fontSize: 12.5, fontWeight: 600, color: '#1a1a1a', minWidth: 0 }} ellipsis>{firstName(stop.driver)}</Text>
-          <Text style={{ fontSize: 10.5, color: stop.online ? '#16a34a' : '#ff4d4f', flexShrink: 0 }}>{stop.online ? 'Online' : 'Offline'}</Text>
+          {showDriverStatusText && (
+            <Text style={{ fontSize: 10.5, color: stop.online ? '#16a34a' : '#ff4d4f', flexShrink: 0 }}>{stop.online ? 'Online' : 'Offline'}</Text>
+          )}
           <Text style={{ fontSize: 11.5, color: '#8c8c8c', marginLeft: 'auto', whiteSpace: 'nowrap', flexShrink: 0 }}>{stop.plate}</Text>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 7, flexWrap: 'wrap' }}>
-          <span style={{ background: slack.bg, color: slack.color, border: `1px solid ${slack.border}`, fontSize: 10.5, fontWeight: 600, padding: '0 7px', borderRadius: 6, whiteSpace: 'nowrap' }}>
-            Slack {info.slackMin > 0 ? `+${info.slackMin}` : info.slackMin} min
-          </span>
-          {showDelays && (
-            <>
-              {(info.currentDelayMin > 0 || info.predictedDelayMin > 0) && (
-                <Text style={{ fontSize: 10.5, color: '#ff4d4f', fontWeight: 600, whiteSpace: 'nowrap' }}>
-                  Cur {info.currentDelayMin > 0 ? `+${info.currentDelayMin}` : `~+${info.predictedDelayMin}`}m
-                </Text>
-              )}
-              {info.nextTripDelayMin > 0 && (
-                <Text style={{ fontSize: 10.5, color: '#d48806', fontWeight: 600, whiteSpace: 'nowrap' }}>
-                  Next +{info.nextTripDelayMin}m
-                </Text>
-              )}
-            </>
-          )}
-        </div>
+        {(slackPosition === 'row' || (showDelays && showDelayText)) && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 7, flexWrap: 'wrap' }}>
+            {slackPosition === 'row' && (
+              <span style={{ background: slack.bg, color: slack.color, border: `1px solid ${slack.border}`, fontSize: 10.5, fontWeight: 600, padding: '0 7px', borderRadius: 6, whiteSpace: 'nowrap' }}>
+                Slack {info.slackMin > 0 ? `+${info.slackMin}` : info.slackMin} min
+              </span>
+            )}
+            {showDelays && showDelayText && (
+              <>
+                {(info.currentDelayMin > 0 || info.predictedDelayMin > 0) && (
+                  <Text style={{ fontSize: 10.5, color: '#ff4d4f', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                    Cur {info.currentDelayMin > 0 ? `+${info.currentDelayMin}` : `~+${info.predictedDelayMin}`}m
+                  </Text>
+                )}
+                {info.nextTripDelayMin > 0 && (
+                  <Text style={{ fontSize: 10.5, color: '#d48806', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                    Next +{info.nextTripDelayMin}m
+                  </Text>
+                )}
+              </>
+            )}
+          </div>
+        )}
         {showAction && (claim ? <ClaimControl accent={accent} claim={claim} /> : urgent && !handled && (
           <Button
             size="small"
@@ -1961,6 +2040,18 @@ function DisplaySettingsPanel({
   onActionModelChange,
   claimButtonStyle,
   onClaimButtonStyleChange,
+  claimCardScope,
+  onClaimCardScopeChange,
+  claimColorMode,
+  onClaimColorModeChange,
+  claimButtonWidth,
+  onClaimButtonWidthChange,
+  showDelayText,
+  onShowDelayTextChange,
+  showDriverStatusText,
+  onShowDriverStatusTextChange,
+  slackPosition,
+  onSlackPositionChange,
   showNeedsAttention,
   onShowNeedsAttentionChange,
   showRoutes,
@@ -1996,6 +2087,18 @@ function DisplaySettingsPanel({
   onActionModelChange: (v: ActionModel) => void
   claimButtonStyle: ClaimButtonStyle
   onClaimButtonStyleChange: (v: ClaimButtonStyle) => void
+  claimCardScope: ClaimCardScope
+  onClaimCardScopeChange: (v: ClaimCardScope) => void
+  claimColorMode: ClaimColorMode
+  onClaimColorModeChange: (v: ClaimColorMode) => void
+  claimButtonWidth: ClaimButtonWidth
+  onClaimButtonWidthChange: (v: ClaimButtonWidth) => void
+  showDelayText: boolean
+  onShowDelayTextChange: (v: boolean) => void
+  showDriverStatusText: boolean
+  onShowDriverStatusTextChange: (v: boolean) => void
+  slackPosition: SlackPosition
+  onSlackPositionChange: (v: SlackPosition) => void
   showNeedsAttention: boolean
   onShowNeedsAttentionChange: (v: boolean) => void
   showRoutes: boolean
@@ -2086,6 +2189,49 @@ function DisplaySettingsPanel({
             style={{ width: 104 }}
             dropdownStyle={{ zIndex: 2100 }}
           />
+        </SettingRow>
+        <SettingRow label="Claim on cards">
+          <Select
+            size="small"
+            value={claimCardScope}
+            onChange={onClaimCardScopeChange}
+            options={CLAIM_CARD_SCOPE_OPTIONS}
+            disabled={actionModel !== 'claim'}
+            style={{ width: 104 }}
+            dropdownStyle={{ zIndex: 2100 }}
+          />
+        </SettingRow>
+        <SettingRow label="Claim color">
+          <Select
+            size="small"
+            value={claimColorMode}
+            onChange={onClaimColorModeChange}
+            options={CLAIM_COLOR_MODE_OPTIONS}
+            disabled={actionModel !== 'claim'}
+            style={{ width: 104 }}
+            dropdownStyle={{ zIndex: 2100 }}
+          />
+        </SettingRow>
+        <SettingRow label="Claim btn width">
+          <Select
+            size="small"
+            value={claimButtonWidth}
+            onChange={onClaimButtonWidthChange}
+            options={CLAIM_BUTTON_WIDTH_OPTIONS}
+            disabled={actionModel !== 'claim'}
+            style={{ width: 104 }}
+            dropdownStyle={{ zIndex: 2100 }}
+          />
+        </SettingRow>
+        <div style={{ height: 1, background: '#f0f0f0' }} />
+        <SettingRow label="Slack position">
+          <Select size="small" value={slackPosition} onChange={onSlackPositionChange} options={SLACK_POSITION_OPTIONS} style={{ width: 104 }} dropdownStyle={{ zIndex: 2100 }} />
+        </SettingRow>
+        <SettingRow label="Show delay text">
+          <Switch size="small" checked={showDelayText} onChange={onShowDelayTextChange} />
+        </SettingRow>
+        <SettingRow label="Driver status text">
+          <Switch size="small" checked={showDriverStatusText} onChange={onShowDriverStatusTextChange} />
         </SettingRow>
         <div style={{ height: 1, background: '#f0f0f0' }} />
         <SettingRow label="Show needs attention">
@@ -2198,6 +2344,15 @@ export default function LiveTrackingTesting2Page() {
   const [actionPlacement, setActionPlacement] = useState<ActionPlacement>('card')
   const [actionModel, setActionModel] = useState<ActionModel>('take-it')
   const [claimButtonStyle, setClaimButtonStyle] = useState<ClaimButtonStyle>('text')
+  const [claimCardScope, setClaimCardScope] = useState<ClaimCardScope>('all')
+  const [claimColorMode, setClaimColorMode] = useState<ClaimColorMode>('category')
+  const [claimButtonWidth, setClaimButtonWidth] = useState<ClaimButtonWidth>('full')
+  const [showDelayText, setShowDelayText] = useState(true)
+  const [showDriverStatusText, setShowDriverStatusText] = useState(true)
+  const [slackPosition, setSlackPosition] = useState<SlackPosition>('row')
+  const [filterDriverStatus, setFilterDriverStatus] = useState<FilterDriverStatus>('all')
+  const [filterAttention, setFilterAttention] = useState<FilterAttention>('all')
+  const [filterPopoverOpen, setFilterPopoverOpen] = useState(false)
   const [handledIds, setHandledIds] = useState<Set<string>>(new Set())
   const [notifiedIds, setNotifiedIds] = useState<Set<string>>(new Set())
   // Claim workflow — who claimed each trip and which ones are wrapped up.
@@ -2308,6 +2463,18 @@ export default function LiveTrackingTesting2Page() {
     } else if (!kpiMatch(s, filter)) {
       return false
     }
+    // Driver status filter
+    if (filterDriverStatus === 'online' && !s.online) return false
+    if (filterDriverStatus === 'offline' && s.online) return false
+    // Ops attention filter (only meaningful when action model = claim)
+    if (filterAttention !== 'all') {
+      const isClaimed = !!claimedBy[s.id]
+      const isComplete = actionCompleteIds.has(s.id)
+      if (filterAttention === 'unclaimed' && (isClaimed || isComplete)) return false
+      if (filterAttention === 'mine' && claimedBy[s.id] !== CURRENT_USER) return false
+      if (filterAttention === 'others' && (claimedBy[s.id] === CURRENT_USER || !isClaimed || isComplete)) return false
+      if (filterAttention === 'complete' && !isComplete) return false
+    }
     if (search.trim()) {
       const q = search.toLowerCase()
       if (
@@ -2392,6 +2559,8 @@ export default function LiveTrackingTesting2Page() {
   const clearFilters = () => {
     setFilter('all')
     setSearch('')
+    setFilterDriverStatus('all')
+    setFilterAttention('all')
   }
 
   // Accordion cards only toggle their own inline expansion — no docked
@@ -2425,12 +2594,16 @@ export default function LiveTrackingTesting2Page() {
   // that's sat unclaimed-or-unresolved reads as overdue.
   const claimBundle = (stop: VehicleStop): ClaimBundle => {
     const complete = actionCompleteIds.has(stop.id)
+    const l1 = dhById[stop.id]?.l1 ?? 'stable'
     return {
       claimedBy: claimedBy[stop.id],
       actionComplete: complete,
       overdue: !complete && isUrgent(stop) && dhHash(stop.id) % 4 === 0,
       notified: !!stop.notified,
       buttonStyle: claimButtonStyle,
+      urgent: l1 === 'immediate',
+      colorMode: claimColorMode,
+      buttonWidth: claimButtonWidth,
       onClaim: () => claimTrip(stop.id),
       onRelease: () => releaseTrip(stop.id),
       onTakeOver: () => takeOverTrip(stop.id),
@@ -2444,7 +2617,9 @@ export default function LiveTrackingTesting2Page() {
   }
 
   const renderCard = (stop: VehicleStop) => {
-    const claim = actionModel === 'claim' ? claimBundle(stop) : undefined
+    const claimLevel = dhById[stop.id]?.l1 ?? 'stable'
+    const scopeAllows = claimCardScope === 'all' || claimLevel !== 'stable'
+    const claim = actionModel === 'claim' && scopeAllows ? claimBundle(stop) : undefined
     if (isTwoLevel) {
       return (
         <DhGridCard
@@ -2458,6 +2633,9 @@ export default function LiveTrackingTesting2Page() {
           onClick={() => openCard(stop.id)}
           onTake={() => markHandled(stop.id)}
           innerRef={(el) => { cardRefs.current[stop.id] = el }}
+          showDelayText={showDelayText}
+          showDriverStatusText={showDriverStatusText}
+          slackPosition={slackPosition}
         />
       )
     }
@@ -2501,6 +2679,84 @@ export default function LiveTrackingTesting2Page() {
     )
   }
 
+  const activeFilterCount = (filterDriverStatus !== 'all' ? 1 : 0) + (filterAttention !== 'all' ? 1 : 0)
+
+  const filterPopoverContent = (
+    <div style={{ width: 210 }}>
+      <div style={{ marginBottom: 12 }}>
+        <Text style={{ fontSize: 11, fontWeight: 700, color: '#8c8c8c', display: 'block', marginBottom: 6, letterSpacing: 0.5 }}>DRIVER STATUS</Text>
+        <div style={{ display: 'flex', gap: 4 }}>
+          {([['all', 'All'], ['online', 'Online'], ['offline', 'Offline']] as [FilterDriverStatus, string][]).map(([v, l]) => (
+            <button
+              key={v}
+              onClick={() => setFilterDriverStatus(v)}
+              style={{
+                flex: 1, padding: '4px 6px', borderRadius: 6, cursor: 'pointer', fontSize: 12,
+                border: `1px solid ${filterDriverStatus === v ? '#1677ff' : '#e8e8e8'}`,
+                background: filterDriverStatus === v ? '#e6f4ff' : '#fff',
+                color: filterDriverStatus === v ? '#1677ff' : '#595959',
+                fontWeight: filterDriverStatus === v ? 600 : 400,
+                transition: 'all .12s',
+              }}
+            >{l}</button>
+          ))}
+        </div>
+      </div>
+      <div>
+        <Text style={{ fontSize: 11, fontWeight: 700, color: '#8c8c8c', display: 'block', marginBottom: 6, letterSpacing: 0.5 }}>OPS ATTENTION</Text>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {([
+            ['all', 'All'],
+            ['unclaimed', 'Unclaimed'],
+            ['mine', 'Claimed by me'],
+            ['others', 'Claimed by others'],
+            ['complete', 'Action complete'],
+          ] as [FilterAttention, string][]).map(([v, l]) => (
+            <button
+              key={v}
+              onClick={() => setFilterAttention(v)}
+              style={{
+                width: '100%', padding: '5px 10px', borderRadius: 6, cursor: 'pointer', fontSize: 12, textAlign: 'left',
+                border: `1px solid ${filterAttention === v ? '#1677ff' : '#e8e8e8'}`,
+                background: filterAttention === v ? '#e6f4ff' : '#fff',
+                color: filterAttention === v ? '#1677ff' : '#595959',
+                fontWeight: filterAttention === v ? 600 : 400,
+                transition: 'all .12s',
+              }}
+            >{l}</button>
+          ))}
+        </div>
+      </div>
+      {activeFilterCount > 0 && (
+        <Button size="small" type="link" onClick={() => { setFilterDriverStatus('all'); setFilterAttention('all') }} style={{ marginTop: 10, padding: 0 }}>
+          Clear filters
+        </Button>
+      )}
+    </div>
+  )
+
+  const filterBtn = (
+    <Popover
+      open={filterPopoverOpen}
+      onOpenChange={setFilterPopoverOpen}
+      content={filterPopoverContent}
+      title="Filter"
+      trigger="click"
+      placement="bottomRight"
+    >
+      <Button
+        size="middle"
+        icon={<FilterOutlined />}
+        style={{
+          borderColor: activeFilterCount > 0 ? '#1677ff' : undefined,
+          color: activeFilterCount > 0 ? '#1677ff' : undefined,
+        }}
+      >
+        Filter{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
+      </Button>
+    </Popover>
+  )
+
   return (
     <div style={{ padding: '20px' }}>
       {msgContext}
@@ -2520,17 +2776,6 @@ export default function LiveTrackingTesting2Page() {
         <div style={{ flexShrink: 0 }}>
           {isTwoLevel ? (
             <>
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 10 }}>
-                <Input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
-                  placeholder="Search route, driver, plate..."
-                  style={{ borderRadius: 8, width: 240 }}
-                  allowClear
-                />
-                <Select size="middle" value={sortBy} onChange={setSortBy} options={SORT_OPTIONS} style={{ width: 118 }} />
-              </div>
               {highlightStyle === 'two-level-cards' ? (
                 <TwoLevelCardHeader
                   level1={dhLevel1}
@@ -2539,32 +2784,60 @@ export default function LiveTrackingTesting2Page() {
                   l2Counts={dhL2Counts}
                   onLevel1Change={setDhLevel1}
                   onLevel2Change={setDhLevel2}
+                  rightSlot={
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <Input
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
+                        placeholder="Search route, driver, plate..."
+                        style={{ borderRadius: 8, width: 220 }}
+                        allowClear
+                      />
+                      {filterBtn}
+                      <Select size="middle" value={sortBy} onChange={setSortBy} options={SORT_OPTIONS} style={{ width: 118 }} />
+                    </div>
+                  }
                 />
               ) : (
                 <>
-                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                    {DH_L1_META.map((m) => {
-                      const active = dhLevel1 === m.key
-                      return (
-                        <button
-                          key={m.key}
-                          onClick={() => { setDhLevel1(m.key); setDhLevel2(null) }}
-                          className={m.key === 'immediate' && dhL1Counts.immediate > 0 && !active ? 'tab-urgent-pulse' : undefined}
-                          style={{
-                            padding: '6px 12px', borderRadius: 16, whiteSpace: 'nowrap',
-                            border: `1px solid ${active ? m.color : m.border}`,
-                            background: active ? m.color : m.soft,
-                            color: active ? '#fff' : m.color,
-                            fontSize: 12.5, fontWeight: 600, cursor: 'pointer', transition: 'all .15s',
-                          }}
-                        >
-                          {m.label} ({dhL1Counts[m.key]})
-                        </button>
-                      )
-                    })}
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', flex: 1 }}>
+                      {DH_L1_META.map((m) => {
+                        const active = dhLevel1 === m.key
+                        return (
+                          <button
+                            key={m.key}
+                            onClick={() => { setDhLevel1(m.key); setDhLevel2(null) }}
+                            className={m.key === 'immediate' && dhL1Counts.immediate > 0 && !active ? 'tab-urgent-pulse' : undefined}
+                            style={{
+                              padding: '6px 12px', borderRadius: 16, whiteSpace: 'nowrap',
+                              border: `1px solid ${active ? m.color : m.border}`,
+                              background: active ? m.color : m.soft,
+                              color: active ? '#fff' : m.color,
+                              fontSize: 12.5, fontWeight: 600, cursor: 'pointer', transition: 'all .15s',
+                            }}
+                          >
+                            {m.label} ({dhL1Counts[m.key]})
+                          </button>
+                        )
+                      })}
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
+                      <Input
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
+                        placeholder="Search route, driver, plate..."
+                        style={{ borderRadius: 8, width: 220 }}
+                        allowClear
+                      />
+                      {filterBtn}
+                      <Select size="middle" value={sortBy} onChange={setSortBy} options={SORT_OPTIONS} style={{ width: 118 }} />
+                    </div>
                   </div>
                   {dhLevel1 !== 'stable' && (
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+                    <div style={{ display: 'flex', flexWrap: 'nowrap', gap: 0, marginTop: 8, borderBottom: '1px solid #f0f0f0' }}>
                       {DH_L2_META[dhLevel1].map((m) => {
                         const active = dhLevel2 === m.key
                         const count = dhL2Counts[m.key] ?? 0
@@ -2573,9 +2846,13 @@ export default function LiveTrackingTesting2Page() {
                             key={m.key}
                             onClick={() => setDhLevel2(active ? null : m.key)}
                             style={{
-                              padding: '4px 10px', borderRadius: 6,
-                              border: `1px solid ${active ? '#1677ff' : '#e8e8e8'}`,
-                              background: active ? '#e6f4ff' : '#fff',
+                              flex: 1,
+                              textAlign: 'center',
+                              padding: '6px 8px',
+                              marginBottom: -1,
+                              border: 'none',
+                              borderBottom: `2px solid ${active ? '#1677ff' : 'transparent'}`,
+                              background: 'transparent',
                               color: active ? '#1677ff' : count === 0 ? '#bfbfbf' : '#595959',
                               fontSize: 11.5, fontWeight: active ? 600 : 500, cursor: 'pointer', transition: 'all .15s',
                             }}
@@ -2598,9 +2875,10 @@ export default function LiveTrackingTesting2Page() {
                   onChange={(e) => setSearch(e.target.value)}
                   prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
                   placeholder="Search route, driver, plate..."
-                  style={{ borderRadius: 8, width: 260 }}
+                  style={{ borderRadius: 8, width: 240 }}
                   allowClear
                 />
+                {filterBtn}
                 <Select size="middle" value={sortBy} onChange={setSortBy} options={SORT_OPTIONS} style={{ width: 118 }} />
               </div>
             </div>
@@ -2656,7 +2934,7 @@ export default function LiveTrackingTesting2Page() {
                   markerStyle={markerStyle}
                   mapCardStyle={mapCardStyle}
                   handledIds={handledIds}
-                  claim={actionModel === 'claim' && selectedStop ? claimBundle(selectedStop) : undefined}
+                  claim={actionModel === 'claim' && selectedStop && (claimCardScope === 'all' || (dhById[selectedStop.id]?.l1 ?? 'stable') !== 'stable') ? claimBundle(selectedStop) : undefined}
                   onSelect={(id) => { setSelectedId(id); setDrawerOpen(false) }}
                   onClose={() => setSelectedId(null)}
                   onViewDetail={() => setDrawerOpen(true)}
@@ -2703,7 +2981,7 @@ export default function LiveTrackingTesting2Page() {
               onMarkHandled={() => markHandled(selectedStop.id)}
               urgent={isUrgent(selectedStop)}
               handled={handledIds.has(selectedStop.id)}
-              claim={actionModel === 'claim' ? claimBundle(selectedStop) : undefined}
+              claim={actionModel === 'claim' && (claimCardScope === 'all' || (dhById[selectedStop.id]?.l1 ?? 'stable') !== 'stable') ? claimBundle(selectedStop) : undefined}
             />
           )}
         </div>
@@ -2718,7 +2996,7 @@ export default function LiveTrackingTesting2Page() {
             onMarkHandled={() => markHandled(selectedStop.id)}
             urgent={isUrgent(selectedStop)}
             handled={handledIds.has(selectedStop.id)}
-            claim={actionModel === 'claim' ? claimBundle(selectedStop) : undefined}
+            claim={actionModel === 'claim' && (claimCardScope === 'all' || (dhById[selectedStop.id]?.l1 ?? 'stable') !== 'stable') ? claimBundle(selectedStop) : undefined}
           />
         )}
       </div>
@@ -2735,7 +3013,7 @@ export default function LiveTrackingTesting2Page() {
           onMarkHandled={() => markHandled(selectedStop.id)}
           urgent={isUrgent(selectedStop)}
           handled={handledIds.has(selectedStop.id)}
-          claim={actionModel === 'claim' ? claimBundle(selectedStop) : undefined}
+          claim={actionModel === 'claim' && (claimCardScope === 'all' || (dhById[selectedStop.id]?.l1 ?? 'stable') !== 'stable') ? claimBundle(selectedStop) : undefined}
         />
       )}
 
@@ -2767,6 +3045,18 @@ export default function LiveTrackingTesting2Page() {
           onActionModelChange={setActionModel}
           claimButtonStyle={claimButtonStyle}
           onClaimButtonStyleChange={setClaimButtonStyle}
+          claimCardScope={claimCardScope}
+          onClaimCardScopeChange={setClaimCardScope}
+          claimColorMode={claimColorMode}
+          onClaimColorModeChange={setClaimColorMode}
+          claimButtonWidth={claimButtonWidth}
+          onClaimButtonWidthChange={setClaimButtonWidth}
+          showDelayText={showDelayText}
+          onShowDelayTextChange={setShowDelayText}
+          showDriverStatusText={showDriverStatusText}
+          onShowDriverStatusTextChange={setShowDriverStatusText}
+          slackPosition={slackPosition}
+          onSlackPositionChange={setSlackPosition}
           showNeedsAttention={showNeedsAttention}
           onShowNeedsAttentionChange={setShowNeedsAttention}
           showRoutes={showRoutes}
