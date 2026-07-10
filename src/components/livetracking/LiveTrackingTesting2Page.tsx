@@ -1630,13 +1630,51 @@ interface TwoLevelHeaderProps {
   l2Spacing?: L2Spacing
 }
 
-// Shared L2 chip row used by banner, stats, badge, progress variants
-function TwoLevelL2Chips({ level1, level2, l2Counts, onLevel2Change, l2Spacing = 12 }: {
+// Shared L2 chip row used by all two-level header variants.
+// flushLeft=true: chips take natural width, left-aligned (pill style).
+// flushLeft=false (default): chips stretch equally across full width (underline-tab style).
+function TwoLevelL2Chips({ level1, level2, l2Counts, onLevel2Change, l2Spacing = 12, flushLeft = false }: {
   level1: DhLevel1; level2: DhLevel2 | null
   l2Counts: Record<string, number>; onLevel2Change: (v: DhLevel2 | null) => void
   l2Spacing?: L2Spacing
+  flushLeft?: boolean
 }) {
   if (level1 === 'stable') return null
+  if (flushLeft) {
+    return (
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: l2Spacing }}>
+        {DH_L2_META[level1].map((m) => {
+          const active = level2 === m.key
+          const count = l2Counts[m.key] ?? 0
+          return (
+            <button
+              key={m.key}
+              onClick={() => onLevel2Change(active ? null : m.key)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 5,
+                padding: '4px 10px', borderRadius: 16,
+                border: `1px solid ${active ? '#1677ff' : '#e8e8e8'}`,
+                background: active ? '#e6f4ff' : '#fafafa',
+                color: active ? '#1677ff' : count === 0 ? '#bfbfbf' : '#595959',
+                fontSize: 11.5, fontWeight: active ? 500 : 400, cursor: 'pointer', transition: 'all .15s',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {m.short}
+              <span style={{
+                minWidth: 17, height: 17, borderRadius: 9, padding: '0 4px',
+                background: active ? '#1677ff' : '#ebebeb',
+                color: active ? '#fff' : count === 0 ? '#bfbfbf' : '#595959',
+                fontSize: 10, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                {count}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+    )
+  }
   return (
     <div style={{ display: 'flex', gap: 0, flexWrap: 'nowrap', marginTop: l2Spacing, borderBottom: '1px solid #f0f0f0' }}>
       {DH_L2_META[level1].map((m) => {
@@ -1659,7 +1697,7 @@ function TwoLevelL2Chips({ level1, level2, l2Counts, onLevel2Change, l2Spacing =
             {m.short}
             <span style={{
               minWidth: 18, height: 18, borderRadius: 9, padding: '0 5px',
-              background: active ? '#1677ff' : count === 0 ? '#f0f0f0' : '#f0f0f0',
+              background: active ? '#1677ff' : '#f0f0f0',
               color: active ? '#fff' : count === 0 ? '#bfbfbf' : '#595959',
               fontSize: 10, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
             }}>
@@ -1894,7 +1932,7 @@ function TwoLevelInlineHeader({ level1, level2, l1Counts, l2Counts, onLevel1Chan
         </div>
         <div style={{ marginLeft: 'auto', flexShrink: 0 }}>{rightSlot}</div>
       </div>
-      <TwoLevelL2Chips level1={level1} level2={level2} l2Counts={l2Counts} onLevel2Change={onLevel2Change} l2Spacing={l2Spacing} />
+      <TwoLevelL2Chips level1={level1} level2={level2} l2Counts={l2Counts} onLevel2Change={onLevel2Change} l2Spacing={l2Spacing} flushLeft />
     </>
   )
 }
@@ -1933,7 +1971,7 @@ function TwoLevelPanelHeader({ level1, level2, l1Counts, l2Counts, onLevel1Chang
         </div>
         <div style={{ marginLeft: 'auto', flexShrink: 0 }}>{rightSlot}</div>
       </div>
-      <TwoLevelL2Chips level1={level1} level2={level2} l2Counts={l2Counts} onLevel2Change={onLevel2Change} l2Spacing={l2Spacing} />
+      <TwoLevelL2Chips level1={level1} level2={level2} l2Counts={l2Counts} onLevel2Change={onLevel2Change} l2Spacing={l2Spacing} flushLeft />
     </>
   )
 }
@@ -1970,7 +2008,7 @@ function TwoLevelMetroHeader({ level1, level2, l1Counts, l2Counts, onLevel1Chang
         </div>
         <div style={{ marginLeft: 'auto', flexShrink: 0 }}>{rightSlot}</div>
       </div>
-      <TwoLevelL2Chips level1={level1} level2={level2} l2Counts={l2Counts} onLevel2Change={onLevel2Change} l2Spacing={l2Spacing} />
+      <TwoLevelL2Chips level1={level1} level2={level2} l2Counts={l2Counts} onLevel2Change={onLevel2Change} l2Spacing={l2Spacing} flushLeft />
     </>
   )
 }
