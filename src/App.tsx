@@ -26,7 +26,7 @@ export type AppPage =
   | { type: 'testing' }
 
 export default function App() {
-  const [page, setPage] = useState<AppPage>({ type: 'listing' })
+  const [page, setPage] = useState<AppPage>({ type: 'live-tracking-testing-2' })
   const navigate = (p: AppPage) => setPage(p)
   const goBack = () => setPage({ type: 'listing' })
 
