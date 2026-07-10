@@ -2554,7 +2554,7 @@ function DisplaySettingsPanel({
           </>
         )}
         <SettingRow label="Highlight style">
-          <Select size="small" value={highlightStyle} onChange={onHighlightStyleChange} options={HIGHLIGHT_STYLE_OPTIONS} style={{ width: 104 }} dropdownStyle={{ zIndex: 2100 }} />
+          <Select size="small" value={highlightStyle} onChange={onHighlightStyleChange} options={HIGHLIGHT_STYLE_OPTIONS.filter(o => o.value.startsWith('two-level'))} style={{ width: 104 }} dropdownStyle={{ zIndex: 2100 }} />
         </SettingRow>
         <SettingRow label="Marker style">
           <Select size="small" value={markerStyle} onChange={onMarkerStyleChange} options={MARKER_STYLE_OPTIONS} style={{ width: 104 }} dropdownStyle={{ zIndex: 2100 }} />
@@ -2760,7 +2760,7 @@ export default function LiveTrackingTesting2Page() {
   const [mapCardStyle, setMapCardStyle] = useState<MapCardStyle>('default')
   const [mapPosition, setMapPosition] = useState<MapPosition>('right')
   const [listMapRatio, setListMapRatio] = useState<ListMapRatio>('60:40')
-  const [highlightStyle, setHighlightStyle] = useState<HighlightStyle>('default')
+  const [highlightStyle, setHighlightStyle] = useState<HighlightStyle>('two-level-cards')
   const [showNeedsAttention, setShowNeedsAttention] = useState(true)
   // "2 Levels" is one of the Highlight style options — not a separate toggle
   const isTwoLevel = highlightStyle.startsWith('two-level')
