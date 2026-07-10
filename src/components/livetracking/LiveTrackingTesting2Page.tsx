@@ -346,7 +346,7 @@ function kpiMatch(stop: VehicleStop, key: KpiKey): boolean {
    "2 Levels" visuals for the Immediate attention/At risk/Stable system —
    Pills (rounded chips, same as the level-1 style used elsewhere) or Cards
    (dashboard-tile level 1 with an icon badge, underline tabs for level 2). ── */
-type HighlightStyle = 'default' | 'segment' | 'color' | 'two-level' | 'two-level-cards'
+type HighlightStyle = 'default' | 'segment' | 'color' | 'two-level' | 'two-level-cards' | 'two-level-minimal'
 
 const HIGHLIGHT_STYLE_OPTIONS: { value: HighlightStyle; label: string }[] = [
   { value: 'default', label: 'Default' },
@@ -354,6 +354,7 @@ const HIGHLIGHT_STYLE_OPTIONS: { value: HighlightStyle; label: string }[] = [
   { value: 'color', label: 'Color' },
   { value: 'two-level', label: '2 Levels (Pills)' },
   { value: 'two-level-cards', label: '2 Levels (Cards)' },
+  { value: 'two-level-minimal', label: '2 Levels (Minimal)' },
 ]
 
 function KpiBar({
@@ -362,7 +363,7 @@ function KpiBar({
   counts,
   onSelect,
 }: {
-  style: Exclude<HighlightStyle, 'two-level' | 'two-level-cards'>
+  style: Exclude<HighlightStyle, 'two-level' | 'two-level-cards' | 'two-level-minimal'>
   active: KpiKey
   counts: Record<KpiKey, number>
   onSelect: (k: KpiKey) => void
@@ -757,6 +758,16 @@ type SlackPosition = 'row' | 'inline'
 const SLACK_POSITION_OPTIONS: { value: SlackPosition; label: string }[] = [
   { value: 'row', label: 'Row' },
   { value: 'inline', label: 'Inline (by status)' },
+]
+
+// Card style that applies specifically when a 2-level highlight is active.
+// The regular Card style only affects TripGridCard (not DhGridCard), so 2-level
+// mode gets its own density selector to avoid a dead control in the panel.
+type DhCardStyle = 'standard' | 'compact'
+
+const DH_CARD_STYLE_OPTIONS: { value: DhCardStyle; label: string }[] = [
+  { value: 'standard', label: 'Standard' },
+  { value: 'compact', label: 'Compact' },
 ]
 
 /* ── Additional filter dimensions beyond the KPI/highlight bar ── */
@@ -1404,7 +1415,7 @@ function TwoLevelCardHeader({
   return (
     <>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', flex: 1 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, flex: 1 }}>
         {DH_L1_META.map((m) => {
           const active = level1 === m.key
           const Icon = DH_L1_ICON[m.key]
@@ -1420,7 +1431,6 @@ function TwoLevelCardHeader({
                 gap: 10,
                 padding: '8px 14px 8px 8px',
                 borderRadius: 10,
-                minWidth: 158,
                 border: `1.5px solid ${active ? m.color : '#f0f0f0'}`,
                 background: active ? m.soft : '#fff',
                 cursor: 'pointer',
@@ -1466,6 +1476,98 @@ function TwoLevelCardHeader({
                   cursor: 'pointer',
                   whiteSpace: 'nowrap',
                   transition: 'all .15s',
+                }}
+              >
+                {m.label} ({count})
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </>
+  )
+}
+
+/* ── Minimalist two-level header — no colored icon tiles, just a thin
+   underline-tab row for L1 and compact chips for L2. Lighter visual weight
+   than TwoLevelCardHeader, works better when screen space is tight. ── */
+function TwoLevelMinimalHeader({
+  level1,
+  level2,
+  l1Counts,
+  l2Counts,
+  onLevel1Change,
+  onLevel2Change,
+  rightSlot,
+}: {
+  level1: DhLevel1
+  level2: DhLevel2 | null
+  l1Counts: Record<DhLevel1, number>
+  l2Counts: Record<string, number>
+  onLevel1Change: (v: DhLevel1) => void
+  onLevel2Change: (v: DhLevel2 | null) => void
+  rightSlot?: React.ReactNode
+}) {
+  return (
+    <>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, borderBottom: '1px solid #f0f0f0' }}>
+        <div style={{ display: 'flex', flex: 1 }}>
+          {DH_L1_META.map((m) => {
+            const active = level1 === m.key
+            const hot = m.key === 'immediate' && l1Counts.immediate > 0
+            return (
+              <button
+                key={m.key}
+                onClick={() => { onLevel1Change(m.key); onLevel2Change(null) }}
+                className={hot && !active ? 'tab-urgent-pulse' : undefined}
+                style={{
+                  flex: 1,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 2,
+                  padding: '10px 8px 10px',
+                  marginBottom: -1,
+                  border: 'none',
+                  borderBottom: `2px solid ${active ? m.color : 'transparent'}`,
+                  background: active ? m.soft : 'transparent',
+                  cursor: 'pointer',
+                  transition: 'all .15s',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <span style={{ width: 7, height: 7, borderRadius: '50%', background: m.color, flexShrink: 0 }} />
+                  <Text style={{ fontSize: 20, fontWeight: 700, color: active ? m.color : '#1a1a1a', lineHeight: 1 }}>
+                    {l1Counts[m.key]}
+                  </Text>
+                </div>
+                <Text style={{ fontSize: 11, color: active ? m.color : '#8c8c8c', whiteSpace: 'nowrap' }}>
+                  {m.label}
+                </Text>
+              </button>
+            )
+          })}
+        </div>
+        {rightSlot && <div style={{ flexShrink: 0, paddingBottom: 6 }}>{rightSlot}</div>}
+      </div>
+      {level1 !== 'stable' && (
+        <div style={{ display: 'flex', flexWrap: 'nowrap', gap: 6, marginTop: 8 }}>
+          {DH_L2_META[level1].map((m) => {
+            const active = level2 === m.key
+            const count = l2Counts[m.key] ?? 0
+            return (
+              <button
+                key={m.key}
+                onClick={() => onLevel2Change(active ? null : m.key)}
+                style={{
+                  flex: 1,
+                  textAlign: 'center',
+                  padding: '4px 8px',
+                  borderRadius: 6,
+                  border: `1px solid ${active ? '#1677ff' : '#e8e8e8'}`,
+                  background: active ? '#e6f4ff' : '#fafafa',
+                  color: active ? '#1677ff' : count === 0 ? '#bfbfbf' : '#595959',
+                  fontSize: 11.5, fontWeight: active ? 600 : 400, cursor: 'pointer', transition: 'all .15s',
                 }}
               >
                 {m.label} ({count})
@@ -2022,6 +2124,9 @@ function DisplaySettingsPanel({
   cardStyle,
   onCardStyleChange,
   onOpenGallery,
+  isTwoLevel,
+  dhCardStyle,
+  onDhCardStyleChange,
   highlightStyle,
   onHighlightStyleChange,
   markerStyle,
@@ -2069,6 +2174,9 @@ function DisplaySettingsPanel({
   cardStyle: CardStyle
   onCardStyleChange: (v: CardStyle) => void
   onOpenGallery: () => void
+  isTwoLevel: boolean
+  dhCardStyle: DhCardStyle
+  onDhCardStyleChange: (v: DhCardStyle) => void
   highlightStyle: HighlightStyle
   onHighlightStyleChange: (v: HighlightStyle) => void
   markerStyle: MarkerStyle
@@ -2148,12 +2256,20 @@ function DisplaySettingsPanel({
         <SettingRow label="Map theme">
           <Select size="small" value={mapTheme} onChange={onMapThemeChange} options={MAP_THEME_OPTIONS} style={{ width: 104 }} dropdownStyle={{ zIndex: 2100 }} />
         </SettingRow>
-        <SettingRow label="Card style">
-          <Select size="small" value={cardStyle} onChange={onCardStyleChange} options={CARD_STYLE_OPTIONS} style={{ width: 104 }} dropdownStyle={{ zIndex: 2100 }} />
-        </SettingRow>
-        <Button size="small" icon={<AppstoreOutlined />} onClick={onOpenGallery} block>
-          Browse card gallery
-        </Button>
+        {isTwoLevel ? (
+          <SettingRow label="2L card style">
+            <Select size="small" value={dhCardStyle} onChange={onDhCardStyleChange} options={DH_CARD_STYLE_OPTIONS} style={{ width: 104 }} dropdownStyle={{ zIndex: 2100 }} />
+          </SettingRow>
+        ) : (
+          <>
+            <SettingRow label="Card style">
+              <Select size="small" value={cardStyle} onChange={onCardStyleChange} options={CARD_STYLE_OPTIONS} style={{ width: 104 }} dropdownStyle={{ zIndex: 2100 }} />
+            </SettingRow>
+            <Button size="small" icon={<AppstoreOutlined />} onClick={onOpenGallery} block>
+              Browse card gallery
+            </Button>
+          </>
+        )}
         <SettingRow label="Highlight style">
           <Select size="small" value={highlightStyle} onChange={onHighlightStyleChange} options={HIGHLIGHT_STYLE_OPTIONS} style={{ width: 104 }} dropdownStyle={{ zIndex: 2100 }} />
         </SettingRow>
@@ -2345,6 +2461,7 @@ export default function LiveTrackingTesting2Page() {
   const [actionModel, setActionModel] = useState<ActionModel>('take-it')
   const [claimButtonStyle, setClaimButtonStyle] = useState<ClaimButtonStyle>('text')
   const [claimCardScope, setClaimCardScope] = useState<ClaimCardScope>('all')
+  const [dhCardStyle, setDhCardStyle] = useState<DhCardStyle>('standard')
   const [claimColorMode, setClaimColorMode] = useState<ClaimColorMode>('category')
   const [claimButtonWidth, setClaimButtonWidth] = useState<ClaimButtonWidth>('full')
   const [showDelayText, setShowDelayText] = useState(true)
@@ -2378,7 +2495,7 @@ export default function LiveTrackingTesting2Page() {
   const [highlightStyle, setHighlightStyle] = useState<HighlightStyle>('default')
   const [showNeedsAttention, setShowNeedsAttention] = useState(true)
   // "2 Levels" is one of the Highlight style options — not a separate toggle
-  const isTwoLevel = highlightStyle === 'two-level' || highlightStyle === 'two-level-cards'
+  const isTwoLevel = highlightStyle === 'two-level' || highlightStyle === 'two-level-cards' || highlightStyle === 'two-level-minimal'
   const [dhLevel1, setDhLevel1] = useState<DhLevel1>('immediate')
   const [dhLevel2, setDhLevel2] = useState<DhLevel2 | null>('cur-first')
   const [showRoutes, setShowRoutes] = useState(true)
@@ -2621,6 +2738,8 @@ export default function LiveTrackingTesting2Page() {
     const scopeAllows = claimCardScope === 'all' || claimLevel !== 'stable'
     const claim = actionModel === 'claim' && scopeAllows ? claimBundle(stop) : undefined
     if (isTwoLevel) {
+      // Compact preset: slack inline, hide delay text + driver status text label
+      const dhCompact = dhCardStyle === 'compact'
       return (
         <DhGridCard
           key={stop.id}
@@ -2633,9 +2752,9 @@ export default function LiveTrackingTesting2Page() {
           onClick={() => openCard(stop.id)}
           onTake={() => markHandled(stop.id)}
           innerRef={(el) => { cardRefs.current[stop.id] = el }}
-          showDelayText={showDelayText}
-          showDriverStatusText={showDriverStatusText}
-          slackPosition={slackPosition}
+          showDelayText={dhCompact ? false : showDelayText}
+          showDriverStatusText={dhCompact ? false : showDriverStatusText}
+          slackPosition={dhCompact ? 'inline' : slackPosition}
         />
       )
     }
@@ -2778,6 +2897,29 @@ export default function LiveTrackingTesting2Page() {
             <>
               {highlightStyle === 'two-level-cards' ? (
                 <TwoLevelCardHeader
+                  level1={dhLevel1}
+                  level2={dhLevel2}
+                  l1Counts={dhL1Counts}
+                  l2Counts={dhL2Counts}
+                  onLevel1Change={setDhLevel1}
+                  onLevel2Change={setDhLevel2}
+                  rightSlot={
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <Input
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
+                        placeholder="Search route, driver, plate..."
+                        style={{ borderRadius: 8, width: 220 }}
+                        allowClear
+                      />
+                      {filterBtn}
+                      <Select size="middle" value={sortBy} onChange={setSortBy} options={SORT_OPTIONS} style={{ width: 118 }} />
+                    </div>
+                  }
+                />
+              ) : highlightStyle === 'two-level-minimal' ? (
+                <TwoLevelMinimalHeader
                   level1={dhLevel1}
                   level2={dhLevel2}
                   l1Counts={dhL1Counts}
@@ -3027,6 +3169,9 @@ export default function LiveTrackingTesting2Page() {
           cardStyle={cardStyle}
           onCardStyleChange={setCardStyle}
           onOpenGallery={() => setGalleryOpen(true)}
+          isTwoLevel={isTwoLevel}
+          dhCardStyle={dhCardStyle}
+          onDhCardStyleChange={setDhCardStyle}
           highlightStyle={highlightStyle}
           onHighlightStyleChange={setHighlightStyle}
           markerStyle={markerStyle}
