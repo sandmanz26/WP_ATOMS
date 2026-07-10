@@ -2092,7 +2092,6 @@ function DhGridCard({
         : { color: STATUS_STYLE[baseStatus].color, bg: STATUS_STYLE[baseStatus].bg, border: STATUS_STYLE[baseStatus].border }
   const slack = slackChipColors(info.slackMin)
   const showDelays = info.l1 !== 'stable'
-  const badgeName = claim ? (claim.claimedBy ?? (claim.actionComplete ? CURRENT_USER : undefined)) : handled ? CURRENT_USER : undefined
   return (
     <div
       ref={innerRef}
@@ -2101,7 +2100,6 @@ function DhGridCard({
       onClick={onClick}
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClick() }}
       style={{
-        position: 'relative',
         display: 'flex',
         background: selected ? '#e6f4ff' : '#fff',
         border: `1px solid ${selected ? '#1677ff' : '#f0f0f0'}`,
@@ -2111,21 +2109,8 @@ function DhGridCard({
         minWidth: 0,
       }}
     >
-      {badgeName && (
-        <div
-          title={`Taken by ${badgeName}`}
-          style={{
-            position: 'absolute', top: 5, right: 5, width: 18, height: 18, borderRadius: '50%',
-            background: '#597ef7', color: '#fff', fontSize: 8.5, fontWeight: 700,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            border: '1.5px solid #fff', boxShadow: '0 1px 3px rgba(0,0,0,.25)', zIndex: 1,
-          }}
-        >
-          {initialsOf(badgeName)}
-        </div>
-      )}
       <div style={{ flex: 1, minWidth: 0, padding: '9px 11px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, paddingRight: badgeName ? 20 : 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
           <span style={{ background: '#e6f4ff', color: '#1677ff', fontSize: 11.5, fontWeight: 600, padding: '0 7px', borderRadius: 4, whiteSpace: 'nowrap', flexShrink: 0, maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {stop.label}
           </span>
