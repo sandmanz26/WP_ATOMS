@@ -770,11 +770,14 @@ const SLACK_POSITION_OPTIONS: { value: SlackPosition; label: string }[] = [
 // Card style that applies specifically when a 2-level highlight is active.
 // The regular Card style only affects TripGridCard (not DhGridCard), so 2-level
 // mode gets its own density selector to avoid a dead control in the panel.
-type DhCardStyle = 'standard' | 'compact'
+type DhCardStyle = 'standard' | 'info' | 'compact' | 'minimal' | 'slim'
 
 const DH_CARD_STYLE_OPTIONS: { value: DhCardStyle; label: string }[] = [
   { value: 'standard', label: 'Standard' },
+  { value: 'info', label: 'Info' },
   { value: 'compact', label: 'Compact' },
+  { value: 'minimal', label: 'Minimal' },
+  { value: 'slim', label: 'Slim' },
 ]
 
 /* ── Additional filter dimensions beyond the KPI/highlight bar ── */
@@ -2497,7 +2500,7 @@ function DisplaySettingsPanel({
         </SettingRow>
         {isTwoLevel ? (
           <SettingRow label="2L card style">
-            <Select size="small" value={dhCardStyle} onChange={onDhCardStyleChange} options={DH_CARD_STYLE_OPTIONS} style={{ width: 104 }} dropdownStyle={{ zIndex: 2100 }} />
+            <Select size="small" value={dhCardStyle} onChange={onDhCardStyleChange} options={DH_CARD_STYLE_OPTIONS} style={{ width: 120 }} dropdownStyle={{ zIndex: 2100 }} />
           </SettingRow>
         ) : (
           <>
@@ -2958,8 +2961,18 @@ export default function LiveTrackingTesting2Page() {
     const scopeAllows = claimCardScope === 'all' || claimLevel !== 'stable'
     const claim = actionModel === 'claim' && scopeAllows ? claimBundle(stop) : undefined
     if (isTwoLevel) {
-      // Compact preset: slack inline, hide delay text + driver status text label
-      const dhCompact = dhCardStyle === 'compact'
+      // Derive per-preset prop overrides
+      // standard: all info on (respects global toggles)
+      // info:     slack row + delay text, no driver status text label
+      // compact:  slack inline, no delay text, no driver status text
+      // minimal:  no slack row, no delay text, no driver status text
+      // slim:     no slack, no delay, no driver status (same as minimal but narrower padding intent)
+      const dhPreset: { showDelayText: boolean; showDriverStatusText: boolean; slackPosition: SlackPosition; showSlack: boolean } =
+        dhCardStyle === 'info'    ? { showDelayText: true,  showDriverStatusText: false, slackPosition: 'row',    showSlack: true } :
+        dhCardStyle === 'compact' ? { showDelayText: false, showDriverStatusText: false, slackPosition: 'inline', showSlack: true } :
+        dhCardStyle === 'minimal' ? { showDelayText: false, showDriverStatusText: false, slackPosition: 'row',    showSlack: false } :
+        dhCardStyle === 'slim'    ? { showDelayText: false, showDriverStatusText: false, slackPosition: 'inline', showSlack: false } :
+        /* standard */              { showDelayText: showDelayText, showDriverStatusText: showDriverStatusText, slackPosition: slackPosition, showSlack: true }
       return (
         <DhGridCard
           key={stop.id}
@@ -2972,9 +2985,9 @@ export default function LiveTrackingTesting2Page() {
           onClick={() => openCard(stop.id)}
           onTake={() => markHandled(stop.id)}
           innerRef={(el) => { cardRefs.current[stop.id] = el }}
-          showDelayText={dhCompact ? false : showDelayText}
-          showDriverStatusText={dhCompact ? false : showDriverStatusText}
-          slackPosition={dhCompact ? 'inline' : slackPosition}
+          showDelayText={dhPreset.showDelayText}
+          showDriverStatusText={dhPreset.showDriverStatusText}
+          slackPosition={dhPreset.slackPosition}
         />
       )
     }
