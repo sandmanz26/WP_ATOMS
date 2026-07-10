@@ -346,15 +346,22 @@ function kpiMatch(stop: VehicleStop, key: KpiKey): boolean {
    "2 Levels" visuals for the Immediate attention/At risk/Stable system —
    Pills (rounded chips, same as the level-1 style used elsewhere) or Cards
    (dashboard-tile level 1 with an icon badge, underline tabs for level 2). ── */
-type HighlightStyle = 'default' | 'segment' | 'color' | 'two-level' | 'two-level-cards' | 'two-level-minimal'
+type HighlightStyle =
+  | 'default' | 'segment' | 'color'
+  | 'two-level' | 'two-level-cards' | 'two-level-minimal'
+  | 'two-level-banner' | 'two-level-stats' | 'two-level-badge' | 'two-level-progress'
 
 const HIGHLIGHT_STYLE_OPTIONS: { value: HighlightStyle; label: string }[] = [
   { value: 'default', label: 'Default' },
   { value: 'segment', label: 'Segment' },
   { value: 'color', label: 'Color' },
-  { value: 'two-level', label: '2 Levels (Pills)' },
-  { value: 'two-level-cards', label: '2 Levels (Cards)' },
-  { value: 'two-level-minimal', label: '2 Levels (Minimal)' },
+  { value: 'two-level', label: '2L — Pills' },
+  { value: 'two-level-cards', label: '2L — Cards' },
+  { value: 'two-level-minimal', label: '2L — Minimal' },
+  { value: 'two-level-banner', label: '2L — Banner' },
+  { value: 'two-level-stats', label: '2L — Stats' },
+  { value: 'two-level-badge', label: '2L — Badge' },
+  { value: 'two-level-progress', label: '2L — Progress' },
 ]
 
 function KpiBar({
@@ -363,7 +370,7 @@ function KpiBar({
   counts,
   onSelect,
 }: {
-  style: Exclude<HighlightStyle, 'two-level' | 'two-level-cards' | 'two-level-minimal'>
+  style: 'default' | 'segment' | 'color'
   active: KpiKey
   counts: Record<KpiKey, number>
   onSelect: (k: KpiKey) => void
@@ -1580,6 +1587,238 @@ function TwoLevelMinimalHeader({
   )
 }
 
+// Shared prop shape for all two-level header variants
+interface TwoLevelHeaderProps {
+  level1: DhLevel1
+  level2: DhLevel2 | null
+  l1Counts: Record<DhLevel1, number>
+  l2Counts: Record<string, number>
+  onLevel1Change: (v: DhLevel1) => void
+  onLevel2Change: (v: DhLevel2 | null) => void
+  rightSlot?: React.ReactNode
+}
+
+// Shared L2 chip row used by banner, stats, badge, progress variants
+function TwoLevelL2Chips({ level1, level2, l2Counts, onLevel2Change }: {
+  level1: DhLevel1; level2: DhLevel2 | null
+  l2Counts: Record<string, number>; onLevel2Change: (v: DhLevel2 | null) => void
+}) {
+  if (level1 === 'stable') return null
+  return (
+    <div style={{ display: 'flex', gap: 0, flexWrap: 'nowrap', marginTop: 8, borderBottom: '1px solid #f0f0f0' }}>
+      {DH_L2_META[level1].map((m) => {
+        const active = level2 === m.key
+        const count = l2Counts[m.key] ?? 0
+        return (
+          <button
+            key={m.key}
+            onClick={() => onLevel2Change(active ? null : m.key)}
+            style={{
+              flex: 1, textAlign: 'center', padding: '6px 8px', marginBottom: -1,
+              border: 'none', borderBottom: `2px solid ${active ? '#1677ff' : 'transparent'}`,
+              background: 'transparent',
+              color: active ? '#1677ff' : count === 0 ? '#bfbfbf' : '#595959',
+              fontSize: 11.5, fontWeight: active ? 600 : 400, cursor: 'pointer', transition: 'all .15s',
+            }}
+          >
+            {m.label} ({count})
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+/* ── Banner variant: active category fills with its color, inactive categories
+   are compact text segments. Equal-width columns, no icon badges. ── */
+function TwoLevelBannerHeader({ level1, level2, l1Counts, l2Counts, onLevel1Change, onLevel2Change, rightSlot }: TwoLevelHeaderProps) {
+  return (
+    <>
+      <div style={{ display: 'flex', alignItems: 'stretch', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 0, flex: 1, borderRadius: 10, overflow: 'hidden', border: '1px solid #e8e8e8' }}>
+          {DH_L1_META.map((m, i) => {
+            const active = level1 === m.key
+            const Icon = DH_L1_ICON[m.key]
+            return (
+              <button
+                key={m.key}
+                onClick={() => { onLevel1Change(m.key); onLevel2Change(null) }}
+                className={m.key === 'immediate' && l1Counts.immediate > 0 && !active ? 'tab-urgent-pulse' : undefined}
+                style={{
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                  gap: 3, padding: '13px 8px',
+                  background: active ? m.color : '#fafafa',
+                  border: 'none',
+                  borderRight: i < 2 ? `1px solid ${active ? 'rgba(255,255,255,.25)' : '#e8e8e8'}` : 'none',
+                  cursor: 'pointer', transition: 'background .18s',
+                }}
+              >
+                {active && <Icon style={{ color: 'rgba(255,255,255,.8)', fontSize: 13 }} />}
+                <Text style={{ fontSize: 22, fontWeight: 800, color: active ? '#fff' : m.color, lineHeight: 1 }}>
+                  {l1Counts[m.key]}
+                </Text>
+                <Text style={{ fontSize: 10.5, color: active ? 'rgba(255,255,255,.85)' : '#8c8c8c', whiteSpace: 'nowrap' }}>
+                  {m.label}
+                </Text>
+              </button>
+            )
+          })}
+        </div>
+        {rightSlot && <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center' }}>{rightSlot}</div>}
+      </div>
+      <TwoLevelL2Chips level1={level1} level2={level2} l2Counts={l2Counts} onLevel2Change={onLevel2Change} />
+    </>
+  )
+}
+
+/* ── Stats variant: horizontal strip with a large colored number, label, and
+   a colored left-accent bar on the active item. Clean and data-table-like. ── */
+function TwoLevelStatsHeader({ level1, level2, l1Counts, l2Counts, onLevel1Change, onLevel2Change, rightSlot }: TwoLevelHeaderProps) {
+  return (
+    <>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', flex: 1, borderRadius: 10, border: '1px solid #f0f0f0', overflow: 'hidden' }}>
+          {DH_L1_META.map((m, i) => {
+            const active = level1 === m.key
+            return (
+              <button
+                key={m.key}
+                onClick={() => { onLevel1Change(m.key); onLevel2Change(null) }}
+                className={m.key === 'immediate' && l1Counts.immediate > 0 && !active ? 'tab-urgent-pulse' : undefined}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px',
+                  border: 'none',
+                  borderLeft: `3px solid ${active ? m.color : 'transparent'}`,
+                  borderRight: i < 2 ? '1px solid #f0f0f0' : 'none',
+                  background: active ? m.soft : '#fff',
+                  cursor: 'pointer', transition: 'all .15s',
+                }}
+              >
+                <Text style={{ fontSize: 24, fontWeight: 800, color: m.color, lineHeight: 1, flexShrink: 0 }}>
+                  {l1Counts[m.key]}
+                </Text>
+                <Text style={{ fontSize: 11, color: active ? '#1a1a1a' : '#8c8c8c', whiteSpace: 'nowrap', lineHeight: 1.3 }}>
+                  {m.label}
+                </Text>
+              </button>
+            )
+          })}
+        </div>
+        {rightSlot && <div style={{ flexShrink: 0 }}>{rightSlot}</div>}
+      </div>
+      <TwoLevelL2Chips level1={level1} level2={level2} l2Counts={l2Counts} onLevel2Change={onLevel2Change} />
+    </>
+  )
+}
+
+/* ── Badge variant: compact pill-shaped buttons, each with a small filled
+   count circle + label. Fits alongside other header controls without
+   dominating the space. ── */
+function TwoLevelBadgeHeader({ level1, level2, l1Counts, l2Counts, onLevel1Change, onLevel2Change, rightSlot }: TwoLevelHeaderProps) {
+  return (
+    <>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', flex: 1 }}>
+          {DH_L1_META.map((m) => {
+            const active = level1 === m.key
+            return (
+              <button
+                key={m.key}
+                onClick={() => { onLevel1Change(m.key); onLevel2Change(null) }}
+                className={m.key === 'immediate' && l1Counts.immediate > 0 && !active ? 'tab-urgent-pulse' : undefined}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 7,
+                  padding: '5px 12px 5px 6px', borderRadius: 20,
+                  border: `1.5px solid ${active ? m.color : '#e8e8e8'}`,
+                  background: active ? m.soft : '#fff',
+                  cursor: 'pointer', transition: 'all .15s',
+                }}
+              >
+                <span style={{
+                  minWidth: 22, height: 22, borderRadius: 11, background: m.color, flexShrink: 0,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 11, fontWeight: 700, color: '#fff',
+                }}>
+                  {l1Counts[m.key]}
+                </span>
+                <Text style={{ fontSize: 12, color: active ? m.color : '#595959', fontWeight: active ? 600 : 400, whiteSpace: 'nowrap' }}>
+                  {m.label}
+                </Text>
+              </button>
+            )
+          })}
+        </div>
+        {rightSlot && <div style={{ flexShrink: 0 }}>{rightSlot}</div>}
+      </div>
+      <TwoLevelL2Chips level1={level1} level2={level2} l2Counts={l2Counts} onLevel2Change={onLevel2Change} />
+    </>
+  )
+}
+
+/* ── Progress variant: a proportional stacked bar showing the share of trips
+   in each category + compact label row below. The bar itself is clickable.
+   Gives a clear at-a-glance sense of how many trips are at each severity. ── */
+function TwoLevelProgressHeader({ level1, level2, l1Counts, l2Counts, onLevel1Change, onLevel2Change, rightSlot }: TwoLevelHeaderProps) {
+  const total = (l1Counts.immediate + l1Counts.risk + l1Counts.stable) || 1
+  return (
+    <>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+        <div style={{ flex: 1 }}>
+          {/* Stacked proportion bar */}
+          <div style={{ display: 'flex', height: 10, borderRadius: 5, overflow: 'hidden', gap: 2, marginBottom: 9 }}>
+            {DH_L1_META.map((m) => (
+              <div
+                key={m.key}
+                role="button"
+                tabIndex={0}
+                onClick={() => { onLevel1Change(m.key); onLevel2Change(null) }}
+                onKeyDown={(e) => { if (e.key === 'Enter') { onLevel1Change(m.key); onLevel2Change(null) } }}
+                style={{
+                  flex: l1Counts[m.key] || 0.5,
+                  background: level1 === m.key ? m.color : `${m.color}55`,
+                  borderRadius: 3, cursor: 'pointer', transition: 'all .25s',
+                  minWidth: 6,
+                }}
+                title={`${m.label}: ${l1Counts[m.key]} (${Math.round((l1Counts[m.key] / total) * 100)}%)`}
+              />
+            ))}
+          </div>
+          {/* Category labels */}
+          <div style={{ display: 'flex', gap: 6 }}>
+            {DH_L1_META.map((m) => {
+              const active = level1 === m.key
+              const pct = Math.round((l1Counts[m.key] / total) * 100)
+              return (
+                <button
+                  key={m.key}
+                  onClick={() => { onLevel1Change(m.key); onLevel2Change(null) }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 16,
+                    border: `1px solid ${active ? m.color : 'transparent'}`,
+                    background: active ? m.soft : 'transparent',
+                    cursor: 'pointer', transition: 'all .15s',
+                  }}
+                >
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: m.color, flexShrink: 0 }} />
+                  <Text style={{ fontSize: 12, color: active ? m.color : '#595959', fontWeight: active ? 600 : 400, whiteSpace: 'nowrap' }}>
+                    {m.label}
+                  </Text>
+                  <Text style={{ fontSize: 11, color: active ? m.color : '#bfbfbf', fontWeight: 700 }}>
+                    {l1Counts[m.key]}
+                  </Text>
+                  <Text style={{ fontSize: 10, color: '#bfbfbf' }}>{pct}%</Text>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+        {rightSlot && <div style={{ flexShrink: 0 }}>{rightSlot}</div>}
+      </div>
+      <TwoLevelL2Chips level1={level1} level2={level2} l2Counts={l2Counts} onLevel2Change={onLevel2Change} />
+    </>
+  )
+}
+
 interface DhInfo {
   l1: DhLevel1
   l2: DhLevel2 | null
@@ -2295,64 +2534,45 @@ function DisplaySettingsPanel({
         <SettingRow label="Action model">
           <Select size="small" value={actionModel} onChange={onActionModelChange} options={ACTION_MODEL_OPTIONS} style={{ width: 104 }} dropdownStyle={{ zIndex: 2100 }} />
         </SettingRow>
-        <SettingRow label="Claim button style">
-          <Select
-            size="small"
-            value={claimButtonStyle}
-            onChange={onClaimButtonStyleChange}
-            options={CLAIM_BUTTON_STYLE_OPTIONS}
-            disabled={actionModel !== 'claim'}
-            style={{ width: 104 }}
-            dropdownStyle={{ zIndex: 2100 }}
-          />
-        </SettingRow>
-        <SettingRow label="Claim on cards">
-          <Select
-            size="small"
-            value={claimCardScope}
-            onChange={onClaimCardScopeChange}
-            options={CLAIM_CARD_SCOPE_OPTIONS}
-            disabled={actionModel !== 'claim'}
-            style={{ width: 104 }}
-            dropdownStyle={{ zIndex: 2100 }}
-          />
-        </SettingRow>
-        <SettingRow label="Claim color">
-          <Select
-            size="small"
-            value={claimColorMode}
-            onChange={onClaimColorModeChange}
-            options={CLAIM_COLOR_MODE_OPTIONS}
-            disabled={actionModel !== 'claim'}
-            style={{ width: 104 }}
-            dropdownStyle={{ zIndex: 2100 }}
-          />
-        </SettingRow>
-        <SettingRow label="Claim btn width">
-          <Select
-            size="small"
-            value={claimButtonWidth}
-            onChange={onClaimButtonWidthChange}
-            options={CLAIM_BUTTON_WIDTH_OPTIONS}
-            disabled={actionModel !== 'claim'}
-            style={{ width: 104 }}
-            dropdownStyle={{ zIndex: 2100 }}
-          />
-        </SettingRow>
-        <div style={{ height: 1, background: '#f0f0f0' }} />
-        <SettingRow label="Slack position">
-          <Select size="small" value={slackPosition} onChange={onSlackPositionChange} options={SLACK_POSITION_OPTIONS} style={{ width: 104 }} dropdownStyle={{ zIndex: 2100 }} />
-        </SettingRow>
-        <SettingRow label="Show delay text">
-          <Switch size="small" checked={showDelayText} onChange={onShowDelayTextChange} />
-        </SettingRow>
-        <SettingRow label="Driver status text">
-          <Switch size="small" checked={showDriverStatusText} onChange={onShowDriverStatusTextChange} />
-        </SettingRow>
-        <div style={{ height: 1, background: '#f0f0f0' }} />
-        <SettingRow label="Show needs attention">
-          <Switch size="small" checked={showNeedsAttention} onChange={onShowNeedsAttentionChange} disabled={highlightStyle === 'two-level'} />
-        </SettingRow>
+        {actionModel === 'claim' && (
+          <>
+            <div style={{ height: 1, background: '#f0f0f0' }} />
+            <SettingRow label="Claim btn style">
+              <Select size="small" value={claimButtonStyle} onChange={onClaimButtonStyleChange} options={CLAIM_BUTTON_STYLE_OPTIONS} style={{ width: 104 }} dropdownStyle={{ zIndex: 2100 }} />
+            </SettingRow>
+            <SettingRow label="Claim on cards">
+              <Select size="small" value={claimCardScope} onChange={onClaimCardScopeChange} options={CLAIM_CARD_SCOPE_OPTIONS} style={{ width: 104 }} dropdownStyle={{ zIndex: 2100 }} />
+            </SettingRow>
+            <SettingRow label="Claim color">
+              <Select size="small" value={claimColorMode} onChange={onClaimColorModeChange} options={CLAIM_COLOR_MODE_OPTIONS} style={{ width: 104 }} dropdownStyle={{ zIndex: 2100 }} />
+            </SettingRow>
+            <SettingRow label="Claim btn width">
+              <Select size="small" value={claimButtonWidth} onChange={onClaimButtonWidthChange} options={CLAIM_BUTTON_WIDTH_OPTIONS} style={{ width: 104 }} dropdownStyle={{ zIndex: 2100 }} />
+            </SettingRow>
+          </>
+        )}
+        {isTwoLevel && (
+          <>
+            <div style={{ height: 1, background: '#f0f0f0' }} />
+            <SettingRow label="Slack position">
+              <Select size="small" value={slackPosition} onChange={onSlackPositionChange} options={SLACK_POSITION_OPTIONS} style={{ width: 104 }} dropdownStyle={{ zIndex: 2100 }} />
+            </SettingRow>
+            <SettingRow label="Show delay text">
+              <Switch size="small" checked={showDelayText} onChange={onShowDelayTextChange} />
+            </SettingRow>
+            <SettingRow label="Driver status text">
+              <Switch size="small" checked={showDriverStatusText} onChange={onShowDriverStatusTextChange} />
+            </SettingRow>
+          </>
+        )}
+        {!isTwoLevel && (
+          <>
+            <div style={{ height: 1, background: '#f0f0f0' }} />
+            <SettingRow label="Needs attention">
+              <Switch size="small" checked={showNeedsAttention} onChange={onShowNeedsAttentionChange} />
+            </SettingRow>
+          </>
+        )}
         <div style={{ height: 1, background: '#f0f0f0' }} />
         <SettingRow label="Show route">
           <Switch size="small" checked={showRoutes} onChange={onShowRoutesChange} />
@@ -2495,7 +2715,7 @@ export default function LiveTrackingTesting2Page() {
   const [highlightStyle, setHighlightStyle] = useState<HighlightStyle>('default')
   const [showNeedsAttention, setShowNeedsAttention] = useState(true)
   // "2 Levels" is one of the Highlight style options — not a separate toggle
-  const isTwoLevel = highlightStyle === 'two-level' || highlightStyle === 'two-level-cards' || highlightStyle === 'two-level-minimal'
+  const isTwoLevel = highlightStyle.startsWith('two-level')
   const [dhLevel1, setDhLevel1] = useState<DhLevel1>('immediate')
   const [dhLevel2, setDhLevel2] = useState<DhLevel2 | null>('cur-first')
   const [showRoutes, setShowRoutes] = useState(true)
@@ -2893,124 +3113,45 @@ export default function LiveTrackingTesting2Page() {
       >
         {/* ── Header: KPI/highlight bar + search + sort ── */}
         <div style={{ flexShrink: 0 }}>
-          {isTwoLevel ? (
-            <>
-              {highlightStyle === 'two-level-cards' ? (
-                <TwoLevelCardHeader
-                  level1={dhLevel1}
-                  level2={dhLevel2}
-                  l1Counts={dhL1Counts}
-                  l2Counts={dhL2Counts}
-                  onLevel1Change={setDhLevel1}
-                  onLevel2Change={setDhLevel2}
-                  rightSlot={
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                      <Input
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
-                        placeholder="Search route, driver, plate..."
-                        style={{ borderRadius: 8, width: 220 }}
-                        allowClear
-                      />
-                      {filterBtn}
-                      <Select size="middle" value={sortBy} onChange={setSortBy} options={SORT_OPTIONS} style={{ width: 118 }} />
-                    </div>
-                  }
-                />
-              ) : highlightStyle === 'two-level-minimal' ? (
-                <TwoLevelMinimalHeader
-                  level1={dhLevel1}
-                  level2={dhLevel2}
-                  l1Counts={dhL1Counts}
-                  l2Counts={dhL2Counts}
-                  onLevel1Change={setDhLevel1}
-                  onLevel2Change={setDhLevel2}
-                  rightSlot={
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                      <Input
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
-                        placeholder="Search route, driver, plate..."
-                        style={{ borderRadius: 8, width: 220 }}
-                        allowClear
-                      />
-                      {filterBtn}
-                      <Select size="middle" value={sortBy} onChange={setSortBy} options={SORT_OPTIONS} style={{ width: 118 }} />
-                    </div>
-                  }
-                />
-              ) : (
-                <>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', flex: 1 }}>
-                      {DH_L1_META.map((m) => {
-                        const active = dhLevel1 === m.key
-                        return (
-                          <button
-                            key={m.key}
-                            onClick={() => { setDhLevel1(m.key); setDhLevel2(null) }}
-                            className={m.key === 'immediate' && dhL1Counts.immediate > 0 && !active ? 'tab-urgent-pulse' : undefined}
-                            style={{
-                              padding: '6px 12px', borderRadius: 16, whiteSpace: 'nowrap',
-                              border: `1px solid ${active ? m.color : m.border}`,
-                              background: active ? m.color : m.soft,
-                              color: active ? '#fff' : m.color,
-                              fontSize: 12.5, fontWeight: 600, cursor: 'pointer', transition: 'all .15s',
-                            }}
-                          >
-                            {m.label} ({dhL1Counts[m.key]})
-                          </button>
-                        )
-                      })}
-                    </div>
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
-                      <Input
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
-                        placeholder="Search route, driver, plate..."
-                        style={{ borderRadius: 8, width: 220 }}
-                        allowClear
-                      />
-                      {filterBtn}
-                      <Select size="middle" value={sortBy} onChange={setSortBy} options={SORT_OPTIONS} style={{ width: 118 }} />
-                    </div>
+          {isTwoLevel ? (() => {
+            const l2Props = { level1: dhLevel1, level2: dhLevel2, l1Counts: dhL1Counts, l2Counts: dhL2Counts, onLevel1Change: setDhLevel1, onLevel2Change: setDhLevel2 }
+            const rightSlot = (
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <Input value={search} onChange={(e) => setSearch(e.target.value)} prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />} placeholder="Search route, driver, plate..." style={{ borderRadius: 8, width: 210 }} allowClear />
+                {filterBtn}
+                <Select size="middle" value={sortBy} onChange={setSortBy} options={SORT_OPTIONS} style={{ width: 118 }} />
+              </div>
+            )
+            if (highlightStyle === 'two-level-cards') return <TwoLevelCardHeader {...l2Props} rightSlot={rightSlot} />
+            if (highlightStyle === 'two-level-minimal') return <TwoLevelMinimalHeader {...l2Props} rightSlot={rightSlot} />
+            if (highlightStyle === 'two-level-banner') return <TwoLevelBannerHeader {...l2Props} rightSlot={rightSlot} />
+            if (highlightStyle === 'two-level-stats') return <TwoLevelStatsHeader {...l2Props} rightSlot={rightSlot} />
+            if (highlightStyle === 'two-level-badge') return <TwoLevelBadgeHeader {...l2Props} rightSlot={rightSlot} />
+            if (highlightStyle === 'two-level-progress') return <TwoLevelProgressHeader {...l2Props} rightSlot={rightSlot} />
+            // Default 'two-level' pills
+            return (
+              <>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', flex: 1 }}>
+                    {DH_L1_META.map((m) => {
+                      const active = dhLevel1 === m.key
+                      return (
+                        <button key={m.key} onClick={() => { setDhLevel1(m.key); setDhLevel2(null) }}
+                          className={m.key === 'immediate' && dhL1Counts.immediate > 0 && !active ? 'tab-urgent-pulse' : undefined}
+                          style={{ padding: '6px 12px', borderRadius: 16, whiteSpace: 'nowrap', border: `1px solid ${active ? m.color : m.border}`, background: active ? m.color : m.soft, color: active ? '#fff' : m.color, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', transition: 'all .15s' }}>
+                          {m.label} ({dhL1Counts[m.key]})
+                        </button>
+                      )
+                    })}
                   </div>
-                  {dhLevel1 !== 'stable' && (
-                    <div style={{ display: 'flex', flexWrap: 'nowrap', gap: 0, marginTop: 8, borderBottom: '1px solid #f0f0f0' }}>
-                      {DH_L2_META[dhLevel1].map((m) => {
-                        const active = dhLevel2 === m.key
-                        const count = dhL2Counts[m.key] ?? 0
-                        return (
-                          <button
-                            key={m.key}
-                            onClick={() => setDhLevel2(active ? null : m.key)}
-                            style={{
-                              flex: 1,
-                              textAlign: 'center',
-                              padding: '6px 8px',
-                              marginBottom: -1,
-                              border: 'none',
-                              borderBottom: `2px solid ${active ? '#1677ff' : 'transparent'}`,
-                              background: 'transparent',
-                              color: active ? '#1677ff' : count === 0 ? '#bfbfbf' : '#595959',
-                              fontSize: 11.5, fontWeight: active ? 600 : 500, cursor: 'pointer', transition: 'all .15s',
-                            }}
-                          >
-                            {m.label} ({count})
-                          </button>
-                        )
-                      })}
-                    </div>
-                  )}
-                </>
-              )}
-            </>
-          ) : (
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>{rightSlot}</div>
+                </div>
+                <TwoLevelL2Chips level1={dhLevel1} level2={dhLevel2} l2Counts={dhL2Counts} onLevel2Change={setDhLevel2} />
+              </>
+            )
+          })() : (
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-              <KpiBar style={highlightStyle} active={filter} counts={counts} onSelect={setFilter} />
+              <KpiBar style={highlightStyle as 'default' | 'segment' | 'color'} active={filter} counts={counts} onSelect={setFilter} />
               <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
                 <Input
                   value={search}
