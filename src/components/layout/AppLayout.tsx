@@ -39,6 +39,7 @@ export default function AppLayout({
   const [collapsed, setCollapsed] = useState(false)
   const [operationsOpen, setOperationsOpen] = useState(true)
   const [staffOpen, setStaffOpen] = useState(false)
+  const [salesOpen, setSalesOpen] = useState(true)
 
   const menuItems = [
     {
@@ -146,6 +147,28 @@ export default function AppLayout({
       onClick: () => onNavigate?.({ type: 'invoice' }),
     },
     {
+      key: 'sales-module-header',
+      icon: <AppstoreOutlined style={{ fontSize: 16, color: '#595959' }} />,
+      label: (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span>Sales Module</span>
+          {salesOpen ? <DownOutlined style={{ fontSize: 10 }} /> : <RightOutlined style={{ fontSize: 10 }} />}
+        </div>
+      ),
+      onClick: () => setSalesOpen(!salesOpen),
+    },
+    ...(salesOpen
+      ? [
+          {
+            key: 'notification',
+            label: (
+              <Text style={{ fontSize: 13, paddingLeft: 8 }}>Notification</Text>
+            ),
+            onClick: () => onNavigate?.({ type: 'notification' }),
+          },
+        ]
+      : []),
+    {
       key: 'testing',
       icon: <ExperimentOutlined style={{ fontSize: 16, color: '#595959' }} />,
       label: 'Testing',
@@ -249,6 +272,8 @@ export default function AppLayout({
             <EnvironmentOutlined style={{ color: '#1677ff', fontSize: 14 }} />
           ) : activeKey === 'invoice' ? (
             <FileTextOutlined style={{ color: '#1677ff', fontSize: 14 }} />
+          ) : activeKey === 'notification' ? (
+            <BellOutlined style={{ color: '#1677ff', fontSize: 14 }} />
           ) : (
             <TeamOutlined style={{ color: '#1677ff', fontSize: 14 }} />
           )}

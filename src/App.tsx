@@ -13,6 +13,7 @@ import Tracking2Page from '@/components/livetracking/Tracking2Page'
 import TestingPage from '@/components/testing/TestingPage'
 import InvoicePage from '@/components/invoice/InvoicePage'
 import InvoiceDetailPage from '@/components/invoice/InvoiceDetailPage'
+import NotificationPage from '@/components/sales-module/NotificationPage'
 import { Button } from 'antd'
 import { ArrowLeftOutlined } from '@ant-design/icons'
 
@@ -30,6 +31,7 @@ export type AppPage =
   | { type: 'testing' }
   | { type: 'invoice' }
   | { type: 'invoice-detail'; invoiceId: string }
+  | { type: 'notification' }
 
 export default function App() {
   const [page, setPage] = useState<AppPage>({ type: 'live-tracking-testing-2' })
@@ -115,6 +117,14 @@ export default function App() {
         onNavigate={navigate}
       >
         <InvoiceDetailPage invoiceId={page.invoiceId} onBack={() => navigate({ type: 'invoice' })} />
+      </AppLayout>
+    )
+  }
+
+  if (page.type === 'notification') {
+    return (
+      <AppLayout activeKey="notification" breadcrumbLabel="Notifications" onNavigate={navigate}>
+        <NotificationPage />
       </AppLayout>
     )
   }
