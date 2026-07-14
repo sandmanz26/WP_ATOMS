@@ -2737,42 +2737,51 @@ function TripDetailPanel({
   const lateMin = stop.online && status === 'Late' && stop.eta ? toMinutes(stop.eta) - toMinutes(stop.scheduled) : 0
   const accent = statusColor(stop)
 
-  // Trip details from Daily Schedule (biz req 1.1) — route code, trip start
-  // time, driver's given name, vehicle plate. Customer code / fleet owner
-  // are intentionally excluded per the requirement.
-  const fields = (
-    <>
-      <DetailItem label="Route">
-        {stop.from && stop.to ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#16a34a', flexShrink: 0 }} />
-            <Text style={{ fontSize: 13, color: '#595959' }} ellipsis>{stop.from.name}</Text>
-            <ArrowRightOutlined style={{ color: '#bfbfbf', fontSize: 12, flexShrink: 0 }} />
-            <Text style={{ fontSize: 13, fontWeight: 600 }} ellipsis>{stop.to.name}</Text>
+  // Contacts and next-trip — deterministic mock data generated from stop id
+  const h = dhHash(stop.id)
+  const driverPhone = mockPhone(h)
+  const fleetPhone = mockPhone(h + 13)
+  const customerPIC = mockPicName(h)
+  const customerPhone = mockPhone(h + 7)
+  const nextTrip = mockNextTrip(stop)
+
+  const contactSections = (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+      {/* Driver */}
+      <div style={{ padding: '10px 0', borderBottom: '1px solid #f5f5f5' }}>
+        <Text style={{ fontSize: 11, color: '#8c8c8c', display: 'block', marginBottom: 6, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Driver</Text>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <Text style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1a', display: 'block' }}>{stop.driver}</Text>
+            <Text style={{ fontSize: 12, color: '#8c8c8c' }}>{driverPhone}</Text>
           </div>
-        ) : (
-          <Text style={{ fontSize: 13, fontWeight: 600 }}>{stop.destination}</Text>
-        )}
-      </DetailItem>
-      <DetailItem label="Trip start">{formatTimeAmPm(stop.scheduled)}</DetailItem>
-      <DetailItem label="ETA">
-        {stop.online && stop.eta ? (
-          <span style={{ color: status === 'Late' ? '#ff4d4f' : '#1677ff', fontWeight: 700 }}>
-            {formatTimeAmPm(stop.eta)}
-            {lateMin > 0 && <span style={{ fontWeight: 500 }}> · {lateMin} min late</span>}
-          </span>
-        ) : (
-          <span style={{ color: '#8c8c8c' }}>—</span>
-        )}
-      </DetailItem>
-      <DetailItem label="Driver">{firstName(stop.driver)}</DetailItem>
-      <DetailItem label="Vehicle">{stop.plate}</DetailItem>
-      {!stop.online && (
-        <DetailItem label="Last online">
-          <span style={{ color: '#ff4d4f', fontWeight: 600 }}>{stop.lastOnline ?? 'Position unknown'}</span>
-        </DetailItem>
-      )}
-    </>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: stop.online ? '#52c41a' : '#ff4d4f', display: 'inline-block' }} />
+            <Text style={{ fontSize: 11.5, color: stop.online ? '#16a34a' : '#ff4d4f' }}>{stop.online ? 'Online' : 'Offline'}</Text>
+          </div>
+        </div>
+      </div>
+      {/* Fleet Owner */}
+      <div style={{ padding: '10px 0', borderBottom: '1px solid #f5f5f5' }}>
+        <Text style={{ fontSize: 11, color: '#8c8c8c', display: 'block', marginBottom: 6, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Fleet Owner</Text>
+        <Text style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1a', display: 'block' }}>{stop.fleetOwner}</Text>
+        <Text style={{ fontSize: 12, color: '#8c8c8c' }}>{fleetPhone}</Text>
+      </div>
+      {/* Customer PIC */}
+      <div style={{ padding: '10px 0', borderBottom: '1px solid #f5f5f5' }}>
+        <Text style={{ fontSize: 11, color: '#8c8c8c', display: 'block', marginBottom: 6, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+          Customer PIC <Text style={{ fontSize: 10, fontWeight: 400 }}>({stop.customerCode})</Text>
+        </Text>
+        <Text style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1a', display: 'block' }}>{customerPIC}</Text>
+        <Text style={{ fontSize: 12, color: '#8c8c8c' }}>{customerPhone}</Text>
+      </div>
+      {/* Next Trip */}
+      <div style={{ padding: '10px 0' }}>
+        <Text style={{ fontSize: 11, color: '#8c8c8c', display: 'block', marginBottom: 6, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Next Trip</Text>
+        <Text style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1a', display: 'block' }}>{nextTrip.routeCode}</Text>
+        <Text style={{ fontSize: 12, color: '#8c8c8c' }}>Starts {formatTimeAmPm(nextTrip.startTime)} · {nextTrip.destination}</Text>
+      </div>
+    </div>
   )
 
   return (
@@ -2823,11 +2832,7 @@ function TripDetailPanel({
             </Tooltip>
           </div>
         )}
-        {position === 'bottom' ? (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '14px 32px' }}>{fields}</div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>{fields}</div>
-        )}
+        {contactSections}
       </div>
     </div>
   )
