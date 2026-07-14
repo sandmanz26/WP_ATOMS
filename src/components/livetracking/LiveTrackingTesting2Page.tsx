@@ -593,26 +593,50 @@ function TripSummary({
     </div>
   )
 
-  // ── Compact: just enough to recognise the trip and act ──
+  // ── ETA & progress shared computations ──
+  const progressPct = Math.round(stop.phase * 100)
+  const delayMin: number | null = stop.online && stop.eta ? toMinutes(stop.eta) - toMinutes(stop.scheduled) : null
+  const delayLabel = delayMin === null ? '—' : delayMin > 0 ? `+${delayMin} min late` : 'On time'
+  const delayColor = delayMin === null ? '#8c8c8c' : delayMin > 0 ? '#ff4d4f' : '#16a34a'
+
+  // Thin inline progress bar (avoids Ant Design Progress overhead)
+  const progressBar = (
+    <div style={{ height: 5, borderRadius: 3, background: '#f0f0f0', overflow: 'hidden', flex: 1 }}>
+      <div style={{ width: `${progressPct}%`, height: '100%', background: accent, borderRadius: 3 }} />
+    </div>
+  )
+
+  const fromName = stop.from?.name
+  const toName = stop.to?.name ?? stop.destination
+
+  // ── Compact: ultra-compact — label + status, progress bar, ETA line, view detail ──
   if (variant === 'compact') {
     return (
-      <div style={{ width: 200, maxWidth: '100%', boxSizing: 'border-box', overflow: 'hidden' }}>
+      <div style={{ width: 210, maxWidth: '100%', boxSizing: 'border-box', overflow: 'hidden' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-          <WifiOutlined style={{ color: stop.online ? '#52c41a' : '#ff4d4f', fontSize: 12, flexShrink: 0 }} />
-          <Text style={{ fontSize: 12.5, fontWeight: 600, minWidth: 0 }} ellipsis>{firstName(stop.driver)}</Text>
+          <span style={{ background: '#e6f4ff', color: '#1677ff', fontSize: 11, fontWeight: 600, padding: '0 6px', borderRadius: 4, whiteSpace: 'nowrap', flexShrink: 0 }}>
+            {stop.label}
+          </span>
           <span style={{ marginLeft: 'auto', flexShrink: 0, background: s.bg, color: s.color, border: `1px solid ${s.border}`, fontSize: 10.5, fontWeight: 500, padding: '0 7px', borderRadius: 6, whiteSpace: 'nowrap' }}>
             {statusLabel}
           </span>
         </div>
-        <Text style={{ fontSize: 11.5, color: '#8c8c8c', display: 'block', marginTop: 5 }} ellipsis>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 7 }}>
+          <Text style={{ fontSize: 11, color: '#8c8c8c', flexShrink: 0 }}>Progress:</Text>
+          {progressBar}
+          <Text style={{ fontSize: 11, fontWeight: 600, color: '#1a1a1a', flexShrink: 0 }}>{progressPct}%</Text>
+        </div>
+        <Text style={{ fontSize: 11.5, display: 'block', marginTop: 4 }} ellipsis>
           {stop.online && stop.eta
-            ? `ETA ${formatTimeAmPm(stop.eta)}${lateMin > 0 ? ` (+${lateMin}m)` : ''}`
+            ? <><span style={{ color: '#8c8c8c' }}>ETA </span><strong style={{ color: delayMin !== null && delayMin > 0 ? '#ff4d4f' : '#1677ff' }}>{formatTimeAmPm(stop.eta)}</strong><span style={{ color: delayColor }}>{' '}({delayLabel})</span></>
             : !stop.online
-              ? `Last seen ${stop.lastOnline ?? 'unknown'}`
-              : formatTimeAmPm(stop.scheduled)}
+              ? <span style={{ color: '#ff4d4f' }}>Last seen {stop.lastOnline ?? 'unknown'}</span>
+              : <span style={{ color: '#8c8c8c' }}>Sched. {formatTimeAmPm(stop.scheduled)}</span>}
         </Text>
         <div style={{ display: 'flex', gap: 5, marginTop: 8 }}>
-          <Button size="small" type="primary" icon={<EyeOutlined />} onClick={onViewDetail} style={{ flex: 1, fontSize: 11.5, minWidth: 0, padding: '0 6px' }} />
+          <Button size="small" type="primary" icon={<EyeOutlined />} onClick={onViewDetail} style={{ flex: 1, fontSize: 11.5, minWidth: 0, padding: '0 6px' }}>
+            View detail
+          </Button>
           {takeBtn}
         </div>
         {claimRow}
@@ -620,8 +644,7 @@ function TripSummary({
     )
   }
 
-  // ── Detailed: labels the trip start / ETA / vehicle rows separately
-  //    instead of folding them into one line ──
+  // ── Detailed: same as default but also shows driver + plate ──
   if (variant === 'detailed') {
     return (
       <div style={{ width: 296, maxWidth: '100%', boxSizing: 'border-box', overflow: 'hidden' }}>
@@ -633,33 +656,44 @@ function TripSummary({
             {statusLabel}
           </span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, minWidth: 0 }}>
-          <WifiOutlined style={{ color: stop.online ? '#52c41a' : '#ff4d4f', fontSize: 13, flexShrink: 0 }} />
-          <Text style={{ fontSize: 13, fontWeight: 600, minWidth: 0 }} ellipsis>{firstName(stop.driver)}</Text>
-          <Text style={{ fontSize: 11.5, color: stop.online ? '#16a34a' : '#ff4d4f', flexShrink: 0 }}>{stop.online ? 'Online' : 'Offline'}</Text>
-        </div>
-        {stop.from && stop.to && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, minWidth: 0 }}>
-            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#16a34a', flexShrink: 0 }} />
-            <Text style={{ fontSize: 12, color: '#595959', minWidth: 0, flexShrink: 1 }} ellipsis>{stop.from.name}</Text>
-            <ArrowRightOutlined style={{ color: '#bfbfbf', fontSize: 10, flexShrink: 0 }} />
-            <Text style={{ fontSize: 12, fontWeight: 600, minWidth: 0, flexShrink: 1 }} ellipsis>{stop.to.name}</Text>
+        <div style={{ borderTop: '1px solid #f0f0f0', marginTop: 8, paddingTop: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Text style={{ fontSize: 11.5, color: '#8c8c8c', flexShrink: 0 }}>Trip progress:</Text>
+            {progressBar}
+            <Text style={{ fontSize: 11.5, fontWeight: 600, color: '#1a1a1a', flexShrink: 0 }}>{progressPct}%</Text>
           </div>
-        )}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginTop: 8, paddingTop: 8, borderTop: '1px solid #f0f0f0' }}>
-          <Text style={{ fontSize: 11.5, color: '#8c8c8c' }}>Trip start: <strong style={{ color: '#1a1a1a' }}>{formatTimeAmPm(stop.scheduled)}</strong></Text>
-          <Text style={{ fontSize: 11.5, color: '#8c8c8c' }} ellipsis>
-            {stop.online && stop.eta ? (
-              <>ETA: <strong style={{ color: lateMin > 0 ? '#faad14' : '#1a1a1a' }}>{formatTimeAmPm(stop.eta)}{lateMin > 0 ? ` (+${lateMin}m)` : ''}</strong></>
-            ) : !stop.online ? (
-              <>Last seen: <strong style={{ color: '#ff4d4f' }}>{stop.lastOnline ?? 'unknown'}</strong></>
-            ) : (
-              'ETA: —'
-            )}
-          </Text>
-          <Text style={{ fontSize: 11.5, color: '#8c8c8c' }}>Vehicle: <strong style={{ color: '#1a1a1a' }}>{stop.plate}</strong></Text>
+          {(fromName || toName) && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginTop: 6 }}>
+              {fromName && <Text style={{ fontSize: 11.5, color: '#595959' }} ellipsis>From: {fromName}</Text>}
+              {toName && <Text style={{ fontSize: 11.5, fontWeight: 600 }} ellipsis>To: {toName}</Text>}
+            </div>
+          )}
         </div>
-        <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
+        <div style={{ borderTop: '1px solid #f0f0f0', marginTop: 8, paddingTop: 8, display: 'flex', flexDirection: 'column', gap: 3 }}>
+          <Text style={{ fontSize: 11.5, color: '#8c8c8c' }}>
+            ETA: <strong style={{ color: stop.online && stop.eta ? (delayMin !== null && delayMin > 0 ? '#ff4d4f' : '#1677ff') : '#8c8c8c' }}>
+              {stop.online && stop.eta ? formatTimeAmPm(stop.eta) : '—'}
+            </strong>
+          </Text>
+          <Text style={{ fontSize: 11.5, color: '#8c8c8c' }}>
+            Delay: <strong style={{ color: delayColor }}>{delayLabel}</strong>
+          </Text>
+          <Text style={{ fontSize: 11.5, color: '#8c8c8c' }}>
+            Scheduled: <strong style={{ color: '#1a1a1a' }}>{formatTimeAmPm(stop.scheduled)}</strong>
+          </Text>
+        </div>
+        <div style={{ borderTop: '1px solid #f0f0f0', marginTop: 8, paddingTop: 8, display: 'flex', flexDirection: 'column', gap: 3 }}>
+          <Text style={{ fontSize: 11.5, color: '#8c8c8c' }}>
+            Driver: <strong style={{ color: '#1a1a1a' }}>{firstName(stop.driver)}</strong>
+            <span style={{ color: stop.online ? '#16a34a' : '#ff4d4f', marginLeft: 6 }}>
+              <WifiOutlined style={{ fontSize: 11 }} /> {stop.online ? 'Online' : 'Offline'}
+            </span>
+          </Text>
+          <Text style={{ fontSize: 11.5, color: '#8c8c8c' }}>
+            Vehicle: <strong style={{ color: '#1a1a1a' }}>{stop.plate}</strong>
+          </Text>
+        </div>
+        <div style={{ borderTop: '1px solid #f0f0f0', marginTop: 8, paddingTop: 8, display: 'flex', gap: 6 }}>
           <Button size="small" type="primary" icon={<EyeOutlined />} onClick={onViewDetail} style={{ flex: 1, fontSize: 12, minWidth: 0 }}>
             View detail
           </Button>
@@ -670,44 +704,49 @@ function TripSummary({
     )
   }
 
-  // ── Default ──
+  // ── Default: route + status header, progress bar, from/to, ETA table, action row ──
   return (
     <div style={{ width: 272, maxWidth: '100%', boxSizing: 'border-box', overflow: 'hidden' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-        <WifiOutlined style={{ color: stop.online ? '#52c41a' : '#ff4d4f', fontSize: 13, flexShrink: 0 }} />
-        <Text style={{ fontSize: 13, fontWeight: 600, minWidth: 0 }} ellipsis>{firstName(stop.driver)}</Text>
+        <span style={{ background: '#e6f4ff', color: '#1677ff', fontSize: 11.5, fontWeight: 600, padding: '0 7px', borderRadius: 4, whiteSpace: 'nowrap', flexShrink: 0 }}>
+          {stop.label}
+        </span>
         <span style={{ marginLeft: 'auto', flexShrink: 0, background: s.bg, color: s.color, border: `1px solid ${s.border}`, fontSize: 11, fontWeight: 500, padding: '1px 8px', borderRadius: 6, whiteSpace: 'nowrap' }}>
           {statusLabel}
         </span>
       </div>
-      {stop.from && stop.to && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, minWidth: 0 }}>
-          <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#16a34a', flexShrink: 0 }} />
-          <Text style={{ fontSize: 12, color: '#595959', minWidth: 0, flexShrink: 1 }} ellipsis>{stop.from.name}</Text>
-          <ArrowRightOutlined style={{ color: '#bfbfbf', fontSize: 10, flexShrink: 0 }} />
-          <Text style={{ fontSize: 12, fontWeight: 600, minWidth: 0, flexShrink: 1 }} ellipsis>{stop.to.name}</Text>
+      <div style={{ borderTop: '1px solid #f0f0f0', marginTop: 8, paddingTop: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Text style={{ fontSize: 11.5, color: '#8c8c8c', flexShrink: 0 }}>Trip progress:</Text>
+          {progressBar}
+          <Text style={{ fontSize: 11.5, fontWeight: 600, color: '#1a1a1a', flexShrink: 0 }}>{progressPct}%</Text>
         </div>
-      )}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, minWidth: 0 }}>
-        <ClockCircleOutlined style={{ fontSize: 11.5, color: '#8c8c8c', flexShrink: 0 }} />
-        <Text style={{ fontSize: 12, color: '#8c8c8c', flexShrink: 0 }}>{formatTimeAmPm(stop.scheduled)}</Text>
-        {stop.online && stop.eta && (
-          <Text style={{ fontSize: 12, fontWeight: 600, color: lateMin > 0 ? '#faad14' : '#1677ff', minWidth: 0 }} ellipsis>
-            · ETA {formatTimeAmPm(stop.eta)}{lateMin > 0 ? ` (+${lateMin}m)` : ''}
-          </Text>
+        {(fromName || toName) && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginTop: 6 }}>
+            {fromName && <Text style={{ fontSize: 11.5, color: '#595959' }} ellipsis>From: {fromName}</Text>}
+            {toName && <Text style={{ fontSize: 11.5, fontWeight: 600 }} ellipsis>To: {toName}</Text>}
+          </div>
         )}
       </div>
-      {/* Own row so a long "Last seen" timestamp truncates cleanly instead
-          of overflowing the InfoWindow bubble */}
+      <div style={{ borderTop: '1px solid #f0f0f0', marginTop: 8, paddingTop: 8, display: 'flex', flexDirection: 'column', gap: 3 }}>
+        <Text style={{ fontSize: 11.5, color: '#8c8c8c' }}>
+          ETA: <strong style={{ color: stop.online && stop.eta ? (delayMin !== null && delayMin > 0 ? '#ff4d4f' : '#1677ff') : '#8c8c8c' }}>
+            {stop.online && stop.eta ? formatTimeAmPm(stop.eta) : '—'}
+          </strong>
+        </Text>
+        <Text style={{ fontSize: 11.5, color: '#8c8c8c' }}>
+          Delay: <strong style={{ color: delayColor }}>{delayLabel}</strong>
+        </Text>
+        <Text style={{ fontSize: 11.5, color: '#8c8c8c' }}>
+          Scheduled: <strong style={{ color: '#1a1a1a' }}>{formatTimeAmPm(stop.scheduled)}</strong>
+        </Text>
+      </div>
       {!stop.online && (
-        <Text style={{ fontSize: 12, fontWeight: 600, color: '#ff4d4f', display: 'block', marginTop: 4 }} ellipsis>
+        <Text style={{ fontSize: 11.5, fontWeight: 600, color: '#ff4d4f', display: 'block', marginTop: 6 }} ellipsis>
           Last seen {stop.lastOnline ?? 'unknown'}
         </Text>
       )}
-      <Text style={{ fontSize: 11.5, color: '#8c8c8c', display: 'block', marginTop: 4 }} ellipsis>
-        {stop.plate}
-      </Text>
-      <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
+      <div style={{ borderTop: '1px solid #f0f0f0', marginTop: 8, paddingTop: 8, display: 'flex', gap: 6 }}>
         <Button size="small" type="primary" icon={<EyeOutlined />} onClick={onViewDetail} style={{ flex: 1, fontSize: 12, minWidth: 0 }}>
           View detail
         </Button>
