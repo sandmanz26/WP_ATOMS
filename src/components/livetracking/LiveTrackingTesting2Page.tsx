@@ -847,10 +847,10 @@ function ClaimControl({ accent, claim, compact }: { accent: string; claim: Claim
   const label = actionComplete ? 'Action complete' : claimedBy ? `Claimed by ${firstName(claimedBy)}` : 'Claim'
   const showIcon = buttonStyle !== 'text'
   const showText = buttonStyle !== 'icon'
-  // Primary state (immediate): filled red. Secondary state (at-risk/stable): outline only.
+  // Primary state (immediate): filled red. Secondary state (at-risk/stable): outline grey.
   const btnBg = urgent ? '#ff4d4f' : 'transparent'
-  const btnColor = urgent ? '#fff' : '#ff4d4f'
-  const btnBorder = '#ff4d4f'
+  const btnColor = urgent ? '#fff' : '#595959'
+  const btnBorder = urgent ? '#ff4d4f' : '#d9d9d9'
   const isFullWidth = buttonWidth === 'full'
 
   // Order follows biz req 2.3's "More actions" list verbatim
