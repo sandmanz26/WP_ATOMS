@@ -3091,7 +3091,7 @@ export default function LiveTrackingTesting2Page() {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [drawerPosition, setDrawerPosition] = useState<DrawerPosition>('overlay')
   const [actionPlacement, setActionPlacement] = useState<ActionPlacement>('card')
-  const [actionModel, setActionModel] = useState<ActionModel>('take-it')
+  const [actionModel, setActionModel] = useState<ActionModel>('claim')
   const [claimButtonStyle, setClaimButtonStyle] = useState<ClaimButtonStyle>('text')
   const [claimCardScope, setClaimCardScope] = useState<ClaimCardScope>('all')
   const [dhCardStyle, setDhCardStyle] = useState<DhCardStyle>('compact')
