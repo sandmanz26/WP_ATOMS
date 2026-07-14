@@ -31,6 +31,8 @@ import {
   AlertOutlined,
   AppstoreOutlined,
   FilterOutlined,
+  UserOutlined,
+  TeamOutlined,
 } from '@ant-design/icons'
 import {
   type VehicleStop,
@@ -1000,6 +1002,17 @@ function TripGridCard({
   )
   const claimControl = showAction && claim && <ClaimControl accent={color} claim={claim} />
   const actionControl = claim ? claimControl : takeItBtn
+  const viewDetailBtn = (
+    <Button
+      type="link"
+      size="small"
+      icon={<EyeOutlined style={{ fontSize: 11 }} />}
+      onClick={(e) => { e.stopPropagation(); onViewDetail() }}
+      style={{ padding: 0, fontSize: 11, height: 'auto', marginTop: 4, display: 'block' }}
+    >
+      View detail
+    </Button>
+  )
   // Trello-style assignee badge — once a trip is taken/claimed, a small
   // avatar pins to the card's corner regardless of where the action itself
   // lives. Kept inside the card's own bounds (not overlapping the edge)
@@ -1058,6 +1071,7 @@ function TripGridCard({
             </div>
           </div>
           {actionControl}
+          {viewDetailBtn}
         </div>
       </div>
     )
@@ -1134,6 +1148,7 @@ function TripGridCard({
             <Text style={{ fontSize: 11.5, color: '#8c8c8c', marginLeft: 'auto', whiteSpace: 'nowrap' }}>{stop.plate}</Text>
           </div>
           {actionControl}
+          {viewDetailBtn}
         </div>
       </div>
     )
@@ -1230,6 +1245,7 @@ function TripGridCard({
           )}
           <Text style={{ fontSize: 11.5, color: '#8c8c8c', display: 'block', marginTop: 4 }}>{start} · {stop.plate}</Text>
           {actionControl}
+          {viewDetailBtn}
         </div>
       </div>
     )
@@ -1270,6 +1286,7 @@ function TripGridCard({
           </div>
           <Text style={{ fontSize: 11, color: '#8c8c8c', display: 'block', marginTop: 6 }}>{stop.plate}</Text>
           {actionControl}
+          {viewDetailBtn}
         </div>
       </div>
     )
@@ -1301,6 +1318,7 @@ function TripGridCard({
           </div>
           <Text style={{ fontSize: 11, color: '#8c8c8c', display: 'block', marginTop: 4 }}>{start}</Text>
           {actionControl}
+          {viewDetailBtn}
         </div>
       </div>
     )
@@ -1389,6 +1407,7 @@ function TripGridCard({
           <Text style={{ fontSize: 11.5, color: '#8c8c8c', marginLeft: 'auto', whiteSpace: 'nowrap', flexShrink: 0 }}>{stop.plate}</Text>
         </div>
         {actionControl}
+        {viewDetailBtn}
       </div>
     </div>
   )
@@ -2185,6 +2204,30 @@ function dhInfo(stop: VehicleStop): DhInfo {
   return { l1: 'stable', l2: null, currentDelayMin, nextTripDelayMin, predictedDelayMin, slackMin }
 }
 
+/* ── Mock contact / next-trip data generators — deterministic from stop id ── */
+const PHONE_PREFIXES = ['+65 8', '+65 9']
+const PIC_NAMES = ['Alice Tan', 'Ben Lim', 'Carol Wong', 'David Ng', 'Emily Koh', 'Francis Lee']
+
+function mockPhone(seed: number): string {
+  const prefix = PHONE_PREFIXES[seed % 2]
+  const digits = String((seed * 7919 + 12345) % 10000000).padStart(7, '0')
+  return `${prefix}${digits}`
+}
+
+function mockPicName(seed: number): string {
+  return PIC_NAMES[seed % PIC_NAMES.length]
+}
+
+function mockNextTrip(stop: VehicleStop): { routeCode: string; startTime: string; destination: string } {
+  const h = dhHash(stop.id)
+  const DESTS = ['Marina Bay Sands', 'Changi Airport T1', 'Jurong East MRT', 'Woodlands CK', 'Orchard Road']
+  return {
+    routeCode: `RT-${String((h * 31 + 17) % 900 + 100)}`,
+    startTime: shiftTime(stop.scheduled, 90 + (h % 6) * 15),
+    destination: DESTS[h % DESTS.length],
+  }
+}
+
 function slackChipColors(slackMin: number): { color: string; bg: string; border: string } {
   if (slackMin < 0) return { color: '#ff4d4f', bg: '#fff1f0', border: '#ffccc7' }
   if (slackMin <= 5) return { color: '#d48806', bg: '#fffbe6', border: '#ffe58f' }
@@ -2199,6 +2242,7 @@ function DhGridCard({
   showAction,
   claim,
   onClick,
+  onViewDetail,
   onTake,
   innerRef,
   showDelayText = true,
@@ -2213,6 +2257,7 @@ function DhGridCard({
   showAction: boolean
   claim?: ClaimBundle
   onClick: () => void
+  onViewDetail?: () => void
   onTake: () => void
   innerRef: (el: HTMLDivElement | null) => void
   showDelayText?: boolean
@@ -2311,6 +2356,15 @@ function DhGridCard({
             Take it
           </Button>
         ))}
+        <Button
+          type="link"
+          size="small"
+          icon={<EyeOutlined style={{ fontSize: 11 }} />}
+          onClick={(e) => { e.stopPropagation(); onViewDetail?.() }}
+          style={{ padding: 0, fontSize: 11, height: 'auto', marginTop: 4, display: 'block' }}
+        >
+          View detail
+        </Button>
       </div>
     </div>
   )
@@ -3343,17 +3397,12 @@ export default function LiveTrackingTesting2Page() {
     setDrawerOpen(false)
   }
 
-  // Every other card style: one click selects the trip (which shows its
-  // tooltip on the map, not on the card) and opens the docked detail panel
-  // directly. Clicking the already-open card again closes it.
+  // Every other card style: one click toggles the trip selection (which shows
+  // its InfoWindow on the map / highlights the card) without opening the drawer.
+  // The drawer is opened explicitly via the card's "View detail" button.
   const openCard = (id: string) => {
-    if (selectedId === id && drawerOpen) {
-      setDrawerOpen(false)
-      setSelectedId(null)
-    } else {
-      setSelectedId(id)
-      setDrawerOpen(true)
-    }
+    setSelectedId((prev) => prev === id ? null : id)
+    setDrawerOpen(false)
   }
 
   const sectionLabel = (text: string, color = '#94a3b8') => (
@@ -3433,6 +3482,7 @@ export default function LiveTrackingTesting2Page() {
           showAction={actionPlacement === 'card'}
           claim={claim}
           onClick={() => openCard(stop.id)}
+          onViewDetail={() => { setSelectedId(stop.id); setDrawerOpen(true) }}
           onTake={() => markHandled(stop.id)}
           innerRef={(el) => { cardRefs.current[stop.id] = el }}
           showDelayText={dhPreset.showDelayText}
@@ -3455,15 +3505,14 @@ export default function LiveTrackingTesting2Page() {
           showAction={actionPlacement === 'card'}
           claim={claim}
           onClick={() => toggleExpand(stop.id)}
-          onViewDetail={() => setDrawerOpen(true)}
+          onViewDetail={() => { setSelectedId(stop.id); setDrawerOpen(true) }}
           onTake={() => markHandled(stop.id)}
           innerRef={(el) => { cardRefs.current[stop.id] = el }}
         />
       )
     }
     // Compact / Split / Minimal / Detailed — one click selects the trip
-    // (its tooltip shows on the map only) and opens the docked detail
-    // panel directly, no separate card-level tooltip step
+    // (shows its InfoWindow on the map), "View detail" button opens the panel.
     return (
       <TripGridCard
         key={stop.id}
@@ -3475,7 +3524,7 @@ export default function LiveTrackingTesting2Page() {
         showAction={actionPlacement === 'card'}
         claim={claim}
         onClick={() => openCard(stop.id)}
-        onViewDetail={() => setDrawerOpen(true)}
+        onViewDetail={() => { setSelectedId(stop.id); setDrawerOpen(true) }}
         onTake={() => markHandled(stop.id)}
         innerRef={(el) => { cardRefs.current[stop.id] = el }}
       />
