@@ -1493,6 +1493,7 @@ const DH_L1_ICON: Record<DhLevel1, React.ComponentType<{ style?: React.CSSProper
 function TwoLevelCardHeader({
   level1, level2, l1Counts, l2Counts, onLevel1Change, onLevel2Change,
   rightSlot, l2Spacing = 12, l2MatchL1Width = false, flashingStyle = 'pulse',
+  l1FontSize = 24, l2FontSize = 11,
 }: TwoLevelHeaderProps) {
   const totalCount = l1Counts.immediate + l1Counts.risk + l1Counts.stable
   const l1Tiles = (
@@ -1518,7 +1519,7 @@ function TwoLevelCardHeader({
               <Icon style={{ color: '#fff', fontSize: 18 }} />
             </div>
             <div style={{ minWidth: 0 }}>
-              <Text style={{ fontSize: 26, fontWeight: active ? 800 : 600, color: active ? m.color : '#1a1a1a', lineHeight: 1, display: 'block' }}>{l1Counts[m.key]}</Text>
+              <Text style={{ fontSize: l1FontSize, fontWeight: active ? 800 : 600, color: active ? m.color : '#1a1a1a', lineHeight: 1, display: 'block' }}>{l1Counts[m.key]}</Text>
               <Text style={{ fontSize: 12, fontWeight: active ? 700 : 400, color: active ? m.color : '#595959', whiteSpace: 'nowrap' }}>{m.label}</Text>
             </div>
           </button>
@@ -1538,7 +1539,7 @@ function TwoLevelCardHeader({
           <AppstoreOutlined style={{ color: '#fff', fontSize: 18 }} />
         </div>
         <div style={{ minWidth: 0 }}>
-          <Text style={{ fontSize: 26, fontWeight: level1 === null ? 800 : 600, color: level1 === null ? '#595959' : '#1a1a1a', lineHeight: 1, display: 'block' }}>{totalCount}</Text>
+          <Text style={{ fontSize: l1FontSize, fontWeight: level1 === null ? 800 : 600, color: level1 === null ? '#595959' : '#1a1a1a', lineHeight: 1, display: 'block' }}>{totalCount}</Text>
           <Text style={{ fontSize: 12, fontWeight: level1 === null ? 700 : 400, color: level1 === null ? '#595959' : '#595959', whiteSpace: 'nowrap' }}>All</Text>
         </div>
       </button>
@@ -1558,7 +1559,7 @@ function TwoLevelCardHeader({
               textAlign: 'center', padding: '8px 10px', marginBottom: -1,
               border: 'none', borderBottom: `2px solid ${active ? '#1677ff' : 'transparent'}`,
               background: 'transparent', color: active ? '#1677ff' : count === 0 ? '#bfbfbf' : '#595959',
-              fontSize: 13, fontWeight: active ? 500 : 400, cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all .15s',
+              fontSize: l2FontSize, fontWeight: active ? 500 : 400, cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all .15s',
             }}
           >
             {m.short}
@@ -1585,6 +1586,7 @@ function TwoLevelCardHeader({
 function TwoLevelMinimalHeader({
   level1, level2, l1Counts, l2Counts, onLevel1Change, onLevel2Change,
   rightSlot, l2Spacing = 12, l2MatchL1Width = false, flashingStyle = 'pulse',
+  l1FontSize = 24, l2FontSize = 11,
 }: TwoLevelHeaderProps) {
   const totalCount = l1Counts.immediate + l1Counts.risk + l1Counts.stable
   const l1Tabs = (
@@ -1598,7 +1600,7 @@ function TwoLevelMinimalHeader({
           background: level1 === null ? '#e6f4ff' : 'transparent', cursor: 'pointer', transition: 'all .15s',
         }}
       >
-        <Text style={{ fontSize: 20, fontWeight: level1 === null ? 800 : 600, color: level1 === null ? '#595959' : '#1a1a1a', lineHeight: 1 }}>{totalCount}</Text>
+        <Text style={{ fontSize: l1FontSize, fontWeight: level1 === null ? 800 : 600, color: level1 === null ? '#595959' : '#1a1a1a', lineHeight: 1 }}>{totalCount}</Text>
         <Text style={{ fontSize: 11, fontWeight: level1 === null ? 700 : 400, color: level1 === null ? '#595959' : '#8c8c8c', whiteSpace: 'nowrap' }}>All</Text>
       </button>
       {DH_L1_META.map((m) => {
@@ -1618,7 +1620,7 @@ function TwoLevelMinimalHeader({
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
               <span style={{ width: 7, height: 7, borderRadius: '50%', background: m.color, flexShrink: 0 }} />
-              <Text style={{ fontSize: 20, fontWeight: active ? 800 : 600, color: active ? m.color : '#1a1a1a', lineHeight: 1 }}>{l1Counts[m.key]}</Text>
+              <Text style={{ fontSize: l1FontSize, fontWeight: active ? 800 : 600, color: active ? m.color : '#1a1a1a', lineHeight: 1 }}>{l1Counts[m.key]}</Text>
             </div>
             <Text style={{ fontSize: 11, fontWeight: active ? 700 : 400, color: active ? m.color : '#8c8c8c', whiteSpace: 'nowrap' }}>{m.label}</Text>
           </button>
@@ -1641,7 +1643,7 @@ function TwoLevelMinimalHeader({
               border: `1px solid ${active ? '#1677ff' : '#e8e8e8'}`,
               background: active ? '#e6f4ff' : '#fafafa',
               color: active ? '#1677ff' : count === 0 ? '#bfbfbf' : '#595959',
-              fontSize: 11.5, fontWeight: active ? 500 : 400, cursor: 'pointer', transition: 'all .15s', whiteSpace: 'nowrap',
+              fontSize: l2FontSize, fontWeight: active ? 500 : 400, cursor: 'pointer', transition: 'all .15s', whiteSpace: 'nowrap',
             }}
           >
             {m.short}
@@ -1683,16 +1685,19 @@ interface TwoLevelHeaderProps {
   l2MatchL1Width?: boolean
   flashingStyle?: FlashingStyle
   boxPadding?: number
+  l1FontSize?: number
+  l2FontSize?: number
 }
 
 // Shared L2 chip row used by all two-level header variants.
 // flushLeft=true: chips take natural width, left-aligned (pill style).
 // flushLeft=false (default): chips stretch equally across full width (underline-tab style).
-function TwoLevelL2Chips({ level1, level2, l2Counts, onLevel2Change, l2Spacing = 12, flushLeft = false }: {
+function TwoLevelL2Chips({ level1, level2, l2Counts, onLevel2Change, l2Spacing = 12, flushLeft = false, l2FontSize = 11 }: {
   level1: DhLevel1 | null; level2: DhLevel2 | null
   l2Counts: Record<string, number>; onLevel2Change: (v: DhLevel2 | null) => void
   l2Spacing?: L2Spacing
   flushLeft?: boolean
+  l2FontSize?: number
 }) {
   if (level1 === null || level1 === 'stable') return null
   if (flushLeft) {
@@ -1711,7 +1716,7 @@ function TwoLevelL2Chips({ level1, level2, l2Counts, onLevel2Change, l2Spacing =
                 border: `1px solid ${active ? '#1677ff' : '#e8e8e8'}`,
                 background: active ? '#e6f4ff' : '#fafafa',
                 color: active ? '#1677ff' : count === 0 ? '#bfbfbf' : '#595959',
-                fontSize: 13, fontWeight: active ? 500 : 400, cursor: 'pointer', transition: 'all .15s',
+                fontSize: l2FontSize, fontWeight: active ? 500 : 400, cursor: 'pointer', transition: 'all .15s',
                 whiteSpace: 'nowrap',
               }}
             >
@@ -1745,7 +1750,7 @@ function TwoLevelL2Chips({ level1, level2, l2Counts, onLevel2Change, l2Spacing =
               border: 'none', borderBottom: `2px solid ${active ? '#1677ff' : 'transparent'}`,
               background: 'transparent',
               color: active ? '#1677ff' : count === 0 ? '#bfbfbf' : '#595959',
-              fontSize: 13, fontWeight: active ? 500 : 400, cursor: 'pointer', transition: 'all .15s',
+              fontSize: l2FontSize, fontWeight: active ? 500 : 400, cursor: 'pointer', transition: 'all .15s',
               whiteSpace: 'nowrap',
             }}
           >
@@ -1767,7 +1772,7 @@ function TwoLevelL2Chips({ level1, level2, l2Counts, onLevel2Change, l2Spacing =
 
 /* ── Banner variant: active category fills with its color, inactive categories
    are compact text segments. Equal-width columns, no icon badges. ── */
-function TwoLevelBannerHeader({ level1, level2, l1Counts, l2Counts, onLevel1Change, onLevel2Change, rightSlot, l2Spacing, l2MatchL1Width = false, flashingStyle = 'pulse' }: TwoLevelHeaderProps) {
+function TwoLevelBannerHeader({ level1, level2, l1Counts, l2Counts, onLevel1Change, onLevel2Change, rightSlot, l2Spacing, l2MatchL1Width = false, flashingStyle = 'pulse', l1FontSize = 24, l2FontSize = 11 }: TwoLevelHeaderProps) {
   const totalCount = l1Counts.immediate + l1Counts.risk + l1Counts.stable
   const l1 = (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 0, flex: l2MatchL1Width ? undefined : 1, borderRadius: 10, overflow: 'hidden', border: '1px solid #e8e8e8' }}>
@@ -1787,7 +1792,7 @@ function TwoLevelBannerHeader({ level1, level2, l1Counts, l2Counts, onLevel1Chan
             }}
           >
             {active && <Icon style={{ color: 'rgba(255,255,255,.8)', fontSize: 13 }} />}
-            <Text style={{ fontSize: 22, fontWeight: 800, color: active ? '#fff' : m.color, lineHeight: 1 }}>{l1Counts[m.key]}</Text>
+            <Text style={{ fontSize: l1FontSize, fontWeight: 800, color: active ? '#fff' : m.color, lineHeight: 1 }}>{l1Counts[m.key]}</Text>
             <Text style={{ fontSize: 10.5, fontWeight: active ? 700 : 400, color: active ? 'rgba(255,255,255,.85)' : '#8c8c8c', whiteSpace: 'nowrap' }}>{m.label}</Text>
           </button>
         )
@@ -1801,19 +1806,19 @@ function TwoLevelBannerHeader({ level1, level2, l1Counts, l2Counts, onLevel1Chan
           cursor: 'pointer', transition: 'background .18s',
         }}
       >
-        <Text style={{ fontSize: 22, fontWeight: 800, color: level1 === null ? '#fff' : '#1677ff', lineHeight: 1 }}>{totalCount}</Text>
+        <Text style={{ fontSize: l1FontSize, fontWeight: 800, color: level1 === null ? '#fff' : '#1677ff', lineHeight: 1 }}>{totalCount}</Text>
         <Text style={{ fontSize: 10.5, fontWeight: level1 === null ? 700 : 400, color: level1 === null ? 'rgba(255,255,255,.85)' : '#8c8c8c', whiteSpace: 'nowrap' }}>All</Text>
       </button>
     </div>
   )
-  const l2 = <TwoLevelL2Chips level1={level1} level2={level2} l2Counts={l2Counts} onLevel2Change={onLevel2Change} l2Spacing={l2Spacing} />
+  const l2 = <TwoLevelL2Chips level1={level1} level2={level2} l2Counts={l2Counts} onLevel2Change={onLevel2Change} l2Spacing={l2Spacing} l2FontSize={l2FontSize} />
   if (l2MatchL1Width) return <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}><div>{l1}{l2}</div>{rightSlot && <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center' }}>{rightSlot}</div>}</div>
   return <><div style={{ display: 'flex', alignItems: 'stretch', gap: 12 }}>{l1}{rightSlot && <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center' }}>{rightSlot}</div>}</div>{l2}</>
 }
 
 /* ── Stats variant: horizontal strip with a large colored number, label, and
    a colored left-accent bar on the active item. Clean and data-table-like. ── */
-function TwoLevelStatsHeader({ level1, level2, l1Counts, l2Counts, onLevel1Change, onLevel2Change, rightSlot, l2Spacing, l2MatchL1Width = false, flashingStyle = 'pulse' }: TwoLevelHeaderProps) {
+function TwoLevelStatsHeader({ level1, level2, l1Counts, l2Counts, onLevel1Change, onLevel2Change, rightSlot, l2Spacing, l2MatchL1Width = false, flashingStyle = 'pulse', l1FontSize = 24, l2FontSize = 11 }: TwoLevelHeaderProps) {
   const totalCount = l1Counts.immediate + l1Counts.risk + l1Counts.stable
   const l1 = (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', flex: l2MatchL1Width ? undefined : 1, borderRadius: 10, border: '1px solid #f0f0f0', overflow: 'hidden' }}>
@@ -1831,7 +1836,7 @@ function TwoLevelStatsHeader({ level1, level2, l1Counts, l2Counts, onLevel1Chang
               background: active ? m.soft : '#fff', cursor: 'pointer', transition: 'all .15s',
             }}
           >
-            <Text style={{ fontSize: 24, fontWeight: 800, color: m.color, lineHeight: 1, flexShrink: 0 }}>{l1Counts[m.key]}</Text>
+            <Text style={{ fontSize: l1FontSize, fontWeight: 800, color: m.color, lineHeight: 1, flexShrink: 0 }}>{l1Counts[m.key]}</Text>
             <Text style={{ fontSize: 11, fontWeight: active ? 700 : 400, color: active ? '#1a1a1a' : '#8c8c8c', whiteSpace: 'nowrap', lineHeight: 1.3 }}>{m.label}</Text>
           </button>
         )
@@ -1845,12 +1850,12 @@ function TwoLevelStatsHeader({ level1, level2, l1Counts, l2Counts, onLevel1Chang
           background: level1 === null ? '#e6f4ff' : '#fff', cursor: 'pointer', transition: 'all .15s',
         }}
       >
-        <Text style={{ fontSize: 24, fontWeight: 800, color: '#1677ff', lineHeight: 1, flexShrink: 0 }}>{totalCount}</Text>
+        <Text style={{ fontSize: l1FontSize, fontWeight: 800, color: '#1677ff', lineHeight: 1, flexShrink: 0 }}>{totalCount}</Text>
         <Text style={{ fontSize: 11, fontWeight: level1 === null ? 700 : 400, color: level1 === null ? '#595959' : '#8c8c8c', whiteSpace: 'nowrap', lineHeight: 1.3 }}>All</Text>
       </button>
     </div>
   )
-  const l2 = <TwoLevelL2Chips level1={level1} level2={level2} l2Counts={l2Counts} onLevel2Change={onLevel2Change} l2Spacing={l2Spacing} />
+  const l2 = <TwoLevelL2Chips level1={level1} level2={level2} l2Counts={l2Counts} onLevel2Change={onLevel2Change} l2Spacing={l2Spacing} l2FontSize={l2FontSize} />
   if (l2MatchL1Width) return <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}><div>{l1}{l2}</div>{rightSlot && <div style={{ flexShrink: 0 }}>{rightSlot}</div>}</div>
   return <><div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>{l1}{rightSlot && <div style={{ flexShrink: 0 }}>{rightSlot}</div>}</div>{l2}</>
 }
@@ -1858,7 +1863,7 @@ function TwoLevelStatsHeader({ level1, level2, l1Counts, l2Counts, onLevel1Chang
 /* ── Badge variant: compact pill-shaped buttons, each with a small filled
    count circle + label. Fits alongside other header controls without
    dominating the space. ── */
-function TwoLevelBadgeHeader({ level1, level2, l1Counts, l2Counts, onLevel1Change, onLevel2Change, rightSlot, l2Spacing, l2MatchL1Width = false, flashingStyle = 'pulse' }: TwoLevelHeaderProps) {
+function TwoLevelBadgeHeader({ level1, level2, l1Counts, l2Counts, onLevel1Change, onLevel2Change, rightSlot, l2Spacing, l2MatchL1Width = false, flashingStyle = 'pulse', l1FontSize = 24, l2FontSize = 11 }: TwoLevelHeaderProps) {
   const totalCount = l1Counts.immediate + l1Counts.risk + l1Counts.stable
   const l1 = (
     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', flex: l2MatchL1Width ? undefined : 1 }}>
@@ -1895,7 +1900,7 @@ function TwoLevelBadgeHeader({ level1, level2, l1Counts, l2Counts, onLevel1Chang
       </button>
     </div>
   )
-  const l2 = <TwoLevelL2Chips level1={level1} level2={level2} l2Counts={l2Counts} onLevel2Change={onLevel2Change} l2Spacing={l2Spacing} />
+  const l2 = <TwoLevelL2Chips level1={level1} level2={level2} l2Counts={l2Counts} onLevel2Change={onLevel2Change} l2Spacing={l2Spacing} l2FontSize={l2FontSize} />
   if (l2MatchL1Width) return <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap' }}><div>{l1}{l2}</div>{rightSlot && <div style={{ flexShrink: 0 }}>{rightSlot}</div>}</div>
   return <><div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>{l1}{rightSlot && <div style={{ flexShrink: 0 }}>{rightSlot}</div>}</div>{l2}</>
 }
@@ -1903,7 +1908,7 @@ function TwoLevelBadgeHeader({ level1, level2, l1Counts, l2Counts, onLevel1Chang
 /* ── Progress variant: a proportional stacked bar showing the share of trips
    in each category + compact label row below. The bar itself is clickable.
    Gives a clear at-a-glance sense of how many trips are at each severity. ── */
-function TwoLevelProgressHeader({ level1, level2, l1Counts, l2Counts, onLevel1Change, onLevel2Change, rightSlot, l2Spacing, l2MatchL1Width = false }: TwoLevelHeaderProps) {
+function TwoLevelProgressHeader({ level1, level2, l1Counts, l2Counts, onLevel1Change, onLevel2Change, rightSlot, l2Spacing, l2MatchL1Width = false, l1FontSize = 24, l2FontSize = 11 }: TwoLevelHeaderProps) {
   const total = (l1Counts.immediate + l1Counts.risk + l1Counts.stable) || 1
   const l1 = (
     <div>
@@ -1967,7 +1972,7 @@ function TwoLevelProgressHeader({ level1, level2, l1Counts, l2Counts, onLevel1Ch
       </div>
     </div>
   )
-  const l2 = <TwoLevelL2Chips level1={level1} level2={level2} l2Counts={l2Counts} onLevel2Change={onLevel2Change} l2Spacing={l2Spacing} />
+  const l2 = <TwoLevelL2Chips level1={level1} level2={level2} l2Counts={l2Counts} onLevel2Change={onLevel2Change} l2Spacing={l2Spacing} l2FontSize={l2FontSize} />
   if (l2MatchL1Width) return <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}><div>{l1}{l2}</div>{rightSlot && <div style={{ flexShrink: 0 }}>{rightSlot}</div>}</div>
   return (
     <>
@@ -1982,7 +1987,7 @@ function TwoLevelProgressHeader({ level1, level2, l1Counts, l2Counts, onLevel1Ch
 
 /* ── Inline variant: single left-aligned row — count + label per category,
    no box chrome, only the active item gets a colored underline. ── */
-function TwoLevelInlineHeader({ level1, level2, l1Counts, l2Counts, onLevel1Change, onLevel2Change, rightSlot, l2Spacing, l2MatchL1Width = false, flashingStyle = 'pulse' }: TwoLevelHeaderProps) {
+function TwoLevelInlineHeader({ level1, level2, l1Counts, l2Counts, onLevel1Change, onLevel2Change, rightSlot, l2Spacing, l2MatchL1Width = false, flashingStyle = 'pulse', l1FontSize = 24, l2FontSize = 11 }: TwoLevelHeaderProps) {
   const totalCount = l1Counts.immediate + l1Counts.risk + l1Counts.stable
   const l1 = (
     <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -2002,7 +2007,7 @@ function TwoLevelInlineHeader({ level1, level2, l1Counts, l2Counts, onLevel1Chan
                 padding: '6px 4px 7px', cursor: 'pointer', transition: 'all .15s',
               }}
             >
-              <Text style={{ fontSize: 24, fontWeight: 800, color: m.color, lineHeight: 1 }}>{l1Counts[m.key]}</Text>
+              <Text style={{ fontSize: l1FontSize, fontWeight: 800, color: m.color, lineHeight: 1 }}>{l1Counts[m.key]}</Text>
               <Text style={{ fontSize: 12.5, fontWeight: active ? 700 : 400, color: active ? m.color : '#595959', whiteSpace: 'nowrap' }}>{m.label}</Text>
             </button>
           </>
@@ -2017,12 +2022,12 @@ function TwoLevelInlineHeader({ level1, level2, l1Counts, l2Counts, onLevel1Chan
           padding: '6px 4px 7px', cursor: 'pointer', transition: 'all .15s',
         }}
       >
-        <Text style={{ fontSize: 24, fontWeight: 800, color: '#1677ff', lineHeight: 1 }}>{totalCount}</Text>
+        <Text style={{ fontSize: l1FontSize, fontWeight: 800, color: '#1677ff', lineHeight: 1 }}>{totalCount}</Text>
         <Text style={{ fontSize: 12.5, fontWeight: level1 === null ? 700 : 400, color: level1 === null ? '#595959' : '#595959', whiteSpace: 'nowrap' }}>All</Text>
       </button>
     </div>
   )
-  const l2 = <TwoLevelL2Chips level1={level1} level2={level2} l2Counts={l2Counts} onLevel2Change={onLevel2Change} l2Spacing={l2Spacing} flushLeft />
+  const l2 = <TwoLevelL2Chips level1={level1} level2={level2} l2Counts={l2Counts} onLevel2Change={onLevel2Change} l2Spacing={l2Spacing} flushLeft l2FontSize={l2FontSize} />
   if (l2MatchL1Width) return <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}><div>{l1}{l2}</div>{rightSlot && <div style={{ marginLeft: 'auto', flexShrink: 0 }}>{rightSlot}</div>}</div>
   return (
     <>
@@ -2037,7 +2042,7 @@ function TwoLevelInlineHeader({ level1, level2, l1Counts, l2Counts, onLevel1Chan
 
 /* ── Panel variant: left-aligned natural-width cards, each with a colored
    top accent border, big count, and label. Cards don't stretch. ── */
-function TwoLevelPanelHeader({ level1, level2, l1Counts, l2Counts, onLevel1Change, onLevel2Change, rightSlot, l2Spacing, l2MatchL1Width = false, flashingStyle = 'pulse', boxPadding = 10 }: TwoLevelHeaderProps) {
+function TwoLevelPanelHeader({ level1, level2, l1Counts, l2Counts, onLevel1Change, onLevel2Change, rightSlot, l2Spacing, l2MatchL1Width = false, flashingStyle = 'pulse', boxPadding = 10, l1FontSize = 24, l2FontSize = 11 }: TwoLevelHeaderProps) {
   const totalCount = l1Counts.immediate + l1Counts.risk + l1Counts.stable
   const l1 = (
     <div style={{ display: 'flex', gap: 8 }}>
@@ -2060,7 +2065,7 @@ function TwoLevelPanelHeader({ level1, level2, l1Counts, l2Counts, onLevel1Chang
               minWidth: 106,
             }}
           >
-            <Text style={{ fontSize: 28, fontWeight: 800, color: m.color, lineHeight: 1, display: 'block' }}>{l1Counts[m.key]}</Text>
+            <Text style={{ fontSize: l1FontSize, fontWeight: 800, color: m.color, lineHeight: 1, display: 'block' }}>{l1Counts[m.key]}</Text>
             <Text style={{ fontSize: 12, fontWeight: 700, color: active ? m.color : '#595959', marginTop: 4, whiteSpace: 'nowrap', lineHeight: 1.3 }}>{m.label}</Text>
           </button>
         )
@@ -2078,12 +2083,12 @@ function TwoLevelPanelHeader({ level1, level2, l1Counts, l2Counts, onLevel1Chang
           minWidth: 106,
         }}
       >
-        <Text style={{ fontSize: 28, fontWeight: 800, color: level1 === null ? '#595959' : '#1a1a1a', lineHeight: 1, display: 'block' }}>{totalCount}</Text>
+        <Text style={{ fontSize: l1FontSize, fontWeight: 800, color: level1 === null ? '#595959' : '#1a1a1a', lineHeight: 1, display: 'block' }}>{totalCount}</Text>
         <Text style={{ fontSize: 12, fontWeight: 700, color: level1 === null ? '#595959' : '#1a1a1a', marginTop: 4, whiteSpace: 'nowrap', lineHeight: 1.3 }}>All</Text>
       </button>
     </div>
   )
-  const l2 = <TwoLevelL2Chips level1={level1} level2={level2} l2Counts={l2Counts} onLevel2Change={onLevel2Change} l2Spacing={l2Spacing} flushLeft />
+  const l2 = <TwoLevelL2Chips level1={level1} level2={level2} l2Counts={l2Counts} onLevel2Change={onLevel2Change} l2Spacing={l2Spacing} flushLeft l2FontSize={l2FontSize} />
   if (l2MatchL1Width) return <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}><div>{l1}{l2}</div>{rightSlot && <div style={{ flexShrink: 0 }}>{rightSlot}</div>}</div>
   return (
     <>
@@ -2098,7 +2103,7 @@ function TwoLevelPanelHeader({ level1, level2, l1Counts, l2Counts, onLevel1Chang
 
 /* ── Metro variant: fixed-width solid-color tiles, left-aligned. Active tile
    fills with its category color; inactive tiles show a soft tint. ── */
-function TwoLevelMetroHeader({ level1, level2, l1Counts, l2Counts, onLevel1Change, onLevel2Change, rightSlot, l2Spacing, l2MatchL1Width = false, flashingStyle = 'pulse' }: TwoLevelHeaderProps) {
+function TwoLevelMetroHeader({ level1, level2, l1Counts, l2Counts, onLevel1Change, onLevel2Change, rightSlot, l2Spacing, l2MatchL1Width = false, flashingStyle = 'pulse', l1FontSize = 24, l2FontSize = 11 }: TwoLevelHeaderProps) {
   const totalCount = l1Counts.immediate + l1Counts.risk + l1Counts.stable
   const l1 = (
     <div style={{ display: 'flex', gap: 6 }}>
@@ -2119,7 +2124,7 @@ function TwoLevelMetroHeader({ level1, level2, l1Counts, l2Counts, onLevel1Chang
               cursor: 'pointer', transition: 'all .2s',
             }}
           >
-            <Text style={{ fontSize: 30, fontWeight: 800, color: active ? '#fff' : m.color, lineHeight: 1, display: 'block' }}>{l1Counts[m.key]}</Text>
+            <Text style={{ fontSize: l1FontSize, fontWeight: 800, color: active ? '#fff' : m.color, lineHeight: 1, display: 'block' }}>{l1Counts[m.key]}</Text>
             <Text style={{ fontSize: 11.5, fontWeight: 700, color: active ? 'rgba(255,255,255,.88)' : '#595959', marginTop: 5, lineHeight: 1.3 }}>{m.label}</Text>
           </button>
         )
@@ -2135,7 +2140,7 @@ function TwoLevelMetroHeader({ level1, level2, l1Counts, l2Counts, onLevel1Chang
           cursor: 'pointer', transition: 'all .2s',
         }}
       >
-        <Text style={{ fontSize: 30, fontWeight: 800, color: level1 === null ? '#fff' : '#595959', lineHeight: 1, display: 'block' }}>{totalCount}</Text>
+        <Text style={{ fontSize: l1FontSize, fontWeight: 800, color: level1 === null ? '#fff' : '#595959', lineHeight: 1, display: 'block' }}>{totalCount}</Text>
         <Text style={{ fontSize: 11.5, fontWeight: 700, color: level1 === null ? 'rgba(255,255,255,.88)' : '#595959', marginTop: 5, lineHeight: 1.3 }}>All</Text>
       </button>
     </div>
