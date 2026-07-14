@@ -518,12 +518,14 @@ function KpiBar({
   )
 }
 
-type SortKey = 'start' | 'eta' | 'label'
+type SortKey = 'start' | 'eta' | 'label' | 'slack-asc' | 'delay-desc'
 
 const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: 'start', label: 'Start time' },
   { value: 'eta', label: 'ETA' },
   { value: 'label', label: 'Route code' },
+  { value: 'slack-asc', label: 'Slack ↑' },
+  { value: 'delay-desc', label: 'Delay ↓' },
 ]
 
 /* ── Map/marker tooltip style — how much the InfoWindow/card popover shows ── */
@@ -1469,14 +1471,14 @@ const DH_L1_META: { key: DhLevel1; label: string; color: string; soft: string; b
 
 const DH_L2_META: Record<Exclude<DhLevel1, 'stable'>, { key: DhLevel2; label: string; short: string }[]> = {
   immediate: [
-    { key: 'cur-first', label: 'Current trip delayed (first point)', short: 'Late · 1st stop' },
-    { key: 'cur-other', label: 'Current trip delayed (other points)', short: 'Late · en route' },
+    { key: 'cur-first', label: 'Late (first point)', short: 'Late · 1st stop' },
+    { key: 'will-first', label: 'Will be late (first point)', short: 'Will be late · 1st' },
     { key: 'next', label: 'Next trip delayed', short: 'Next trip' },
-    { key: 'offline', label: 'Driver offline', short: 'Offline' },
+    { key: 'offline', label: 'ETA unavailable / offline', short: 'ETA unavail.' },
   ],
   risk: [
-    { key: 'will-first', label: 'Current trip will be delayed (first point)', short: 'Will late · 1st' },
-    { key: 'will-other', label: 'Current trip will be delayed (other points)', short: 'Will late · route' },
+    { key: 'cur-other', label: 'Late (other points)', short: 'Late · en route' },
+    { key: 'will-other', label: 'Will be late (other points)', short: 'Will be late · route' },
     { key: 'no-slack', label: 'No schedule slack', short: 'No slack' },
   ],
 }
@@ -2241,10 +2243,15 @@ function dhInfo(stop: VehicleStop): DhInfo {
   const predictedDelayMin = stop.online && currentDelayMin === 0 && h % 4 === 0 ? (h % 3) * 5 + 5 : 0
   const atFirstPoint = stop.phase < 0.45
 
+  // PRD 4.1 categorisation rules:
+  // Immediate: ETA unavailable/offline, Late(FP), Will be Late(FP), Next trip delayed
+  // At Risk:   Late(OP), Will be Late(OP), No schedule slack
   if (!stop.online) return { l1: 'immediate', l2: 'offline', currentDelayMin, nextTripDelayMin, predictedDelayMin, slackMin }
-  if (currentDelayMin > 0) return { l1: 'immediate', l2: atFirstPoint ? 'cur-first' : 'cur-other', currentDelayMin, nextTripDelayMin, predictedDelayMin, slackMin }
+  if (currentDelayMin > 0 && atFirstPoint) return { l1: 'immediate', l2: 'cur-first', currentDelayMin, nextTripDelayMin, predictedDelayMin, slackMin }
+  if (currentDelayMin > 0) return { l1: 'risk', l2: 'cur-other', currentDelayMin, nextTripDelayMin, predictedDelayMin, slackMin }
   if (nextTripDelayMin > 0) return { l1: 'immediate', l2: 'next', currentDelayMin, nextTripDelayMin, predictedDelayMin, slackMin }
-  if (predictedDelayMin > 0) return { l1: 'risk', l2: atFirstPoint ? 'will-first' : 'will-other', currentDelayMin, nextTripDelayMin, predictedDelayMin, slackMin }
+  if (predictedDelayMin > 0 && atFirstPoint) return { l1: 'immediate', l2: 'will-first', currentDelayMin, nextTripDelayMin, predictedDelayMin, slackMin }
+  if (predictedDelayMin > 0) return { l1: 'risk', l2: 'will-other', currentDelayMin, nextTripDelayMin, predictedDelayMin, slackMin }
   if (slackMin <= 5) return { l1: 'risk', l2: 'no-slack', currentDelayMin, nextTripDelayMin, predictedDelayMin, slackMin }
   return { l1: 'stable', l2: null, currentDelayMin, nextTripDelayMin, predictedDelayMin, slackMin }
 }
@@ -3232,7 +3239,7 @@ function CardStyleGallery({
 export default function LiveTrackingTesting2Page() {
   const [filter, setFilter] = useState<KpiKey>('all')
   const [search, setSearch] = useState('')
-  const [sortBy, setSortBy] = useState<SortKey>('start')
+  const [sortBy, setSortBy] = useState<SortKey>('slack-asc')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [drawerPosition, setDrawerPosition] = useState<DrawerPosition>('overlay')
@@ -3283,6 +3290,13 @@ export default function LiveTrackingTesting2Page() {
   const isTwoLevel = highlightStyle.startsWith('two-level')
   const [dhLevel1, setDhLevel1] = useState<DhLevel1 | null>('immediate')
   const [dhLevel2, setDhLevel2] = useState<DhLevel2 | null>('cur-first')
+  const handleLevel1Change = (v: DhLevel1 | null) => {
+    setDhLevel1(v)
+    setDhLevel2(null)
+    if (v === 'immediate') setSortBy('slack-asc')
+    else if (v === 'risk') setSortBy('delay-desc')
+    else setSortBy('start')
+  }
   const [showRoutes, setShowRoutes] = useState(true)
   const [showTraffic, setShowTraffic] = useState(true)
   const [simulating, setSimulating] = useState(false)
@@ -3398,6 +3412,8 @@ export default function LiveTrackingTesting2Page() {
         return av - bv
       }
       case 'label': return a.label.localeCompare(b.label)
+      case 'slack-asc': return (dhById[a.id]?.slackMin ?? 0) - (dhById[b.id]?.slackMin ?? 0)
+      case 'delay-desc': return (dhById[b.id]?.currentDelayMin ?? 0) - (dhById[a.id]?.currentDelayMin ?? 0)
       default: return toMinutes(a.scheduled) - toMinutes(b.scheduled)
     }
   }
@@ -3715,7 +3731,7 @@ export default function LiveTrackingTesting2Page() {
         {/* ── Header: KPI/highlight bar + search + sort ── */}
         <div style={{ flexShrink: 0 }}>
           {isTwoLevel ? (() => {
-            const l2Props = { level1: dhLevel1, level2: dhLevel2, l1Counts: dhL1Counts, l2Counts: dhL2Counts, onLevel1Change: setDhLevel1, onLevel2Change: setDhLevel2, l2Spacing, l2MatchL1Width, flashingStyle, l1FontSize, l2FontSize }
+            const l2Props = { level1: dhLevel1, level2: dhLevel2, l1Counts: dhL1Counts, l2Counts: dhL2Counts, onLevel1Change: handleLevel1Change, onLevel2Change: setDhLevel2, l2Spacing, l2MatchL1Width, flashingStyle, l1FontSize, l2FontSize }
             const rightSlot = (
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                 <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search route, driver, plate..." style={{ borderRadius: 8, width: 210 }} allowClear />
@@ -3742,14 +3758,14 @@ export default function LiveTrackingTesting2Page() {
             const pillsTotalCount = dhL1Counts.immediate + dhL1Counts.risk + dhL1Counts.stable
             const pillsL1 = (
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                <button onClick={() => { setDhLevel1(null); setDhLevel2(null) }}
+                <button onClick={() => handleLevel1Change(null)}
                   style={{ padding: '6px 12px', borderRadius: 16, whiteSpace: 'nowrap', border: `1px solid ${dhLevel1 === null ? '#1677ff' : '#91caff'}`, background: dhLevel1 === null ? '#1677ff' : '#e6f4ff', color: dhLevel1 === null ? '#fff' : '#1677ff', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', transition: 'all .15s' }}>
                   All ({pillsTotalCount})
                 </button>
                 {DH_L1_META.map((m) => {
                   const active = dhLevel1 === m.key
                   return (
-                    <button key={m.key} onClick={() => { setDhLevel1(m.key); setDhLevel2(null) }}
+                    <button key={m.key} onClick={() => handleLevel1Change(m.key)}
                       className={flashCls(flashingStyle, m.key === 'immediate' && dhL1Counts.immediate > 0, active)}
                       style={{ padding: '6px 12px', borderRadius: 16, whiteSpace: 'nowrap', border: `1px solid ${active ? m.color : m.border}`, background: active ? m.color : m.soft, color: active ? '#fff' : m.color, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', transition: 'all .15s' }}>
                       {m.label} ({dhL1Counts[m.key]})
