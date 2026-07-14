@@ -346,6 +346,24 @@ function kpiMatch(stop: VehicleStop, key: KpiKey): boolean {
    "2 Levels" visuals for the Immediate attention/At risk/Stable system —
    Pills (rounded chips, same as the level-1 style used elsewhere) or Cards
    (dashboard-tile level 1 with an icon badge, underline tabs for level 2). ── */
+type FlashingStyle = 'none' | 'pulse' | 'glow' | 'blink' | 'shake' | 'bounce'
+
+const FLASHING_STYLE_OPTIONS: { value: FlashingStyle; label: string }[] = [
+  { value: 'none',   label: 'None' },
+  { value: 'pulse',  label: 'Pulse' },
+  { value: 'glow',   label: 'Glow' },
+  { value: 'blink',  label: 'Blink' },
+  { value: 'shake',  label: 'Shake' },
+  { value: 'bounce', label: 'Bounce' },
+]
+
+function flashCls(style: FlashingStyle, hot: boolean, active: boolean): string | undefined {
+  if (!hot || active) return undefined
+  if (style === 'none')   return undefined
+  if (style === 'pulse')  return 'tab-urgent-pulse'
+  return `flash-${style}`
+}
+
 type HighlightStyle =
   | 'default' | 'segment' | 'color'
   | 'two-level' | 'two-level-cards' | 'two-level-minimal'
@@ -1414,7 +1432,7 @@ const DH_L1_ICON: Record<DhLevel1, React.ComponentType<{ style?: React.CSSProper
    as underline tabs instead of chips. ── */
 function TwoLevelCardHeader({
   level1, level2, l1Counts, l2Counts, onLevel1Change, onLevel2Change,
-  rightSlot, l2Spacing = 12, l2MatchL1Width = false,
+  rightSlot, l2Spacing = 12, l2MatchL1Width = false, flashingStyle = 'pulse',
 }: TwoLevelHeaderProps) {
   const totalCount = l1Counts.immediate + l1Counts.risk + l1Counts.stable
   const l1Tiles = (
@@ -1603,7 +1621,7 @@ interface TwoLevelHeaderProps {
   rightSlot?: React.ReactNode
   l2Spacing?: L2Spacing
   l2MatchL1Width?: boolean
-  flashingEnabled?: boolean
+  flashingStyle?: FlashingStyle
   boxPadding?: number
 }
 
