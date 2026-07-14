@@ -836,6 +836,7 @@ interface ClaimBundle {
   notified: boolean
   buttonStyle: ClaimButtonStyle
   urgent: boolean
+  flashingStyle?: FlashingStyle
   colorMode: ClaimColorMode
   buttonWidth: ClaimButtonWidth
   onClaim: () => void
@@ -856,7 +857,7 @@ interface ClaimBundle {
    "More actions" menu for release/take-over/mark-complete. ── */
 function ClaimControl({ accent, claim, compact }: { accent: string; claim: ClaimBundle; compact?: boolean }) {
   const {
-    claimedBy, actionComplete, overdue, notified, buttonStyle, urgent, colorMode, buttonWidth,
+    claimedBy, actionComplete, overdue, notified, buttonStyle, urgent, colorMode, buttonWidth, flashingStyle,
     onClaim, onRelease, onTakeOver, onMarkComplete,
     onNotify, onViewGps, onViewSchedule, onSendAnnouncement, onCreateIncident,
   } = claim
@@ -910,7 +911,7 @@ function ClaimControl({ accent, claim, compact }: { accent: string; claim: Claim
   ) : (
     <Button
       size="small"
-      className={urgent ? 'claim-flash' : undefined}
+      className={urgent ? (flashingStyle && flashingStyle !== 'none' ? (flashingStyle === 'pulse' ? 'tab-urgent-pulse' : `flash-${flashingStyle}`) : undefined) : undefined}
       icon={showIcon ? <CheckOutlined style={{ fontSize: 10 }} /> : undefined}
       onClick={onClaim}
       style={{
@@ -1445,7 +1446,7 @@ function TwoLevelCardHeader({
           <button
             key={m.key}
             onClick={() => { onLevel1Change(m.key); onLevel2Change(null) }}
-            className={hot && !active ? 'tab-urgent-pulse' : undefined}
+            className={flashCls(flashingStyle, hot, active)}
             style={{
               display: 'flex', alignItems: 'center', gap: 10,
               padding: '10px 14px 10px 10px', borderRadius: 10,
@@ -1524,7 +1525,7 @@ function TwoLevelCardHeader({
    than TwoLevelCardHeader, works better when screen space is tight. ── */
 function TwoLevelMinimalHeader({
   level1, level2, l1Counts, l2Counts, onLevel1Change, onLevel2Change,
-  rightSlot, l2Spacing = 12, l2MatchL1Width = false,
+  rightSlot, l2Spacing = 12, l2MatchL1Width = false, flashingStyle = 'pulse',
 }: TwoLevelHeaderProps) {
   const totalCount = l1Counts.immediate + l1Counts.risk + l1Counts.stable
   const l1Tabs = (
@@ -1548,7 +1549,7 @@ function TwoLevelMinimalHeader({
           <button
             key={m.key}
             onClick={() => { onLevel1Change(m.key); onLevel2Change(null) }}
-            className={hot && !active ? 'tab-urgent-pulse' : undefined}
+            className={flashCls(flashingStyle, hot, active)}
             style={{
               flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
               padding: '10px 8px 10px', marginBottom: l2MatchL1Width ? undefined : -1,
@@ -1707,7 +1708,7 @@ function TwoLevelL2Chips({ level1, level2, l2Counts, onLevel2Change, l2Spacing =
 
 /* ── Banner variant: active category fills with its color, inactive categories
    are compact text segments. Equal-width columns, no icon badges. ── */
-function TwoLevelBannerHeader({ level1, level2, l1Counts, l2Counts, onLevel1Change, onLevel2Change, rightSlot, l2Spacing, l2MatchL1Width = false }: TwoLevelHeaderProps) {
+function TwoLevelBannerHeader({ level1, level2, l1Counts, l2Counts, onLevel1Change, onLevel2Change, rightSlot, l2Spacing, l2MatchL1Width = false, flashingStyle = 'pulse' }: TwoLevelHeaderProps) {
   const totalCount = l1Counts.immediate + l1Counts.risk + l1Counts.stable
   const l1 = (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 0, flex: l2MatchL1Width ? undefined : 1, borderRadius: 10, overflow: 'hidden', border: '1px solid #e8e8e8' }}>
@@ -1718,7 +1719,7 @@ function TwoLevelBannerHeader({ level1, level2, l1Counts, l2Counts, onLevel1Chan
           <button
             key={m.key}
             onClick={() => { onLevel1Change(m.key); onLevel2Change(null) }}
-            className={m.key === 'immediate' && l1Counts.immediate > 0 && !active ? 'tab-urgent-pulse' : undefined}
+            className={flashCls(flashingStyle, m.key === 'immediate' && l1Counts.immediate > 0, active)}
             style={{
               display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
               gap: 3, padding: '13px 8px', background: active ? m.color : '#fafafa',
@@ -1753,7 +1754,7 @@ function TwoLevelBannerHeader({ level1, level2, l1Counts, l2Counts, onLevel1Chan
 
 /* ── Stats variant: horizontal strip with a large colored number, label, and
    a colored left-accent bar on the active item. Clean and data-table-like. ── */
-function TwoLevelStatsHeader({ level1, level2, l1Counts, l2Counts, onLevel1Change, onLevel2Change, rightSlot, l2Spacing, l2MatchL1Width = false }: TwoLevelHeaderProps) {
+function TwoLevelStatsHeader({ level1, level2, l1Counts, l2Counts, onLevel1Change, onLevel2Change, rightSlot, l2Spacing, l2MatchL1Width = false, flashingStyle = 'pulse' }: TwoLevelHeaderProps) {
   const totalCount = l1Counts.immediate + l1Counts.risk + l1Counts.stable
   const l1 = (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', flex: l2MatchL1Width ? undefined : 1, borderRadius: 10, border: '1px solid #f0f0f0', overflow: 'hidden' }}>
@@ -1763,7 +1764,7 @@ function TwoLevelStatsHeader({ level1, level2, l1Counts, l2Counts, onLevel1Chang
           <button
             key={m.key}
             onClick={() => { onLevel1Change(m.key); onLevel2Change(null) }}
-            className={m.key === 'immediate' && l1Counts.immediate > 0 && !active ? 'tab-urgent-pulse' : undefined}
+            className={flashCls(flashingStyle, m.key === 'immediate' && l1Counts.immediate > 0, active)}
             style={{
               display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px',
               border: 'none', borderLeft: `3px solid ${active ? m.color : 'transparent'}`,
@@ -1798,7 +1799,7 @@ function TwoLevelStatsHeader({ level1, level2, l1Counts, l2Counts, onLevel1Chang
 /* ── Badge variant: compact pill-shaped buttons, each with a small filled
    count circle + label. Fits alongside other header controls without
    dominating the space. ── */
-function TwoLevelBadgeHeader({ level1, level2, l1Counts, l2Counts, onLevel1Change, onLevel2Change, rightSlot, l2Spacing, l2MatchL1Width = false }: TwoLevelHeaderProps) {
+function TwoLevelBadgeHeader({ level1, level2, l1Counts, l2Counts, onLevel1Change, onLevel2Change, rightSlot, l2Spacing, l2MatchL1Width = false, flashingStyle = 'pulse' }: TwoLevelHeaderProps) {
   const totalCount = l1Counts.immediate + l1Counts.risk + l1Counts.stable
   const l1 = (
     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', flex: l2MatchL1Width ? undefined : 1 }}>
@@ -1808,7 +1809,7 @@ function TwoLevelBadgeHeader({ level1, level2, l1Counts, l2Counts, onLevel1Chang
           <button
             key={m.key}
             onClick={() => { onLevel1Change(m.key); onLevel2Change(null) }}
-            className={m.key === 'immediate' && l1Counts.immediate > 0 && !active ? 'tab-urgent-pulse' : undefined}
+            className={flashCls(flashingStyle, m.key === 'immediate' && l1Counts.immediate > 0, active)}
             style={{
               display: 'flex', alignItems: 'center', gap: 7,
               padding: '5px 12px 5px 6px', borderRadius: 20,
@@ -1922,7 +1923,7 @@ function TwoLevelProgressHeader({ level1, level2, l1Counts, l2Counts, onLevel1Ch
 
 /* ── Inline variant: single left-aligned row — count + label per category,
    no box chrome, only the active item gets a colored underline. ── */
-function TwoLevelInlineHeader({ level1, level2, l1Counts, l2Counts, onLevel1Change, onLevel2Change, rightSlot, l2Spacing, l2MatchL1Width = false }: TwoLevelHeaderProps) {
+function TwoLevelInlineHeader({ level1, level2, l1Counts, l2Counts, onLevel1Change, onLevel2Change, rightSlot, l2Spacing, l2MatchL1Width = false, flashingStyle = 'pulse' }: TwoLevelHeaderProps) {
   const totalCount = l1Counts.immediate + l1Counts.risk + l1Counts.stable
   const l1 = (
     <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -1935,7 +1936,7 @@ function TwoLevelInlineHeader({ level1, level2, l1Counts, l2Counts, onLevel1Chan
             <button
               key={m.key}
               onClick={() => { onLevel1Change(m.key); onLevel2Change(null) }}
-              className={hot && !active ? 'tab-urgent-pulse' : undefined}
+              className={flashCls(flashingStyle, hot, active)}
               style={{
                 display: 'flex', alignItems: 'baseline', gap: 6,
                 background: 'none', border: 'none', borderBottom: `2px solid ${active ? m.color : 'transparent'}`,
@@ -1977,7 +1978,7 @@ function TwoLevelInlineHeader({ level1, level2, l1Counts, l2Counts, onLevel1Chan
 
 /* ── Panel variant: left-aligned natural-width cards, each with a colored
    top accent border, big count, and label. Cards don't stretch. ── */
-function TwoLevelPanelHeader({ level1, level2, l1Counts, l2Counts, onLevel1Change, onLevel2Change, rightSlot, l2Spacing, l2MatchL1Width = false, boxPadding = 10 }: TwoLevelHeaderProps) {
+function TwoLevelPanelHeader({ level1, level2, l1Counts, l2Counts, onLevel1Change, onLevel2Change, rightSlot, l2Spacing, l2MatchL1Width = false, flashingStyle = 'pulse', boxPadding = 10 }: TwoLevelHeaderProps) {
   const totalCount = l1Counts.immediate + l1Counts.risk + l1Counts.stable
   const l1 = (
     <div style={{ display: 'flex', gap: 8 }}>
@@ -1988,7 +1989,7 @@ function TwoLevelPanelHeader({ level1, level2, l1Counts, l2Counts, onLevel1Chang
           <button
             key={m.key}
             onClick={() => { onLevel1Change(m.key); onLevel2Change(null) }}
-            className={hot && !active ? 'tab-urgent-pulse' : undefined}
+            className={flashCls(flashingStyle, hot, active)}
             style={{
               display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
               padding: `${boxPadding}px 16px ${boxPadding}px 14px`,
@@ -2038,7 +2039,7 @@ function TwoLevelPanelHeader({ level1, level2, l1Counts, l2Counts, onLevel1Chang
 
 /* ── Metro variant: fixed-width solid-color tiles, left-aligned. Active tile
    fills with its category color; inactive tiles show a soft tint. ── */
-function TwoLevelMetroHeader({ level1, level2, l1Counts, l2Counts, onLevel1Change, onLevel2Change, rightSlot, l2Spacing, l2MatchL1Width = false }: TwoLevelHeaderProps) {
+function TwoLevelMetroHeader({ level1, level2, l1Counts, l2Counts, onLevel1Change, onLevel2Change, rightSlot, l2Spacing, l2MatchL1Width = false, flashingStyle = 'pulse' }: TwoLevelHeaderProps) {
   const totalCount = l1Counts.immediate + l1Counts.risk + l1Counts.stable
   const l1 = (
     <div style={{ display: 'flex', gap: 6 }}>
@@ -2049,7 +2050,7 @@ function TwoLevelMetroHeader({ level1, level2, l1Counts, l2Counts, onLevel1Chang
           <button
             key={m.key}
             onClick={() => { onLevel1Change(m.key); onLevel2Change(null) }}
-            className={hot && !active ? 'tab-urgent-pulse' : undefined}
+            className={flashCls(flashingStyle, hot, active)}
             style={{
               width: 114, display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
               padding: '12px 14px',
@@ -2095,7 +2096,7 @@ function TwoLevelMetroHeader({ level1, level2, l1Counts, l2Counts, onLevel1Chang
 
 /* ── Equal Width variant: same as Panel but all 4 boxes (including "All")
    share equal flex-1 width. Padding adjustable via boxPadding prop. ── */
-function TwoLevelEqualHeader({ level1, level2, l1Counts, l2Counts, onLevel1Change, onLevel2Change, rightSlot, l2Spacing, l2MatchL1Width = false, boxPadding = 10 }: TwoLevelHeaderProps) {
+function TwoLevelEqualHeader({ level1, level2, l1Counts, l2Counts, onLevel1Change, onLevel2Change, rightSlot, l2Spacing, l2MatchL1Width = false, flashingStyle = 'pulse', boxPadding = 10 }: TwoLevelHeaderProps) {
   const totalCount = l1Counts.immediate + l1Counts.risk + l1Counts.stable
   const l1 = (
     <div style={{ display: 'flex', gap: 8, flex: l2MatchL1Width ? undefined : 1 }}>
@@ -2106,7 +2107,7 @@ function TwoLevelEqualHeader({ level1, level2, l1Counts, l2Counts, onLevel1Chang
           <button
             key={m.key}
             onClick={() => { onLevel1Change(m.key); onLevel2Change(null) }}
-            className={hot && !active ? 'tab-urgent-pulse' : undefined}
+            className={flashCls(flashingStyle, hot, active)}
             style={{
               flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
               padding: `${boxPadding}px 16px ${boxPadding}px 14px`,
@@ -2806,8 +2807,8 @@ function DisplaySettingsPanel({
   onShowTrafficChange,
   simulating,
   onToggleSimulate,
-  flashingEnabled,
-  onFlashingEnabledChange,
+  flashingStyle,
+  onFlashingStyleChange,
   highlightBoxPadding,
   onHighlightBoxPaddingChange,
 }: {
@@ -2864,8 +2865,8 @@ function DisplaySettingsPanel({
   onShowTrafficChange: (v: boolean) => void
   simulating: boolean
   onToggleSimulate: () => void
-  flashingEnabled: boolean
-  onFlashingEnabledChange: (v: boolean) => void
+  flashingStyle: FlashingStyle
+  onFlashingStyleChange: (v: FlashingStyle) => void
   highlightBoxPadding: number
   onHighlightBoxPaddingChange: (v: number) => void
 }) {
@@ -2984,7 +2985,7 @@ function DisplaySettingsPanel({
               <Switch size="small" checked={l2MatchL1Width} onChange={onL2MatchL1WidthChange} />
             </SettingRow>
             <SettingRow label="Flashing">
-              <Switch size="small" checked={flashingEnabled} onChange={onFlashingEnabledChange} />
+              <Select size="small" value={flashingStyle} onChange={onFlashingStyleChange} options={FLASHING_STYLE_OPTIONS} style={{ width: 80 }} dropdownStyle={{ zIndex: 2100 }} />
             </SettingRow>
             {(highlightStyle === 'two-level-panel' || highlightStyle === 'two-level-equal') && (
               <SettingRow label="Box padding">
@@ -3147,7 +3148,7 @@ export default function LiveTrackingTesting2Page() {
   const [listMapRatio, setListMapRatio] = useState<ListMapRatio>('60:40')
   const [highlightStyle, setHighlightStyle] = useState<HighlightStyle>('two-level-cards')
   const [showNeedsAttention, setShowNeedsAttention] = useState(true)
-  const [flashingEnabled, setFlashingEnabled] = useState(true)
+  const [flashingStyle, setFlashingStyle] = useState<FlashingStyle>('pulse')
   const [highlightBoxPadding, setHighlightBoxPadding] = useState(10)
   // "2 Levels" is one of the Highlight style options — not a separate toggle
   const isTwoLevel = highlightStyle.startsWith('two-level')
@@ -3374,6 +3375,7 @@ export default function LiveTrackingTesting2Page() {
       notified: !!stop.notified,
       buttonStyle: claimButtonStyle,
       urgent: l1 === 'immediate',
+      flashingStyle,
       colorMode: claimColorMode,
       buttonWidth: claimButtonWidth,
       onClaim: () => claimTrip(stop.id),
@@ -3589,7 +3591,7 @@ export default function LiveTrackingTesting2Page() {
         {/* ── Header: KPI/highlight bar + search + sort ── */}
         <div style={{ flexShrink: 0 }}>
           {isTwoLevel ? (() => {
-            const l2Props = { level1: dhLevel1, level2: dhLevel2, l1Counts: dhL1Counts, l2Counts: dhL2Counts, onLevel1Change: setDhLevel1, onLevel2Change: setDhLevel2, l2Spacing, l2MatchL1Width }
+            const l2Props = { level1: dhLevel1, level2: dhLevel2, l1Counts: dhL1Counts, l2Counts: dhL2Counts, onLevel1Change: setDhLevel1, onLevel2Change: setDhLevel2, l2Spacing, l2MatchL1Width, flashingStyle }
             const rightSlot = (
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                 <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search route, driver, plate..." style={{ borderRadius: 8, width: 210 }} allowClear />
@@ -3619,7 +3621,7 @@ export default function LiveTrackingTesting2Page() {
                   const active = dhLevel1 === m.key
                   return (
                     <button key={m.key} onClick={() => { setDhLevel1(m.key); setDhLevel2(null) }}
-                      className={m.key === 'immediate' && dhL1Counts.immediate > 0 && !active ? 'tab-urgent-pulse' : undefined}
+                      className={flashCls(flashingStyle, m.key === 'immediate' && dhL1Counts.immediate > 0, active)}
                       style={{ padding: '6px 12px', borderRadius: 16, whiteSpace: 'nowrap', border: `1px solid ${active ? m.color : m.border}`, background: active ? m.color : m.soft, color: active ? '#fff' : m.color, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', transition: 'all .15s' }}>
                       {m.label} ({dhL1Counts[m.key]})
                     </button>
@@ -3820,8 +3822,8 @@ export default function LiveTrackingTesting2Page() {
           onShowTrafficChange={setShowTraffic}
           simulating={simulating}
           onToggleSimulate={() => setSimulating((v) => !v)}
-          flashingEnabled={flashingEnabled}
-          onFlashingEnabledChange={setFlashingEnabled}
+          flashingStyle={flashingStyle}
+          onFlashingStyleChange={setFlashingStyle}
           highlightBoxPadding={highlightBoxPadding}
           onHighlightBoxPaddingChange={setHighlightBoxPadding}
         />
