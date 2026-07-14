@@ -1,16 +1,10 @@
 import { useState } from 'react'
-import { Layout, Menu, Avatar, Badge, Typography } from 'antd'
+import { Layout, Menu, Avatar, Typography } from 'antd'
 import {
-  BellOutlined,
-  TeamOutlined,
   EnvironmentOutlined,
-  UserOutlined,
-  CarOutlined,
   AppstoreOutlined,
   DownOutlined,
   RightOutlined,
-  SettingOutlined,
-  ExperimentOutlined,
   FileTextOutlined,
 } from '@ant-design/icons'
 import type { AppPage } from '@/App'
@@ -30,122 +24,16 @@ interface AppLayoutProps {
 
 export default function AppLayout({
   children,
-  activeKey = 'customer-contracts',
-  breadcrumbLabel = 'Customer Contracts',
+  activeKey = 'live-tracking-testing-2',
+  breadcrumbLabel = 'Live Tracking 2.0',
   breadcrumbItems,
   topBarRight,
   onNavigate,
 }: AppLayoutProps) {
   const [collapsed, setCollapsed] = useState(false)
-  const [operationsOpen, setOperationsOpen] = useState(true)
-  const [staffOpen, setStaffOpen] = useState(false)
   const [salesOpen, setSalesOpen] = useState(true)
 
   const menuItems = [
-    {
-      key: 'notifications',
-      icon: (
-        <Badge count={21} size="small" offset={[2, -2]}>
-          <BellOutlined style={{ fontSize: 16, color: '#595959' }} />
-        </Badge>
-      ),
-      label: 'Notifications',
-    },
-    {
-      key: 'roles',
-      icon: <SettingOutlined style={{ fontSize: 16, color: '#595959' }} />,
-      label: 'Roles & Permissions',
-    },
-    {
-      key: 'tenant',
-      icon: <AppstoreOutlined style={{ fontSize: 16, color: '#595959' }} />,
-      label: 'Tenant',
-    },
-    {
-      key: 'staff',
-      icon: <UserOutlined style={{ fontSize: 16, color: '#595959' }} />,
-      label: (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span>Staff</span>
-          {staffOpen ? <DownOutlined style={{ fontSize: 10 }} /> : <RightOutlined style={{ fontSize: 10 }} />}
-        </div>
-      ),
-      onClick: () => setStaffOpen(!staffOpen),
-    },
-    {
-      key: 'operations',
-      icon: <CarOutlined style={{ fontSize: 16, color: '#595959' }} />,
-      label: (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span>Operations</span>
-          {operationsOpen ? <DownOutlined style={{ fontSize: 10 }} /> : <RightOutlined style={{ fontSize: 10 }} />}
-        </div>
-      ),
-      onClick: () => setOperationsOpen(!operationsOpen),
-    },
-    ...(operationsOpen
-      ? [
-          {
-            key: 'fleet-owners',
-            label: (
-              <Text style={{ fontSize: 13, paddingLeft: 8 }}>Fleet Owners</Text>
-            ),
-          },
-          {
-            key: 'fleets',
-            label: (
-              <Text style={{ fontSize: 13, paddingLeft: 8 }}>Fleets</Text>
-            ),
-          },
-          {
-            key: 'drivers',
-            label: (
-              <Text style={{ fontSize: 13, paddingLeft: 8 }}>Drivers</Text>
-            ),
-          },
-          {
-            key: 'live-tracking',
-            label: (
-              <Text style={{ fontSize: 13, paddingLeft: 8 }}>Live Tracking</Text>
-            ),
-            onClick: () => onNavigate?.({ type: 'live-tracking' }),
-          },
-          {
-            key: 'live-tracking-legacy',
-            label: (
-              <Text style={{ fontSize: 13, paddingLeft: 8 }}>Live Tracking Legacy</Text>
-            ),
-            onClick: () => onNavigate?.({ type: 'live-tracking-legacy' }),
-          },
-          {
-            key: 'live-tracking-testing',
-            label: (
-              <Text style={{ fontSize: 13, paddingLeft: 8 }}>Live Tracking Testing</Text>
-            ),
-            onClick: () => onNavigate?.({ type: 'live-tracking-testing' }),
-          },
-          {
-            key: 'live-tracking-testing-2',
-            label: (
-              <Text style={{ fontSize: 13, paddingLeft: 8 }}>Live Tracking Testing 2</Text>
-            ),
-            onClick: () => onNavigate?.({ type: 'live-tracking-testing-2' }),
-          },
-          {
-            key: 'tracking-2',
-            label: (
-              <Text style={{ fontSize: 13, paddingLeft: 8 }}>Tracking 2.0</Text>
-            ),
-            onClick: () => onNavigate?.({ type: 'tracking-2' }),
-          },
-        ]
-      : []),
-    {
-      key: 'invoice',
-      icon: <FileTextOutlined style={{ fontSize: 16, color: '#595959' }} />,
-      label: 'Invoice',
-      onClick: () => onNavigate?.({ type: 'invoice' }),
-    },
     {
       key: 'sales-module-header',
       icon: <AppstoreOutlined style={{ fontSize: 16, color: '#595959' }} />,
@@ -160,20 +48,21 @@ export default function AppLayout({
     ...(salesOpen
       ? [
           {
-            key: 'notification',
+            key: 'live-tracking-testing-2',
             label: (
-              <Text style={{ fontSize: 13, paddingLeft: 8 }}>Notification</Text>
+              <Text style={{ fontSize: 13, paddingLeft: 8 }}>Live Tracking 2.0</Text>
             ),
-            onClick: () => onNavigate?.({ type: 'notification' }),
+            onClick: () => onNavigate?.({ type: 'live-tracking-testing-2' }),
+          },
+          {
+            key: 'invoice',
+            label: (
+              <Text style={{ fontSize: 13, paddingLeft: 8 }}>Invoice</Text>
+            ),
+            onClick: () => onNavigate?.({ type: 'invoice' }),
           },
         ]
       : []),
-    {
-      key: 'testing',
-      icon: <ExperimentOutlined style={{ fontSize: 16, color: '#595959' }} />,
-      label: 'Testing',
-      onClick: () => onNavigate?.({ type: 'testing' }),
-    },
   ]
 
   return (
@@ -256,7 +145,7 @@ export default function AppLayout({
           }))}
         />
 
-        {/* Breadcrumb-style active section highlight */}
+        {/* Active section highlight */}
         <div
           style={{
             margin: '4px 8px',
@@ -268,14 +157,10 @@ export default function AppLayout({
             gap: 8,
           }}
         >
-          {activeKey === 'live-tracking' || activeKey === 'live-tracking-legacy' || activeKey === 'live-tracking-testing' || activeKey === 'live-tracking-testing-2' || activeKey === 'tracking-2' ? (
-            <EnvironmentOutlined style={{ color: '#1677ff', fontSize: 14 }} />
-          ) : activeKey === 'invoice' ? (
+          {activeKey === 'invoice' ? (
             <FileTextOutlined style={{ color: '#1677ff', fontSize: 14 }} />
-          ) : activeKey === 'notification' ? (
-            <BellOutlined style={{ color: '#1677ff', fontSize: 14 }} />
           ) : (
-            <TeamOutlined style={{ color: '#1677ff', fontSize: 14 }} />
+            <EnvironmentOutlined style={{ color: '#1677ff', fontSize: 14 }} />
           )}
           {!collapsed && (
             <Text style={{ fontSize: 13, color: '#1677ff', fontWeight: 500 }}>

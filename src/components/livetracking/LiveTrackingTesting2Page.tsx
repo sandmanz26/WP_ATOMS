@@ -348,11 +348,12 @@ function kpiMatch(stop: VehicleStop, key: KpiKey): boolean {
    "2 Levels" visuals for the Immediate attention/At risk/Stable system —
    Pills (rounded chips, same as the level-1 style used elsewhere) or Cards
    (dashboard-tile level 1 with an icon badge, underline tabs for level 2). ── */
-type FlashingStyle = 'none' | 'pulse' | 'glow' | 'blink' | 'shake' | 'bounce'
+type FlashingStyle = 'none' | 'pulse' | 'ring' | 'glow' | 'blink' | 'shake' | 'bounce'
 
 const FLASHING_STYLE_OPTIONS: { value: FlashingStyle; label: string }[] = [
   { value: 'none',   label: 'None' },
   { value: 'pulse',  label: 'Pulse' },
+  { value: 'ring',   label: 'Ring' },
   { value: 'glow',   label: 'Glow' },
   { value: 'blink',  label: 'Blink' },
   { value: 'shake',  label: 'Shake' },
@@ -1561,7 +1562,7 @@ function TwoLevelCardHeader({
             }}
           >
             {m.short}
-            <span style={{ minWidth: 18, height: 18, borderRadius: 9, padding: '0 5px', background: active ? '#1677ff' : count === 0 ? '#f0f0f0' : '#fff1f0', color: active ? '#fff' : count === 0 ? '#bfbfbf' : '#ff4d4f', fontSize: 10, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>{count}</span>
+            <span style={{ minWidth: 22, height: 22, borderRadius: 11, padding: '0 6px', background: active ? '#1677ff' : count === 0 ? '#f0f0f0' : '#fff1f0', color: active ? '#fff' : count === 0 ? '#bfbfbf' : '#ff4d4f', fontSize: 14, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>{count}</span>
           </button>
         )
       })}
@@ -1716,10 +1717,10 @@ function TwoLevelL2Chips({ level1, level2, l2Counts, onLevel2Change, l2Spacing =
             >
               {m.short}
               <span style={{
-                minWidth: 17, height: 17, borderRadius: 9, padding: '0 4px',
+                minWidth: 22, height: 22, borderRadius: 11, padding: '0 6px',
                 background: active ? '#1677ff' : count === 0 ? '#f0f0f0' : '#fff1f0',
                 color: active ? '#fff' : count === 0 ? '#bfbfbf' : '#ff4d4f',
-                fontSize: 10, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 14, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
               }}>
                 {count}
               </span>
@@ -1750,10 +1751,10 @@ function TwoLevelL2Chips({ level1, level2, l2Counts, onLevel2Change, l2Spacing =
           >
             {m.short}
             <span style={{
-              minWidth: 18, height: 18, borderRadius: 9, padding: '0 5px',
+              minWidth: 22, height: 22, borderRadius: 11, padding: '0 6px',
               background: active ? '#1677ff' : count === 0 ? '#f0f0f0' : '#fff1f0',
               color: active ? '#fff' : count === 0 ? '#bfbfbf' : '#ff4d4f',
-              fontSize: 10, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 14, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
             }}>
               {count}
             </span>
@@ -2077,8 +2078,8 @@ function TwoLevelPanelHeader({ level1, level2, l1Counts, l2Counts, onLevel1Chang
           minWidth: 106,
         }}
       >
-        <Text style={{ fontSize: 28, fontWeight: 800, color: '#1677ff', lineHeight: 1, display: 'block' }}>{totalCount}</Text>
-        <Text style={{ fontSize: 12, fontWeight: 700, color: level1 === null ? '#1677ff' : '#595959', marginTop: 4, whiteSpace: 'nowrap', lineHeight: 1.3 }}>All</Text>
+        <Text style={{ fontSize: 28, fontWeight: 800, color: level1 === null ? '#1677ff' : '#1a1a1a', lineHeight: 1, display: 'block' }}>{totalCount}</Text>
+        <Text style={{ fontSize: 12, fontWeight: 700, color: level1 === null ? '#1677ff' : '#1a1a1a', marginTop: 4, whiteSpace: 'nowrap', lineHeight: 1.3 }}>All</Text>
       </button>
     </div>
   )
@@ -3087,10 +3088,13 @@ function DisplaySettingsPanel({
             </SettingRow>
             {(highlightStyle === 'two-level-panel' || highlightStyle === 'two-level-equal') && (
               <SettingRow label="Box padding">
-                <Slider
-                  min={4} max={20} value={highlightBoxPadding} onChange={onHighlightBoxPaddingChange}
-                  style={{ width: 80, margin: 0 }}
-                />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Slider
+                    min={4} max={20} value={highlightBoxPadding} onChange={onHighlightBoxPaddingChange}
+                    style={{ width: 64, margin: 0 }}
+                  />
+                  <Text style={{ fontSize: 12, color: '#595959', minWidth: 24, textAlign: 'right' }}>{highlightBoxPadding}px</Text>
+                </div>
               </SettingRow>
             )}
           </>
@@ -3689,7 +3693,12 @@ export default function LiveTrackingTesting2Page() {
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                 <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search route, driver, plate..." style={{ borderRadius: 8, width: 210 }} allowClear />
                 {filterBtn}
-                <Select size="middle" value={sortBy} onChange={setSortBy} options={SORT_OPTIONS} style={{ width: 118 }} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
+                  <span style={{ display: 'flex', alignItems: 'center', padding: '5px 8px', background: '#fff', border: '1px solid #d9d9d9', borderRight: 'none', borderRadius: '6px 0 0 6px', color: '#595959' }}>
+                    <SwapOutlined style={{ fontSize: 13, transform: 'rotate(90deg)' }} />
+                  </span>
+                  <Select size="middle" value={sortBy} onChange={setSortBy} options={SORT_OPTIONS} style={{ width: 118 }} />
+                </div>
               </div>
             )
             if (highlightStyle === 'two-level-cards') return <TwoLevelCardHeader {...l2Props} rightSlot={rightSlot} />
@@ -3745,7 +3754,12 @@ export default function LiveTrackingTesting2Page() {
                   allowClear
                 />
                 {filterBtn}
-                <Select size="middle" value={sortBy} onChange={setSortBy} options={SORT_OPTIONS} style={{ width: 118 }} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
+                  <span style={{ display: 'flex', alignItems: 'center', padding: '5px 8px', background: '#fff', border: '1px solid #d9d9d9', borderRight: 'none', borderRadius: '6px 0 0 6px', color: '#595959' }}>
+                    <SwapOutlined style={{ fontSize: 13, transform: 'rotate(90deg)' }} />
+                  </span>
+                  <Select size="middle" value={sortBy} onChange={setSortBy} options={SORT_OPTIONS} style={{ width: 118 }} />
+                </div>
               </div>
             </div>
           )}
