@@ -2145,7 +2145,7 @@ function TwoLevelMetroHeader({ level1, level2, l1Counts, l2Counts, onLevel1Chang
       </button>
     </div>
   )
-  const l2 = <TwoLevelL2Chips level1={level1} level2={level2} l2Counts={l2Counts} onLevel2Change={onLevel2Change} l2Spacing={l2Spacing} flushLeft />
+  const l2 = <TwoLevelL2Chips level1={level1} level2={level2} l2Counts={l2Counts} onLevel2Change={onLevel2Change} l2Spacing={l2Spacing} flushLeft l2FontSize={l2FontSize} />
   if (l2MatchL1Width) return <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}><div>{l1}{l2}</div>{rightSlot && <div style={{ flexShrink: 0 }}>{rightSlot}</div>}</div>
   return (
     <>
@@ -2160,7 +2160,7 @@ function TwoLevelMetroHeader({ level1, level2, l1Counts, l2Counts, onLevel1Chang
 
 /* ── Equal Width variant: same as Panel but all 4 boxes (including "All")
    share equal flex-1 width. Padding adjustable via boxPadding prop. ── */
-function TwoLevelEqualHeader({ level1, level2, l1Counts, l2Counts, onLevel1Change, onLevel2Change, rightSlot, l2Spacing, l2MatchL1Width = false, flashingStyle = 'pulse', boxPadding = 10 }: TwoLevelHeaderProps) {
+function TwoLevelEqualHeader({ level1, level2, l1Counts, l2Counts, onLevel1Change, onLevel2Change, rightSlot, l2Spacing, l2MatchL1Width = false, flashingStyle = 'pulse', boxPadding = 10, l1FontSize = 24, l2FontSize = 11 }: TwoLevelHeaderProps) {
   const totalCount = l1Counts.immediate + l1Counts.risk + l1Counts.stable
   const l1 = (
     <div style={{ display: 'flex', gap: 8, flex: l2MatchL1Width ? undefined : 1 }}>
@@ -2182,7 +2182,7 @@ function TwoLevelEqualHeader({ level1, level2, l1Counts, l2Counts, onLevel1Chang
               cursor: 'pointer', transition: 'all .15s',
             }}
           >
-            <Text style={{ fontSize: 28, fontWeight: 800, color: m.color, lineHeight: 1, display: 'block' }}>{l1Counts[m.key]}</Text>
+            <Text style={{ fontSize: l1FontSize, fontWeight: 800, color: m.color, lineHeight: 1, display: 'block' }}>{l1Counts[m.key]}</Text>
             <Text style={{ fontSize: 12, fontWeight: 700, color: active ? m.color : '#595959', marginTop: 4, whiteSpace: 'nowrap', lineHeight: 1.3 }}>{m.label}</Text>
           </button>
         )
@@ -2199,12 +2199,12 @@ function TwoLevelEqualHeader({ level1, level2, l1Counts, l2Counts, onLevel1Chang
           cursor: 'pointer', transition: 'all .15s',
         }}
       >
-        <Text style={{ fontSize: 28, fontWeight: 800, color: '#1677ff', lineHeight: 1, display: 'block' }}>{totalCount}</Text>
+        <Text style={{ fontSize: l1FontSize, fontWeight: 800, color: '#1677ff', lineHeight: 1, display: 'block' }}>{totalCount}</Text>
         <Text style={{ fontSize: 12, fontWeight: 700, color: level1 === null ? '#595959' : '#595959', marginTop: 4, whiteSpace: 'nowrap', lineHeight: 1.3 }}>All</Text>
       </button>
     </div>
   )
-  const l2 = <TwoLevelL2Chips level1={level1} level2={level2} l2Counts={l2Counts} onLevel2Change={onLevel2Change} l2Spacing={l2Spacing} flushLeft />
+  const l2 = <TwoLevelL2Chips level1={level1} level2={level2} l2Counts={l2Counts} onLevel2Change={onLevel2Change} l2Spacing={l2Spacing} flushLeft l2FontSize={l2FontSize} />
   if (l2MatchL1Width) return <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}><div>{l1}{l2}</div>{rightSlot && <div style={{ flexShrink: 0 }}>{rightSlot}</div>}</div>
   return (
     <>
@@ -2915,6 +2915,10 @@ function DisplaySettingsPanel({
   onFlashingStyleChange,
   highlightBoxPadding,
   onHighlightBoxPaddingChange,
+  l1FontSize,
+  onL1FontSizeChange,
+  l2FontSize,
+  onL2FontSizeChange,
 }: {
   pos: { x: number; y: number }
   onDragStart: (e: React.MouseEvent) => void
@@ -2973,6 +2977,10 @@ function DisplaySettingsPanel({
   onFlashingStyleChange: (v: FlashingStyle) => void
   highlightBoxPadding: number
   onHighlightBoxPaddingChange: (v: number) => void
+  l1FontSize: number
+  onL1FontSizeChange: (v: number) => void
+  l2FontSize: number
+  onL2FontSizeChange: (v: number) => void
 }) {
   return (
     <div
@@ -3090,6 +3098,18 @@ function DisplaySettingsPanel({
             </SettingRow>
             <SettingRow label="Flashing">
               <Select size="small" value={flashingStyle} onChange={onFlashingStyleChange} options={FLASHING_STYLE_OPTIONS} style={{ width: 80 }} dropdownStyle={{ zIndex: 2100 }} />
+            </SettingRow>
+            <SettingRow label="L1 font">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Slider min={16} max={36} value={l1FontSize} onChange={onL1FontSizeChange} style={{ width: 64, margin: 0 }} />
+                <Text style={{ fontSize: 12, color: '#595959', minWidth: 24, textAlign: 'right' }}>{l1FontSize}px</Text>
+              </div>
+            </SettingRow>
+            <SettingRow label="L2 font">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Slider min={9} max={16} value={l2FontSize} onChange={onL2FontSizeChange} style={{ width: 64, margin: 0 }} />
+                <Text style={{ fontSize: 12, color: '#595959', minWidth: 24, textAlign: 'right' }}>{l2FontSize}px</Text>
+              </div>
             </SettingRow>
             {(highlightStyle === 'two-level-panel' || highlightStyle === 'two-level-equal') && (
               <SettingRow label="Box padding">
@@ -3257,6 +3277,8 @@ export default function LiveTrackingTesting2Page() {
   const [showNeedsAttention, setShowNeedsAttention] = useState(true)
   const [flashingStyle, setFlashingStyle] = useState<FlashingStyle>('pulse')
   const [highlightBoxPadding, setHighlightBoxPadding] = useState(10)
+  const [l1FontSize, setL1FontSize] = useState(24)
+  const [l2FontSize, setL2FontSize] = useState(11)
   // "2 Levels" is one of the Highlight style options — not a separate toggle
   const isTwoLevel = highlightStyle.startsWith('two-level')
   const [dhLevel1, setDhLevel1] = useState<DhLevel1 | null>('immediate')
@@ -3693,7 +3715,7 @@ export default function LiveTrackingTesting2Page() {
         {/* ── Header: KPI/highlight bar + search + sort ── */}
         <div style={{ flexShrink: 0 }}>
           {isTwoLevel ? (() => {
-            const l2Props = { level1: dhLevel1, level2: dhLevel2, l1Counts: dhL1Counts, l2Counts: dhL2Counts, onLevel1Change: setDhLevel1, onLevel2Change: setDhLevel2, l2Spacing, l2MatchL1Width, flashingStyle }
+            const l2Props = { level1: dhLevel1, level2: dhLevel2, l1Counts: dhL1Counts, l2Counts: dhL2Counts, onLevel1Change: setDhLevel1, onLevel2Change: setDhLevel2, l2Spacing, l2MatchL1Width, flashingStyle, l1FontSize, l2FontSize }
             const rightSlot = (
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                 <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search route, driver, plate..." style={{ borderRadius: 8, width: 210 }} allowClear />
@@ -3938,6 +3960,10 @@ export default function LiveTrackingTesting2Page() {
           onFlashingStyleChange={setFlashingStyle}
           highlightBoxPadding={highlightBoxPadding}
           onHighlightBoxPaddingChange={setHighlightBoxPadding}
+          l1FontSize={l1FontSize}
+          onL1FontSizeChange={setL1FontSize}
+          l2FontSize={l2FontSize}
+          onL2FontSizeChange={setL2FontSize}
         />
       ) : (
         <Button
