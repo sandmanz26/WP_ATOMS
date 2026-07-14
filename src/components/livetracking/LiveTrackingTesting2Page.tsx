@@ -518,14 +518,14 @@ function KpiBar({
   )
 }
 
-type SortKey = 'start' | 'eta' | 'label' | 'slack-asc' | 'delay-desc'
+type SortKey = 'start' | 'slack-asc' | 'slack-desc' | 'delay-asc' | 'delay-desc'
 
 const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: 'start', label: 'Start time' },
-  { value: 'eta', label: 'ETA' },
-  { value: 'label', label: 'Route code' },
-  { value: 'slack-asc', label: 'Slack ↑' },
-  { value: 'delay-desc', label: 'Delay ↓' },
+  { value: 'slack-asc', label: 'Slack (low → high)' },
+  { value: 'slack-desc', label: 'Slack (high → low)' },
+  { value: 'delay-asc', label: 'Delay (low → high)' },
+  { value: 'delay-desc', label: 'Delay (high → low)' },
 ]
 
 /* ── Map/marker tooltip style — how much the InfoWindow/card popover shows ── */
@@ -3247,7 +3247,7 @@ export default function LiveTrackingTesting2Page() {
   const [actionModel, setActionModel] = useState<ActionModel>('claim')
   const [claimButtonStyle, setClaimButtonStyle] = useState<ClaimButtonStyle>('text')
   const [claimCardScope, setClaimCardScope] = useState<ClaimCardScope>('all')
-  const [dhCardStyle, setDhCardStyle] = useState<DhCardStyle>('compact')
+  const [dhCardStyle, setDhCardStyle] = useState<DhCardStyle>('internal')
   const [l2Spacing, setL2Spacing] = useState<L2Spacing>(12)
   const [l2MatchL1Width, setL2MatchL1Width] = useState(false)
   const [claimColorMode, setClaimColorMode] = useState<ClaimColorMode>('category')
@@ -3406,13 +3406,9 @@ export default function LiveTrackingTesting2Page() {
 
   const sortFn = (a: VehicleStop, b: VehicleStop): number => {
     switch (sortBy) {
-      case 'eta': {
-        const av = a.online && a.eta ? toMinutes(a.eta) : Infinity
-        const bv = b.online && b.eta ? toMinutes(b.eta) : Infinity
-        return av - bv
-      }
-      case 'label': return a.label.localeCompare(b.label)
       case 'slack-asc': return (dhById[a.id]?.slackMin ?? 0) - (dhById[b.id]?.slackMin ?? 0)
+      case 'slack-desc': return (dhById[b.id]?.slackMin ?? 0) - (dhById[a.id]?.slackMin ?? 0)
+      case 'delay-asc': return (dhById[a.id]?.currentDelayMin ?? 0) - (dhById[b.id]?.currentDelayMin ?? 0)
       case 'delay-desc': return (dhById[b.id]?.currentDelayMin ?? 0) - (dhById[a.id]?.currentDelayMin ?? 0)
       default: return toMinutes(a.scheduled) - toMinutes(b.scheduled)
     }
@@ -3740,7 +3736,7 @@ export default function LiveTrackingTesting2Page() {
                   <span style={{ display: 'flex', alignItems: 'center', padding: '5px 8px', background: '#fff', border: '1px solid #d9d9d9', borderRight: 'none', borderRadius: '6px 0 0 6px', color: '#595959' }}>
                     <SwapOutlined style={{ fontSize: 13, transform: 'rotate(90deg)' }} />
                   </span>
-                  <Select size="middle" value={sortBy} onChange={setSortBy} options={SORT_OPTIONS} style={{ width: 118 }} />
+                  <Select size="middle" value={sortBy} onChange={setSortBy} options={SORT_OPTIONS} style={{ width: 152 }} />
                 </div>
               </div>
             )
@@ -3801,7 +3797,7 @@ export default function LiveTrackingTesting2Page() {
                   <span style={{ display: 'flex', alignItems: 'center', padding: '5px 8px', background: '#fff', border: '1px solid #d9d9d9', borderRight: 'none', borderRadius: '6px 0 0 6px', color: '#595959' }}>
                     <SwapOutlined style={{ fontSize: 13, transform: 'rotate(90deg)' }} />
                   </span>
-                  <Select size="middle" value={sortBy} onChange={setSortBy} options={SORT_OPTIONS} style={{ width: 118 }} />
+                  <Select size="middle" value={sortBy} onChange={setSortBy} options={SORT_OPTIONS} style={{ width: 152 }} />
                 </div>
               </div>
             </div>
