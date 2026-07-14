@@ -1,11 +1,9 @@
 import { useState } from 'react'
 import { Layout, Menu, Avatar, Typography } from 'antd'
 import {
-  EnvironmentOutlined,
   AppstoreOutlined,
   DownOutlined,
   RightOutlined,
-  FileTextOutlined,
 } from '@ant-design/icons'
 import type { AppPage } from '@/App'
 import { version as appVersion } from '../../../package.json'
@@ -145,29 +143,6 @@ export default function AppLayout({
           }))}
         />
 
-        {/* Active section highlight */}
-        <div
-          style={{
-            margin: '4px 8px',
-            padding: '8px 12px',
-            borderRadius: 6,
-            background: '#e6f4ff',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-          }}
-        >
-          {activeKey === 'invoice' ? (
-            <FileTextOutlined style={{ color: '#1677ff', fontSize: 14 }} />
-          ) : (
-            <EnvironmentOutlined style={{ color: '#1677ff', fontSize: 14 }} />
-          )}
-          {!collapsed && (
-            <Text style={{ fontSize: 13, color: '#1677ff', fontWeight: 500 }}>
-              {breadcrumbLabel}
-            </Text>
-          )}
-        </div>
       </Sider>
 
       <Layout style={{ marginLeft: collapsed ? 80 : 220, transition: 'margin-left 0.2s' }}>
