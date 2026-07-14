@@ -328,7 +328,7 @@ const MAP_THEMES: Record<MapTheme, google.maps.MapTypeStyle[]> = {
 type KpiKey = 'all' | 'On Time' | 'Late' | 'Offline' | 'Notified'
 
 const KPI_META: { key: KpiKey; label: string; color: string; soft: string; border: string; urgent?: boolean }[] = [
-  { key: 'all', label: 'All', color: '#1677ff', soft: '#e6f4ff', border: '#91caff' },
+  { key: 'all', label: 'All', color: '#595959', soft: '#f0f0f0', border: '#bfbfbf' },
   { key: 'On Time', label: 'On Time', color: '#16a34a', soft: '#f6ffed', border: '#b7eb8f' },
   { key: 'Late', label: 'Late', color: '#faad14', soft: '#fffbe6', border: '#ffe58f', urgent: true },
   { key: 'Offline', label: 'Offline', color: '#ff4d4f', soft: '#fff1f0', border: '#ffccc7', urgent: true },
@@ -1529,7 +1529,7 @@ function TwoLevelCardHeader({
         style={{
           display: 'flex', alignItems: 'center', gap: 10,
           padding: '10px 14px 10px 10px', borderRadius: 10,
-          border: `1.5px solid ${level1 === null ? '#1677ff' : '#f0f0f0'}`,
+          border: `1.5px solid ${level1 === null ? '#595959' : '#f0f0f0'}`,
           background: level1 === null ? '#e6f4ff' : '#fff',
           cursor: 'pointer', textAlign: 'left', transition: 'all .15s',
         }}
@@ -1538,8 +1538,8 @@ function TwoLevelCardHeader({
           <AppstoreOutlined style={{ color: '#fff', fontSize: 18 }} />
         </div>
         <div style={{ minWidth: 0 }}>
-          <Text style={{ fontSize: 26, fontWeight: level1 === null ? 800 : 600, color: level1 === null ? '#1677ff' : '#1a1a1a', lineHeight: 1, display: 'block' }}>{totalCount}</Text>
-          <Text style={{ fontSize: 12, fontWeight: level1 === null ? 700 : 400, color: level1 === null ? '#1677ff' : '#595959', whiteSpace: 'nowrap' }}>All</Text>
+          <Text style={{ fontSize: 26, fontWeight: level1 === null ? 800 : 600, color: level1 === null ? '#595959' : '#1a1a1a', lineHeight: 1, display: 'block' }}>{totalCount}</Text>
+          <Text style={{ fontSize: 12, fontWeight: level1 === null ? 700 : 400, color: level1 === null ? '#595959' : '#595959', whiteSpace: 'nowrap' }}>All</Text>
         </div>
       </button>
     </div>
@@ -1594,12 +1594,12 @@ function TwoLevelMinimalHeader({
         style={{
           flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
           padding: '10px 8px', marginBottom: l2MatchL1Width ? undefined : -1,
-          border: 'none', borderBottom: `2px solid ${level1 === null ? '#1677ff' : 'transparent'}`,
+          border: 'none', borderBottom: `2px solid ${level1 === null ? '#595959' : 'transparent'}`,
           background: level1 === null ? '#e6f4ff' : 'transparent', cursor: 'pointer', transition: 'all .15s',
         }}
       >
-        <Text style={{ fontSize: 20, fontWeight: level1 === null ? 800 : 600, color: level1 === null ? '#1677ff' : '#1a1a1a', lineHeight: 1 }}>{totalCount}</Text>
-        <Text style={{ fontSize: 11, fontWeight: level1 === null ? 700 : 400, color: level1 === null ? '#1677ff' : '#8c8c8c', whiteSpace: 'nowrap' }}>All</Text>
+        <Text style={{ fontSize: 20, fontWeight: level1 === null ? 800 : 600, color: level1 === null ? '#595959' : '#1a1a1a', lineHeight: 1 }}>{totalCount}</Text>
+        <Text style={{ fontSize: 11, fontWeight: level1 === null ? 700 : 400, color: level1 === null ? '#595959' : '#8c8c8c', whiteSpace: 'nowrap' }}>All</Text>
       </button>
       {DH_L1_META.map((m) => {
         const active = level1 === m.key
@@ -1796,7 +1796,7 @@ function TwoLevelBannerHeader({ level1, level2, l1Counts, l2Counts, onLevel1Chan
         onClick={() => { onLevel1Change(null); onLevel2Change(null) }}
         style={{
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-          gap: 3, padding: '13px 8px', background: level1 === null ? '#1677ff' : '#fafafa',
+          gap: 3, padding: '13px 8px', background: level1 === null ? '#595959' : '#fafafa',
           border: 'none', borderRight: 'none',
           cursor: 'pointer', transition: 'background .18s',
         }}
@@ -1840,13 +1840,13 @@ function TwoLevelStatsHeader({ level1, level2, l1Counts, l2Counts, onLevel1Chang
         onClick={() => { onLevel1Change(null); onLevel2Change(null) }}
         style={{
           display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px',
-          border: 'none', borderLeft: `3px solid ${level1 === null ? '#1677ff' : 'transparent'}`,
+          border: 'none', borderLeft: `3px solid ${level1 === null ? '#595959' : 'transparent'}`,
           borderRight: 'none',
           background: level1 === null ? '#e6f4ff' : '#fff', cursor: 'pointer', transition: 'all .15s',
         }}
       >
         <Text style={{ fontSize: 24, fontWeight: 800, color: '#1677ff', lineHeight: 1, flexShrink: 0 }}>{totalCount}</Text>
-        <Text style={{ fontSize: 11, fontWeight: level1 === null ? 700 : 400, color: level1 === null ? '#1677ff' : '#8c8c8c', whiteSpace: 'nowrap', lineHeight: 1.3 }}>All</Text>
+        <Text style={{ fontSize: 11, fontWeight: level1 === null ? 700 : 400, color: level1 === null ? '#595959' : '#8c8c8c', whiteSpace: 'nowrap', lineHeight: 1.3 }}>All</Text>
       </button>
     </div>
   )
@@ -1886,12 +1886,12 @@ function TwoLevelBadgeHeader({ level1, level2, l1Counts, l2Counts, onLevel1Chang
         style={{
           display: 'flex', alignItems: 'center', gap: 7,
           padding: '5px 12px 5px 6px', borderRadius: 20,
-          border: `1.5px solid ${level1 === null ? '#1677ff' : '#e8e8e8'}`,
+          border: `1.5px solid ${level1 === null ? '#595959' : '#e8e8e8'}`,
           background: level1 === null ? '#e6f4ff' : '#fff', cursor: 'pointer', transition: 'all .15s',
         }}
       >
         <span style={{ minWidth: 22, height: 22, borderRadius: 11, background: '#1677ff', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#fff' }}>{totalCount}</span>
-        <Text style={{ fontSize: 12, color: level1 === null ? '#1677ff' : '#595959', fontWeight: level1 === null ? 600 : 400, whiteSpace: 'nowrap' }}>All</Text>
+        <Text style={{ fontSize: 12, color: level1 === null ? '#595959' : '#595959', fontWeight: level1 === null ? 600 : 400, whiteSpace: 'nowrap' }}>All</Text>
       </button>
     </div>
   )
@@ -1955,14 +1955,14 @@ function TwoLevelProgressHeader({ level1, level2, l1Counts, l2Counts, onLevel1Ch
           onClick={() => { onLevel1Change(null); onLevel2Change(null) }}
           style={{
             display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 16,
-            border: `1px solid ${level1 === null ? '#1677ff' : 'transparent'}`,
+            border: `1px solid ${level1 === null ? '#595959' : 'transparent'}`,
             background: level1 === null ? '#e6f4ff' : 'transparent',
             cursor: 'pointer', transition: 'all .15s',
           }}
         >
           <AppstoreOutlined style={{ fontSize: 8, color: '#1677ff', flexShrink: 0 }} />
-          <Text style={{ fontSize: 12, color: level1 === null ? '#1677ff' : '#595959', fontWeight: level1 === null ? 600 : 400, whiteSpace: 'nowrap' }}>All</Text>
-          <Text style={{ fontSize: 11, color: level1 === null ? '#1677ff' : '#bfbfbf', fontWeight: 700 }}>{total}</Text>
+          <Text style={{ fontSize: 12, color: level1 === null ? '#595959' : '#595959', fontWeight: level1 === null ? 600 : 400, whiteSpace: 'nowrap' }}>All</Text>
+          <Text style={{ fontSize: 11, color: level1 === null ? '#595959' : '#bfbfbf', fontWeight: 700 }}>{total}</Text>
         </button>
       </div>
     </div>
@@ -2013,12 +2013,12 @@ function TwoLevelInlineHeader({ level1, level2, l1Counts, l2Counts, onLevel1Chan
         onClick={() => { onLevel1Change(null); onLevel2Change(null) }}
         style={{
           display: 'flex', alignItems: 'baseline', gap: 6,
-          background: 'none', border: 'none', borderBottom: `2px solid ${level1 === null ? '#1677ff' : 'transparent'}`,
+          background: 'none', border: 'none', borderBottom: `2px solid ${level1 === null ? '#595959' : 'transparent'}`,
           padding: '6px 4px 7px', cursor: 'pointer', transition: 'all .15s',
         }}
       >
         <Text style={{ fontSize: 24, fontWeight: 800, color: '#1677ff', lineHeight: 1 }}>{totalCount}</Text>
-        <Text style={{ fontSize: 12.5, fontWeight: level1 === null ? 700 : 400, color: level1 === null ? '#1677ff' : '#595959', whiteSpace: 'nowrap' }}>All</Text>
+        <Text style={{ fontSize: 12.5, fontWeight: level1 === null ? 700 : 400, color: level1 === null ? '#595959' : '#595959', whiteSpace: 'nowrap' }}>All</Text>
       </button>
     </div>
   )
@@ -2071,15 +2071,15 @@ function TwoLevelPanelHeader({ level1, level2, l1Counts, l2Counts, onLevel1Chang
           display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
           padding: `${boxPadding}px 16px ${boxPadding}px 14px`,
           borderRadius: 10,
-          border: `1.5px solid ${level1 === null ? '#1677ff' : '#f0f0f0'}`,
+          border: `1.5px solid ${level1 === null ? '#595959' : '#f0f0f0'}`,
           borderTop: '3px solid #1677ff',
           background: level1 === null ? '#e6f4ff' : '#fff',
           cursor: 'pointer', transition: 'all .15s',
           minWidth: 106,
         }}
       >
-        <Text style={{ fontSize: 28, fontWeight: 800, color: level1 === null ? '#1677ff' : '#1a1a1a', lineHeight: 1, display: 'block' }}>{totalCount}</Text>
-        <Text style={{ fontSize: 12, fontWeight: 700, color: level1 === null ? '#1677ff' : '#1a1a1a', marginTop: 4, whiteSpace: 'nowrap', lineHeight: 1.3 }}>All</Text>
+        <Text style={{ fontSize: 28, fontWeight: 800, color: level1 === null ? '#595959' : '#1a1a1a', lineHeight: 1, display: 'block' }}>{totalCount}</Text>
+        <Text style={{ fontSize: 12, fontWeight: 700, color: level1 === null ? '#595959' : '#1a1a1a', marginTop: 4, whiteSpace: 'nowrap', lineHeight: 1.3 }}>All</Text>
       </button>
     </div>
   )
@@ -2130,12 +2130,12 @@ function TwoLevelMetroHeader({ level1, level2, l1Counts, l2Counts, onLevel1Chang
           width: 114, display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
           padding: '12px 14px',
           borderRadius: 10,
-          background: level1 === null ? '#1677ff' : '#e6f4ff',
-          border: `1.5px solid ${level1 === null ? '#1677ff' : '#91caff'}`,
+          background: level1 === null ? '#595959' : '#f5f5f5',
+          border: `1.5px solid ${level1 === null ? '#595959' : '#bfbfbf'}`,
           cursor: 'pointer', transition: 'all .2s',
         }}
       >
-        <Text style={{ fontSize: 30, fontWeight: 800, color: level1 === null ? '#fff' : '#1677ff', lineHeight: 1, display: 'block' }}>{totalCount}</Text>
+        <Text style={{ fontSize: 30, fontWeight: 800, color: level1 === null ? '#fff' : '#595959', lineHeight: 1, display: 'block' }}>{totalCount}</Text>
         <Text style={{ fontSize: 11.5, fontWeight: 700, color: level1 === null ? 'rgba(255,255,255,.88)' : '#595959', marginTop: 5, lineHeight: 1.3 }}>All</Text>
       </button>
     </div>
@@ -2188,14 +2188,14 @@ function TwoLevelEqualHeader({ level1, level2, l1Counts, l2Counts, onLevel1Chang
           flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
           padding: `${boxPadding}px 16px ${boxPadding}px 14px`,
           borderRadius: 10,
-          border: `1.5px solid ${level1 === null ? '#1677ff' : '#f0f0f0'}`,
+          border: `1.5px solid ${level1 === null ? '#595959' : '#f0f0f0'}`,
           borderTop: '3px solid #1677ff',
           background: level1 === null ? '#e6f4ff' : '#fff',
           cursor: 'pointer', transition: 'all .15s',
         }}
       >
         <Text style={{ fontSize: 28, fontWeight: 800, color: '#1677ff', lineHeight: 1, display: 'block' }}>{totalCount}</Text>
-        <Text style={{ fontSize: 12, fontWeight: 700, color: level1 === null ? '#1677ff' : '#595959', marginTop: 4, whiteSpace: 'nowrap', lineHeight: 1.3 }}>All</Text>
+        <Text style={{ fontSize: 12, fontWeight: 700, color: level1 === null ? '#595959' : '#595959', marginTop: 4, whiteSpace: 'nowrap', lineHeight: 1.3 }}>All</Text>
       </button>
     </div>
   )
