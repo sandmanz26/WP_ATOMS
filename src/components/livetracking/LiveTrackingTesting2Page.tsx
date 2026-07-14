@@ -707,47 +707,63 @@ function TripSummary({
     )
   }
 
-  // ── Default: route + status header, progress bar, from/to, ETA table, action row ──
+  // ── Default: PRD 4.4 map card fields ──
+  // Conditions per PRD: ETA/delay = "not available" for To Check/Notified;
+  // Current Delay hidden entirely when On Time.
+  const etaUnavailable = status === 'To Check' || status === 'Notified'
+  const hideDelay = status === 'On Time' && stop.online
+  const nextPointName = stop.to?.name ?? stop.destination
+  const nextPointEtaStr = etaUnavailable ? 'not available' : (stop.eta ? formatTimeAmPm(stop.eta) : '—')
+  // Last Point ETA: mock offset (10-24 min beyond next-point ETA) — real value from backend
+  const lastPointOffset = 10 + (dhHash(stop.id) % 15)
+  const lastPointEtaStr = etaUnavailable ? 'not available' : (stop.eta ? formatTimeAmPm(shiftTime(stop.eta, lastPointOffset)) : '—')
+  const currentDelayStr = etaUnavailable ? 'not available' : (delayMin !== null && delayMin > 0 ? `+${delayMin} min` : '—')
+
   return (
     <div style={{ width: 272, maxWidth: '100%', boxSizing: 'border-box', overflow: 'hidden' }}>
+      {/* Header: route label + customer code + status */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
         <span style={{ background: '#e6f4ff', color: '#1677ff', fontSize: 11.5, fontWeight: 600, padding: '0 7px', borderRadius: 4, whiteSpace: 'nowrap', flexShrink: 0 }}>
           {stop.label}
         </span>
-        <span style={{ marginLeft: 'auto', flexShrink: 0, background: s.bg, color: s.color, border: `1px solid ${s.border}`, fontSize: 11, fontWeight: 500, padding: '1px 8px', borderRadius: 6, whiteSpace: 'nowrap' }}>
+        <Text style={{ fontSize: 11, color: '#8c8c8c', flex: 1, minWidth: 0 }} ellipsis>{stop.customerCode}</Text>
+        <span style={{ flexShrink: 0, background: s.bg, color: s.color, border: `1px solid ${s.border}`, fontSize: 11, fontWeight: 500, padding: '1px 8px', borderRadius: 6, whiteSpace: 'nowrap' }}>
           {statusLabel}
         </span>
       </div>
-      <div style={{ borderTop: '1px solid #f0f0f0', marginTop: 8, paddingTop: 8 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <Text style={{ fontSize: 11.5, color: '#8c8c8c', flexShrink: 0 }}>Trip progress:</Text>
-          {progressBar}
-          <Text style={{ fontSize: 11.5, fontWeight: 600, color: '#1a1a1a', flexShrink: 0 }}>{progressPct}%</Text>
+      {/* Progress bar */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8 }}>
+        {progressBar}
+        <Text style={{ fontSize: 11, fontWeight: 600, color: '#1a1a1a', flexShrink: 0 }}>{progressPct}%</Text>
+      </div>
+      {/* PRD 4.4 data rows */}
+      <div style={{ borderTop: '1px solid #f0f0f0', marginTop: 8, paddingTop: 8, display: 'flex', flexDirection: 'column', gap: 5 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline' }}>
+          <Text style={{ fontSize: 11, color: '#8c8c8c', flexShrink: 0 }}>Next Point</Text>
+          <Text style={{ fontSize: 11.5, fontWeight: 500, color: '#1a1a1a', textAlign: 'right', minWidth: 0 }} ellipsis>{nextPointName}</Text>
         </div>
-        {(fromName || toName) && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginTop: 6 }}>
-            {fromName && <Text style={{ fontSize: 11.5, color: '#595959' }} ellipsis>From: {fromName}</Text>}
-            {toName && <Text style={{ fontSize: 11.5, fontWeight: 600 }} ellipsis>To: {toName}</Text>}
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+          <Text style={{ fontSize: 11, color: '#8c8c8c', flexShrink: 0 }}>Next Point ETA</Text>
+          <Text style={{ fontSize: 11.5, fontWeight: 600, color: etaUnavailable ? '#8c8c8c' : '#1677ff' }}>{nextPointEtaStr}</Text>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+          <Text style={{ fontSize: 11, color: '#8c8c8c', flexShrink: 0 }}>Last Point ETA</Text>
+          <Text style={{ fontSize: 11.5, fontWeight: 500, color: etaUnavailable ? '#8c8c8c' : '#595959' }}>{lastPointEtaStr}</Text>
+        </div>
+        {!hideDelay && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+            <Text style={{ fontSize: 11, color: '#8c8c8c', flexShrink: 0 }}>Current Delay</Text>
+            <Text style={{ fontSize: 11.5, fontWeight: 600, color: etaUnavailable ? '#8c8c8c' : '#ff4d4f' }}>{currentDelayStr}</Text>
           </div>
         )}
       </div>
-      <div style={{ borderTop: '1px solid #f0f0f0', marginTop: 8, paddingTop: 8, display: 'flex', flexDirection: 'column', gap: 3 }}>
-        <Text style={{ fontSize: 11.5, color: '#8c8c8c' }}>
-          ETA: <strong style={{ color: stop.online && stop.eta ? (delayMin !== null && delayMin > 0 ? '#ff4d4f' : '#1677ff') : '#8c8c8c' }}>
-            {stop.online && stop.eta ? formatTimeAmPm(stop.eta) : '—'}
-          </strong>
-        </Text>
-        <Text style={{ fontSize: 11.5, color: '#8c8c8c' }}>
-          Delay: <strong style={{ color: delayColor }}>{delayLabel}</strong>
-        </Text>
-        <Text style={{ fontSize: 11.5, color: '#8c8c8c' }}>
-          Scheduled: <strong style={{ color: '#1a1a1a' }}>{formatTimeAmPm(stop.scheduled)}</strong>
-        </Text>
-      </div>
+      {/* Driver Last Online — only when offline (PRD 4.4) */}
       {!stop.online && (
-        <Text style={{ fontSize: 11.5, fontWeight: 600, color: '#ff4d4f', display: 'block', marginTop: 6 }} ellipsis>
-          Last seen {stop.lastOnline ?? 'unknown'}
-        </Text>
+        <div style={{ marginTop: 6, padding: '4px 8px', background: '#fff1f0', borderRadius: 6, border: '1px solid #ffccc7' }}>
+          <Text style={{ fontSize: 11, color: '#ff4d4f', fontWeight: 500 }}>
+            Last online: {stop.lastOnline ?? 'unknown'}
+          </Text>
+        </div>
       )}
       <div style={{ borderTop: '1px solid #f0f0f0', marginTop: 8, paddingTop: 8, display: 'flex', gap: 6 }}>
         <Button size="small" type="primary" icon={<EyeOutlined />} onClick={onViewDetail} style={{ flex: 1, fontSize: 12, minWidth: 0 }}>
