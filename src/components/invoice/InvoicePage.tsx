@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react'
 import {
   Typography, Table, Tag, Button, Input, Select, DatePicker, Drawer, Dropdown, Divider, Popover,
 } from 'antd'
+import type { Dayjs } from 'dayjs'
 import {
   SearchOutlined, FilterOutlined, EyeOutlined, DownOutlined, FileTextOutlined,
   PlusOutlined, PaperClipOutlined, DownloadOutlined, HistoryOutlined,
@@ -73,6 +74,8 @@ export default function InvoicePage({ onNavigate }: Props) {
   const [filterOpen, setFilterOpen] = useState(false)
   const [filterCustomer, setFilterCustomer] = useState<string | null>(null)
   const [filterStatus, setFilterStatus] = useState<InvoiceStatus | null>(null)
+  const [filterDueDate, setFilterDueDate] = useState<[Dayjs, Dayjs] | null>(null)
+  const [lastUpdatedRange, setLastUpdatedRange] = useState<[Dayjs, Dayjs] | null>(null)
   const [drawerInvoice, setDrawerInvoice] = useState<Invoice | null>(null)
   const [page, setPage] = useState(1)
 
@@ -91,9 +94,19 @@ export default function InvoicePage({ onNavigate }: Props) {
       }
       if (filterCustomer && inv.customerCode !== filterCustomer) return false
       if (filterStatus && inv.status !== filterStatus) return false
+      if (filterDueDate) {
+        const [from, to] = filterDueDate
+        const d = new Date(inv.dueDate).getTime()
+        if (d < from.startOf('day').valueOf() || d > to.endOf('day').valueOf()) return false
+      }
+      if (lastUpdatedRange) {
+        const [from, to] = lastUpdatedRange
+        const d = new Date(inv.lastUpdatedOn).getTime()
+        if (d < from.startOf('day').valueOf() || d > to.endOf('day').valueOf()) return false
+      }
       return true
     })
-  }, [search, filterCustomer, filterStatus])
+  }, [search, filterCustomer, filterStatus, filterDueDate, lastUpdatedRange])
 
   const toSendCount   = INVOICES.filter((i) => i.status === 'Draft').length
   const pendingCount  = INVOICES.filter((i) => i.status === 'Open' || i.status === 'Partially Paid').length
@@ -157,8 +170,15 @@ export default function InvoicePage({ onNavigate }: Props) {
     },
   ]
 
+  const clearAllFilters = () => {
+    setFilterCustomer(null)
+    setFilterStatus(null)
+    setFilterDueDate(null)
+  }
+
   const filterContent = (
-    <div style={{ width: 480, padding: '4px 0' }}>
+    <div style={{ width: 500 }}>
+      <Text style={{ fontSize: 16, fontWeight: 600, display: 'block', marginBottom: 16 }}>Filter</Text>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
         <div>
           <Text style={{ fontSize: 12, color: '#8c8c8c', display: 'block', marginBottom: 6 }}>Customer Code</Text>
@@ -168,7 +188,7 @@ export default function InvoicePage({ onNavigate }: Props) {
             style={{ width: '100%' }}
             options={customerOptions}
             value={filterCustomer}
-            onChange={(v) => setFilterCustomer(v ?? null)}
+            onChange={(v) => { setFilterCustomer(v ?? null); setPage(1) }}
           />
         </div>
         <div>
@@ -179,17 +199,22 @@ export default function InvoicePage({ onNavigate }: Props) {
             style={{ width: '100%' }}
             options={STATUS_FILTER_OPTIONS}
             value={filterStatus}
-            onChange={(v) => setFilterStatus(v ?? null)}
+            onChange={(v) => { setFilterStatus(v ?? null); setPage(1) }}
           />
         </div>
       </div>
       <div style={{ marginBottom: 16 }}>
         <Text style={{ fontSize: 12, color: '#8c8c8c', display: 'block', marginBottom: 6 }}>Due Date</Text>
-        <RangePicker style={{ width: '100%' }} />
+        <RangePicker
+          style={{ width: '100%' }}
+          value={filterDueDate}
+          onChange={(v) => { setFilterDueDate(v as [Dayjs, Dayjs] | null); setPage(1) }}
+          placeholder={['Start date', 'End date']}
+        />
       </div>
       <Button
         size="small"
-        onClick={() => { setFilterCustomer(null); setFilterStatus(null) }}
+        onClick={clearAllFilters}
         style={{ borderRadius: 6 }}
       >
         Clear all filters
@@ -197,7 +222,7 @@ export default function InvoicePage({ onNavigate }: Props) {
     </div>
   )
 
-  const hasFilter = !!filterCustomer || !!filterStatus
+  const hasFilter = !!filterCustomer || !!filterStatus || !!filterDueDate || !!lastUpdatedRange
 
   return (
     <div style={{ padding: 24 }}>
@@ -228,7 +253,12 @@ export default function InvoicePage({ onNavigate }: Props) {
         {/* Filter row */}
         <div style={{ padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 12, borderBottom: '1px solid #f0f0f0' }}>
           <Text style={{ fontSize: 13, color: '#595959', flexShrink: 0 }}>Last updated on:</Text>
-          <RangePicker size="small" style={{ borderRadius: 6 }} />
+          <RangePicker
+            size="small"
+            style={{ borderRadius: 6 }}
+            value={lastUpdatedRange}
+            onChange={(v) => { setLastUpdatedRange(v as [Dayjs, Dayjs] | null); setPage(1) }}
+          />
           <div style={{ flex: 1 }} />
           <Input
             size="small"
