@@ -52,6 +52,7 @@ import {
   STATUS_STYLE,
   formatTimeAmPm,
 } from './trackingData'
+import { type DummyStop, DUMMY_STOPS } from './dummyLiveData'
 
 const { Text } = Typography
 
@@ -713,10 +714,11 @@ function TripSummary({
   const etaUnavailable = status === 'To Check' || status === 'Notified'
   const hideDelay = status === 'On Time' && stop.online
   const nextPointName = stop.to?.name ?? stop.destination
-  const nextPointEtaStr = etaUnavailable ? 'not available' : (stop.eta ? formatTimeAmPm(stop.eta) : '—')
-  // Last Point ETA: mock offset (10-24 min beyond next-point ETA) — real value from backend
-  const lastPointOffset = 10 + (dhHash(stop.id) % 15)
-  const lastPointEtaStr = etaUnavailable ? 'not available' : (stop.eta ? formatTimeAmPm(shiftTime(stop.eta, lastPointOffset)) : '—')
+  const dummyStop = stop as DummyStop
+  const rawNextPointEta = dummyStop._nextPointEta !== undefined ? dummyStop._nextPointEta : stop.eta
+  const rawLastPointEta = dummyStop._lastPointEta !== undefined ? dummyStop._lastPointEta : (stop.eta ? shiftTime(stop.eta, 10 + (dhHash(stop.id) % 15)) : null)
+  const nextPointEtaStr = etaUnavailable ? 'not available' : (rawNextPointEta ? formatTimeAmPm(rawNextPointEta) : '—')
+  const lastPointEtaStr = etaUnavailable ? 'not available' : (rawLastPointEta ? formatTimeAmPm(rawLastPointEta) : '—')
   const currentDelayStr = etaUnavailable ? 'not available' : (delayMin !== null && delayMin > 0 ? `+${delayMin} min` : '—')
 
   return (
@@ -2766,13 +2768,14 @@ function TripDetailPanel({
   const lateMin = stop.online && status === 'Late' && stop.eta ? toMinutes(stop.eta) - toMinutes(stop.scheduled) : 0
   const accent = statusColor(stop)
 
-  // Contacts and next-trip — deterministic mock data generated from stop id
+  // Contacts and next-trip — use real data if available (dummy stops), else deterministic mock
   const h = dhHash(stop.id)
-  const driverPhone = mockPhone(h)
-  const fleetPhone = mockPhone(h + 13)
-  const customerPIC = mockPicName(h)
-  const customerPhone = mockPhone(h + 7)
-  const nextTrip = mockNextTrip(stop)
+  const _ds = stop as DummyStop
+  const driverPhone = _ds._driverPhone !== undefined ? _ds._driverPhone : mockPhone(h)
+  const fleetPhone = _ds._fleetPhone !== undefined ? _ds._fleetPhone : mockPhone(h + 13)
+  const customerPIC = _ds._customerPic !== undefined ? _ds._customerPic : mockPicName(h)
+  const customerPhone = _ds._customerPhone !== undefined ? _ds._customerPhone : mockPhone(h + 7)
+  const nextTrip = _ds._nextTrip !== undefined ? (_ds._nextTrip ?? mockNextTrip(stop)) : mockNextTrip(stop)
 
   const contactSections = (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
@@ -2807,8 +2810,14 @@ function TripDetailPanel({
       {/* Next Trip */}
       <div style={{ padding: '10px 0' }}>
         <Text style={{ fontSize: 11, color: '#8c8c8c', display: 'block', marginBottom: 6, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Next Trip</Text>
-        <Text style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1a', display: 'block' }}>{nextTrip.routeCode}</Text>
-        <Text style={{ fontSize: 12, color: '#8c8c8c' }}>Starts {formatTimeAmPm(nextTrip.startTime)} · {nextTrip.destination}</Text>
+        {nextTrip ? (
+          <>
+            <Text style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1a', display: 'block' }}>{nextTrip.routeCode}</Text>
+            <Text style={{ fontSize: 12, color: '#8c8c8c' }}>Starts {formatTimeAmPm(nextTrip.startTime)} · {nextTrip.destination}</Text>
+          </>
+        ) : (
+          <Text style={{ fontSize: 12, color: '#8c8c8c' }}>No next trip</Text>
+        )}
       </div>
     </div>
   )
@@ -2942,6 +2951,8 @@ function DisplaySettingsPanel({
   onL1FontSizeChange,
   l2FontSize,
   onL2FontSizeChange,
+  useDummyData,
+  onUseDummyDataChange,
 }: {
   pos: { x: number; y: number }
   onDragStart: (e: React.MouseEvent) => void
@@ -3004,6 +3015,8 @@ function DisplaySettingsPanel({
   onL1FontSizeChange: (v: number) => void
   l2FontSize: number
   onL2FontSizeChange: (v: number) => void
+  useDummyData: boolean
+  onUseDummyDataChange: (v: boolean) => void
 }) {
   return (
     <div
@@ -3171,6 +3184,10 @@ function DisplaySettingsPanel({
         >
           {simulating ? 'Pause' : 'Simulate'}
         </Button>
+        <div style={{ height: 1, background: '#f0f0f0' }} />
+        <SettingRow label="Use dummy data">
+          <Switch size="small" checked={useDummyData} onChange={onUseDummyDataChange} />
+        </SettingRow>
       </div>
     </div>
   )
@@ -3302,6 +3319,7 @@ export default function LiveTrackingTesting2Page() {
   const [highlightBoxPadding, setHighlightBoxPadding] = useState(10)
   const [l1FontSize, setL1FontSize] = useState(24)
   const [l2FontSize, setL2FontSize] = useState(11)
+  const [useDummyData, setUseDummyData] = useState(false)
   // "2 Levels" is one of the Highlight style options — not a separate toggle
   const isTwoLevel = highlightStyle.startsWith('two-level')
   const [dhLevel1, setDhLevel1] = useState<DhLevel1 | null>('immediate')
@@ -3331,14 +3349,16 @@ export default function LiveTrackingTesting2Page() {
   const onRouteResolved = (key: string, path: [number, number][]) =>
     setRealRoutes((prev) => (prev[key] ? prev : { ...prev, [key]: path }))
 
-  const stops = buildStops(DEMO_TRIPS).map((s) => {
-    const withNotify = notifiedIds.has(s.id) ? { ...s, notified: true } : s
-    if (!withNotify.from || !withNotify.to) return withNotify
-    const real = realRoutes[routeKey(withNotify.from, withNotify.to)]
-    if (!real) return withNotify
-    const pos = pointAlong(real, withNotify.phase)
-    return { ...withNotify, route: real, lat: pos[0], lng: pos[1] }
-  })
+  const stops: VehicleStop[] = useDummyData
+    ? DUMMY_STOPS.map((s) => (notifiedIds.has(s.id) ? { ...s, notified: true } : s))
+    : buildStops(DEMO_TRIPS).map((s) => {
+        const withNotify = notifiedIds.has(s.id) ? { ...s, notified: true } : s
+        if (!withNotify.from || !withNotify.to) return withNotify
+        const real = realRoutes[routeKey(withNotify.from, withNotify.to)]
+        if (!real) return withNotify
+        const pos = pointAlong(real, withNotify.phase)
+        return { ...withNotify, route: real, lat: pos[0], lng: pos[1] }
+      })
 
   useEffect(() => {
     if (!simulating) return
@@ -3372,7 +3392,8 @@ export default function LiveTrackingTesting2Page() {
   // of what the underlying placeholder delay math says.
   const dhById: Record<string, DhInfo> = Object.fromEntries(
     stops.map((s) => {
-      const info = dhInfo(s)
+      const overrideDh = (s as DummyStop)._dh
+      const info: DhInfo = overrideDh !== undefined ? overrideDh : dhInfo(s)
       if (actionModel === 'claim' && actionCompleteIds.has(s.id) && info.l1 !== 'stable') {
         return [s.id, { ...info, l1: 'stable' as DhLevel1, l2: null }]
       }
@@ -3992,6 +4013,8 @@ export default function LiveTrackingTesting2Page() {
           onL1FontSizeChange={setL1FontSize}
           l2FontSize={l2FontSize}
           onL2FontSizeChange={setL2FontSize}
+          useDummyData={useDummyData}
+          onUseDummyDataChange={setUseDummyData}
         />
       ) : (
         <Button
