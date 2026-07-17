@@ -3313,7 +3313,7 @@ export default function LiveTrackingTesting2Page() {
   const [mapCardStyle, setMapCardStyle] = useState<MapCardStyle>('default')
   const [mapPosition, setMapPosition] = useState<MapPosition>('left')
   const [listMapRatio, setListMapRatio] = useState<ListMapRatio>('60:40')
-  const [highlightStyle, setHighlightStyle] = useState<HighlightStyle>('two-level-cards')
+  const [highlightStyle, setHighlightStyle] = useState<HighlightStyle>('two-level-panel')
   const [showNeedsAttention, setShowNeedsAttention] = useState(true)
   const [flashingStyle, setFlashingStyle] = useState<FlashingStyle>('pulse')
   const [highlightBoxPadding, setHighlightBoxPadding] = useState(10)
