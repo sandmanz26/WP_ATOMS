@@ -1489,13 +1489,13 @@ const DH_L2_META: Record<Exclude<DhLevel1, 'stable'>, { key: DhLevel2; label: st
   immediate: [
     { key: 'cur-first', label: 'Late (First Point)', short: 'Late (First Point)' },
     { key: 'will-first', label: 'Will be Late (First Point)', short: 'Will be Late (First Point)' },
-    { key: 'next', label: 'Next Trip Delayed', short: 'Next Trip' },
-    { key: 'offline', label: 'ETA Unavailable', short: 'ETA Unavail.' },
+    { key: 'next', label: 'Next Trip Delayed', short: 'Next Trip Delayed' },
+    { key: 'offline', label: 'ETA Unavailable', short: 'ETA Unavailable' },
   ],
   risk: [
     { key: 'cur-other', label: 'Late (Other Points)', short: 'Late (Other Points)' },
-    { key: 'will-other', label: 'Will be Late (Other Points)', short: 'Will be Late (Others)' },
-    { key: 'no-slack', label: 'No Schedule Slack', short: 'No Slack' },
+    { key: 'will-other', label: 'Will be Late (Other Points)', short: 'Will be Late (Other Points)' },
+    { key: 'no-slack', label: 'No Schedule Slack', short: 'No Schedule Slack' },
   ],
 }
 
