@@ -1526,7 +1526,7 @@ function TwoLevelCardHeader({
       {DH_L1_META.map((m) => {
         const active = level1 === m.key
         const Icon = DH_L1_ICON[m.key]
-        const hot = m.key === 'immediate' && l1Counts.immediate > 0
+        const hot = m.key === 'immediate' && l1Counts.immediate > 0 && level1 === null
         return (
           <button
             key={m.key}
@@ -1630,7 +1630,7 @@ function TwoLevelMinimalHeader({
       </button>
       {DH_L1_META.map((m) => {
         const active = level1 === m.key
-        const hot = m.key === 'immediate' && l1Counts.immediate > 0
+        const hot = m.key === 'immediate' && l1Counts.immediate > 0 && level1 === null
         return (
           <button
             key={m.key}
@@ -2018,7 +2018,7 @@ function TwoLevelInlineHeader({ level1, level2, l1Counts, l2Counts, onLevel1Chan
     <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
       {DH_L1_META.map((m, i) => {
         const active = level1 === m.key
-        const hot = m.key === 'immediate' && l1Counts.immediate > 0
+        const hot = m.key === 'immediate' && l1Counts.immediate > 0 && level1 === null
         return (
           <>
             {i > 0 && <span key={`sep-${m.key}`} style={{ width: 1, height: 22, background: '#e8e8e8', flexShrink: 0, margin: '0 6px' }} />}
@@ -2073,7 +2073,10 @@ function TwoLevelPanelHeader({ level1, level2, l1Counts, l2Counts, onLevel1Chang
     <div style={{ display: 'flex', gap: 8 }}>
       {DH_L1_META.map((m) => {
         const active = level1 === m.key
-        const hot = m.key === 'immediate' && l1Counts.immediate > 0
+        // Only pulse in the "All" view (level1 === null) — when a specific
+        // category is already selected, the pulse on other tiles creates a
+        // false impression that they're still active.
+        const hot = m.key === 'immediate' && l1Counts.immediate > 0 && level1 === null && level1 === null
         return (
           <button
             key={m.key}
@@ -2084,7 +2087,7 @@ function TwoLevelPanelHeader({ level1, level2, l1Counts, l2Counts, onLevel1Chang
               padding: `${boxPadding}px 16px ${boxPadding}px 14px`,
               borderRadius: 10,
               border: `1.5px solid ${active ? m.color : '#f0f0f0'}`,
-              borderTop: `3px solid ${m.color}`,
+              borderTop: `3px solid ${active ? m.color : '#e8e8e8'}`,
               background: active ? m.soft : '#fff',
               cursor: 'pointer', transition: 'all .15s',
               minWidth: 106,
@@ -2134,7 +2137,7 @@ function TwoLevelMetroHeader({ level1, level2, l1Counts, l2Counts, onLevel1Chang
     <div style={{ display: 'flex', gap: 6 }}>
       {DH_L1_META.map((m) => {
         const active = level1 === m.key
-        const hot = m.key === 'immediate' && l1Counts.immediate > 0
+        const hot = m.key === 'immediate' && l1Counts.immediate > 0 && level1 === null
         return (
           <button
             key={m.key}
@@ -2191,7 +2194,7 @@ function TwoLevelEqualHeader({ level1, level2, l1Counts, l2Counts, onLevel1Chang
     <div style={{ display: 'flex', gap: 8, flex: l2MatchL1Width ? undefined : 1 }}>
       {DH_L1_META.map((m) => {
         const active = level1 === m.key
-        const hot = m.key === 'immediate' && l1Counts.immediate > 0
+        const hot = m.key === 'immediate' && l1Counts.immediate > 0 && level1 === null
         return (
           <button
             key={m.key}
@@ -2702,13 +2705,13 @@ function DhRev03Card({
       {/* Row 2: wifi + driver left | start time right */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
         <WifiOutlined style={{ color: stop.online ? '#52c41a' : '#ff4d4f', fontSize: 11.5, flexShrink: 0 }} />
-        <Text style={{ fontSize: 12, color: '#8c8c8c', whiteSpace: 'nowrap', flexShrink: 0 }}>({stop.plate})</Text>
+        <Text style={{ fontSize: 12, color: '#1a1a1a', whiteSpace: 'nowrap', flexShrink: 0 }}>({stop.plate})</Text>
         <Text style={{ fontSize: 12.5, fontWeight: 600, color: '#1a1a1a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{firstName(stop.driver)}</Text>
         <Text style={{ fontSize: 12, color: '#8c8c8c', whiteSpace: 'nowrap', marginLeft: 'auto', flexShrink: 0 }}>{formatTimeAmPm(stop.scheduled)}</Text>
       </div>
-      {/* Row 3: route name (small, gray) left | claim action right */}
+      {/* Row 3: route name left | claim action right — same text style as "Claimed by" */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-        <Text style={{ fontSize: 11, color: '#bfbfbf', flex: 1, minWidth: 0 }} ellipsis>{routeName}</Text>
+        <Text style={{ fontSize: 11.5, color: '#8c8c8c', flex: 1, minWidth: 0 }} ellipsis>{routeName}</Text>
         {showAction && (
           <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
             {claim ? (
