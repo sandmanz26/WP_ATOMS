@@ -2097,14 +2097,14 @@ function TwoLevelPanelHeader({ level1, level2, l1Counts, l2Counts, onLevel1Chang
           padding: `${boxPadding}px 16px ${boxPadding}px 14px`,
           borderRadius: 10,
           border: `1.5px solid ${level1 === null ? '#595959' : '#f0f0f0'}`,
-          borderTop: '3px solid #1677ff',
-          background: level1 === null ? '#e6f4ff' : '#fff',
+          borderTop: `3px solid ${level1 === null ? '#595959' : '#bfbfbf'}`,
+          background: level1 === null ? '#f0f0f0' : '#fff',
           cursor: 'pointer', transition: 'all .15s',
           minWidth: 106,
         }}
       >
-        <Text style={{ fontSize: l1FontSize, fontWeight: 800, color: level1 === null ? '#595959' : '#1a1a1a', lineHeight: 1, display: 'block' }}>{totalCount}</Text>
-        <Text style={{ fontSize: 12, fontWeight: 700, color: level1 === null ? '#595959' : '#1a1a1a', marginTop: 4, whiteSpace: 'nowrap', lineHeight: 1.3 }}>All</Text>
+        <Text style={{ fontSize: l1FontSize, fontWeight: 800, color: '#595959', lineHeight: 1, display: 'block' }}>{totalCount}</Text>
+        <Text style={{ fontSize: 12, fontWeight: 700, color: '#595959', marginTop: 4, whiteSpace: 'nowrap', lineHeight: 1.3 }}>All</Text>
       </button>
     </div>
   )
@@ -2214,13 +2214,13 @@ function TwoLevelEqualHeader({ level1, level2, l1Counts, l2Counts, onLevel1Chang
           padding: `${boxPadding}px 16px ${boxPadding}px 14px`,
           borderRadius: 10,
           border: `1.5px solid ${level1 === null ? '#595959' : '#f0f0f0'}`,
-          borderTop: '3px solid #1677ff',
-          background: level1 === null ? '#e6f4ff' : '#fff',
+          borderTop: `3px solid ${level1 === null ? '#595959' : '#bfbfbf'}`,
+          background: level1 === null ? '#f0f0f0' : '#fff',
           cursor: 'pointer', transition: 'all .15s',
         }}
       >
-        <Text style={{ fontSize: l1FontSize, fontWeight: 800, color: '#1677ff', lineHeight: 1, display: 'block' }}>{totalCount}</Text>
-        <Text style={{ fontSize: 12, fontWeight: 700, color: level1 === null ? '#595959' : '#595959', marginTop: 4, whiteSpace: 'nowrap', lineHeight: 1.3 }}>All</Text>
+        <Text style={{ fontSize: l1FontSize, fontWeight: 800, color: '#595959', lineHeight: 1, display: 'block' }}>{totalCount}</Text>
+        <Text style={{ fontSize: 12, fontWeight: 700, color: '#595959', marginTop: 4, whiteSpace: 'nowrap', lineHeight: 1.3 }}>All</Text>
       </button>
     </div>
   )
@@ -3769,10 +3769,8 @@ export default function LiveTrackingTesting2Page() {
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                 <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search route, driver, plate..." style={{ borderRadius: 8, width: 210 }} allowClear />
                 {filterBtn}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
-                  <span style={{ display: 'flex', alignItems: 'center', padding: '5px 8px', background: '#fff', border: '1px solid #d9d9d9', borderRight: 'none', borderRadius: '6px 0 0 6px', color: '#595959' }}>
-                    <SwapOutlined style={{ fontSize: 13, transform: 'rotate(90deg)' }} />
-                  </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Text style={{ fontSize: 13, color: '#8c8c8c', whiteSpace: 'nowrap' }}>Sort</Text>
                   <Select size="middle" value={sortBy} onChange={setSortBy} options={SORT_OPTIONS} style={{ width: 152 }} />
                 </div>
               </div>
@@ -3830,10 +3828,8 @@ export default function LiveTrackingTesting2Page() {
                   allowClear
                 />
                 {filterBtn}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
-                  <span style={{ display: 'flex', alignItems: 'center', padding: '5px 8px', background: '#fff', border: '1px solid #d9d9d9', borderRight: 'none', borderRadius: '6px 0 0 6px', color: '#595959' }}>
-                    <SwapOutlined style={{ fontSize: 13, transform: 'rotate(90deg)' }} />
-                  </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Text style={{ fontSize: 13, color: '#8c8c8c', whiteSpace: 'nowrap' }}>Sort</Text>
                   <Select size="middle" value={sortBy} onChange={setSortBy} options={SORT_OPTIONS} style={{ width: 152 }} />
                 </div>
               </div>
