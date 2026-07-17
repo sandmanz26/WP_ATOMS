@@ -2702,11 +2702,11 @@ function DhRev03Card({
         <Text style={{ fontSize: 12.5, fontWeight: 600, color: '#1a1a1a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{firstName(stop.driver)}</Text>
         <Text style={{ fontSize: 12, color: '#8c8c8c', whiteSpace: 'nowrap', marginLeft: 'auto', flexShrink: 0 }}>{formatTimeAmPm(stop.scheduled)}</Text>
       </div>
-      {/* Row 3: route name (max 35%) | claim action right — same text style as "Claimed by" */}
+      {/* Row 3: route name (max 35%) left | claim + 3-dot far right */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
         <Text style={{ fontSize: 11.5, color: '#8c8c8c', maxWidth: '35%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 0 }}>{routeName}</Text>
         {showAction && (
-          <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+          <div style={{ display: 'flex', gap: 6, flexShrink: 0, marginLeft: 'auto' }}>
             {claim ? (
               <ClaimControl accent={accent} claim={claim} />
             ) : urgent && !handled ? (
