@@ -373,6 +373,7 @@ type HighlightStyle =
   | 'two-level' | 'two-level-cards' | 'two-level-minimal'
   | 'two-level-banner' | 'two-level-stats' | 'two-level-badge' | 'two-level-progress'
   | 'two-level-inline' | 'two-level-panel' | 'two-level-metro' | 'two-level-equal'
+  | 'flashing-card'
 
 const HIGHLIGHT_STYLE_OPTIONS: { value: HighlightStyle; label: string }[] = [
   { value: 'default', label: 'Default' },
@@ -389,6 +390,7 @@ const HIGHLIGHT_STYLE_OPTIONS: { value: HighlightStyle; label: string }[] = [
   { value: 'two-level-panel', label: '9. Panel' },
   { value: 'two-level-metro', label: '10. Metro' },
   { value: 'two-level-equal', label: '11. Equal Width' },
+  { value: 'flashing-card', label: '12. Flashing Card' },
 ]
 
 function KpiBar({
@@ -2876,6 +2878,162 @@ function TripDetailPanel({
   )
 }
 
+/* ── Flashing Card Stack — urgent trips surface one-by-one every 3 s as a
+   dismissible card stack anchored to the bottom-left. Max 5 cards; each has
+   a Claim action and a Dismiss (×). New cards animate in; the stack shows
+   oldest at top, newest at bottom. ── */
+interface FlashCard {
+  stop: VehicleStop
+  info: DhInfo
+  entryKey: number  // unique per entry so React sees new elements
+}
+
+function FlashingCardStack({
+  urgentStops,
+  dhById,
+  onClaim,
+  active,
+}: {
+  urgentStops: VehicleStop[]
+  dhById: Record<string, DhInfo>
+  onClaim: (id: string) => void
+  active: boolean
+}) {
+  const [cards, setCards] = useState<FlashCard[]>([])
+  const counterRef = useRef(0)
+  const queueIndexRef = useRef(0)
+
+  useEffect(() => {
+    if (!active) { setCards([]); return }
+    const add = () => {
+      if (urgentStops.length === 0) return
+      setCards((prev) => {
+        if (prev.length >= 5) return prev
+        // cycle through urgentStops, skip any already in the stack
+        let tried = 0
+        while (tried < urgentStops.length) {
+          const candidate = urgentStops[queueIndexRef.current % urgentStops.length]
+          queueIndexRef.current++
+          tried++
+          if (!prev.find((c) => c.stop.id === candidate.id)) {
+            const info = dhById[candidate.id]
+            if (!info) continue
+            return [...prev, { stop: candidate, info, entryKey: counterRef.current++ }]
+          }
+        }
+        return prev
+      })
+    }
+    add() // show first card immediately
+    const id = setInterval(add, 3000)
+    return () => clearInterval(id)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, urgentStops.length])
+
+  const dismiss = (key: number) =>
+    setCards((prev) => prev.filter((c) => c.entryKey !== key))
+
+  const claim = (card: FlashCard) => {
+    onClaim(card.stop.id)
+    dismiss(card.entryKey)
+  }
+
+  if (!active || cards.length === 0) return null
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        bottom: 28,
+        left: 28,
+        zIndex: 1800,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 8,
+        width: 300,
+        pointerEvents: 'none',
+      }}
+    >
+      {cards.map((card) => {
+        const { stop, info } = card
+        const accent = info.l1 === 'immediate' ? '#ff4d4f' : '#faad14'
+        const accentSoft = info.l1 === 'immediate' ? '#fff1f0' : '#fffbe6'
+        const accentBorder = info.l1 === 'immediate' ? '#ffccc7' : '#ffe58f'
+        const delayLabel =
+          info.currentDelayMin > 0
+            ? `Late +${info.currentDelayMin} min`
+            : info.predictedDelayMin > 0
+              ? `Will be late +${info.predictedDelayMin} min`
+              : info.nextTripDelayMin > 0
+                ? `Next trip +${info.nextTripDelayMin} min`
+                : info.l2 === 'no-slack'
+                  ? 'No schedule slack'
+                  : info.l2 === 'offline'
+                    ? 'ETA unavailable'
+                    : 'Needs attention'
+        return (
+          <div
+            key={card.entryKey}
+            className="fcard-enter fcard-pulse"
+            style={{
+              background: '#fff',
+              borderRadius: 12,
+              border: `1.5px solid ${accentBorder}`,
+              borderLeft: `4px solid ${accent}`,
+              padding: '11px 12px',
+              pointerEvents: 'all',
+              position: 'relative',
+            }}
+          >
+            {/* Dismiss × */}
+            <button
+              onClick={() => dismiss(card.entryKey)}
+              style={{
+                position: 'absolute', top: 8, right: 8,
+                background: 'none', border: 'none', cursor: 'pointer',
+                color: '#bfbfbf', fontSize: 14, lineHeight: 1, padding: 2,
+              }}
+              title="Dismiss"
+            >×</button>
+
+            {/* Header row */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6, paddingRight: 18 }}>
+              <span style={{ background: '#e6f4ff', color: '#1677ff', fontSize: 11, fontWeight: 700, padding: '1px 7px', borderRadius: 4, whiteSpace: 'nowrap' }}>
+                {stop.label}
+              </span>
+              <Text style={{ fontSize: 11.5, fontWeight: 600, color: '#1a1a1a', flex: 1, minWidth: 0 }} ellipsis>
+                {stop.customerCode}
+              </Text>
+              <span style={{ background: accentSoft, color: accent, border: `1px solid ${accentBorder}`, fontSize: 10.5, fontWeight: 600, padding: '1px 8px', borderRadius: 6, whiteSpace: 'nowrap', flexShrink: 0 }}>
+                {info.l1 === 'immediate' ? 'Immediate' : 'At Risk'}
+              </span>
+            </div>
+
+            {/* Sub-category + driver */}
+            <div style={{ marginBottom: 8 }}>
+              <Text style={{ fontSize: 11.5, color: accent, fontWeight: 600, display: 'block' }}>{delayLabel}</Text>
+              <Text style={{ fontSize: 11, color: '#8c8c8c' }}>
+                {stop.driver} · {stop.plate}
+              </Text>
+            </div>
+
+            {/* Claim action */}
+            <Button
+              type="primary"
+              size="small"
+              icon={<CheckOutlined />}
+              onClick={() => claim(card)}
+              style={{ width: '100%', background: accent, borderColor: accent, fontSize: 12 }}
+            >
+              Claim this trip
+            </Button>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 /* ── Floating, draggable Display settings panel — same mechanism as the
    Test Console on the main Live Tracking page (drag by header, close to a
    reopener button) so every switcher ported from there behaves the same way
@@ -3322,6 +3480,7 @@ export default function LiveTrackingTesting2Page() {
   const [useDummyData, setUseDummyData] = useState(false)
   // "2 Levels" is one of the Highlight style options — not a separate toggle
   const isTwoLevel = highlightStyle.startsWith('two-level')
+  const isFlashingCard = highlightStyle === 'flashing-card'
   const [dhLevel1, setDhLevel1] = useState<DhLevel1 | null>('immediate')
   const [dhLevel2, setDhLevel2] = useState<DhLevel2 | null>('cur-first')
   const handleLevel1Change = (v: DhLevel1 | null) => {
@@ -3408,8 +3567,14 @@ export default function LiveTrackingTesting2Page() {
     if (info.l2) dhL2Counts[info.l2] = (dhL2Counts[info.l2] ?? 0) + 1
   })
 
+  // Stops that need immediate or at-risk attention — used by FlashingCardStack
+  const flashUrgentStops = stops.filter((s) => {
+    const info = dhById[s.id]
+    return info && info.l1 !== 'stable' && !handledIds.has(s.id) && !actionCompleteIds.has(s.id)
+  })
+
   const filtered = stops.filter((s) => {
-    if (isTwoLevel) {
+    if (isTwoLevel || isFlashingCard) {
       const info = dhById[s.id]
       if (dhLevel1 !== null && info.l1 !== dhLevel1) return false
       if (dhLevel1 !== null && dhLevel1 !== 'stable' && dhLevel2 && info.l2 !== dhLevel2) return false
@@ -3763,7 +3928,7 @@ export default function LiveTrackingTesting2Page() {
       >
         {/* ── Header: KPI/highlight bar + search + sort ── */}
         <div style={{ flexShrink: 0 }}>
-          {isTwoLevel ? (() => {
+          {(isTwoLevel || isFlashingCard) ? (() => {
             const l2Props = { level1: dhLevel1, level2: dhLevel2, l1Counts: dhL1Counts, l2Counts: dhL2Counts, onLevel1Change: handleLevel1Change, onLevel2Change: setDhLevel2, l2Spacing, l2MatchL1Width, flashingStyle, l1FontSize, l2FontSize }
             const rightSlot = (
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -3775,6 +3940,7 @@ export default function LiveTrackingTesting2Page() {
                 </div>
               </div>
             )
+            if (isFlashingCard) return <TwoLevelPanelHeader {...l2Props} boxPadding={highlightBoxPadding} rightSlot={rightSlot} />
             if (highlightStyle === 'two-level-cards') return <TwoLevelCardHeader {...l2Props} rightSlot={rightSlot} />
             if (highlightStyle === 'two-level-minimal') return <TwoLevelMinimalHeader {...l2Props} rightSlot={rightSlot} />
             if (highlightStyle === 'two-level-banner') return <TwoLevelBannerHeader {...l2Props} rightSlot={rightSlot} />
@@ -3946,6 +4112,17 @@ export default function LiveTrackingTesting2Page() {
         />
       )}
 
+      {/* Flashing Card Stack — fixed overlay at bottom-left, only when variant is active */}
+      <FlashingCardStack
+        urgentStops={flashUrgentStops}
+        dhById={dhById}
+        onClaim={(id) => {
+          markHandled(id)
+          messageApi.success('Trip claimed')
+        }}
+        active={isFlashingCard}
+      />
+
       {settingsVisible ? (
         <DisplaySettingsPanel
           pos={settingsPos}
@@ -3956,7 +4133,7 @@ export default function LiveTrackingTesting2Page() {
           cardStyle={cardStyle}
           onCardStyleChange={setCardStyle}
           onOpenGallery={() => setGalleryOpen(true)}
-          isTwoLevel={isTwoLevel}
+          isTwoLevel={isTwoLevel || isFlashingCard}
           dhCardStyle={dhCardStyle}
           onDhCardStyleChange={setDhCardStyle}
           highlightStyle={highlightStyle}

@@ -230,6 +230,22 @@ body {
   animation: claim-flash 1s steps(1, jump-none) infinite;
 }
 
+/* Flashing Card stack — urgent trip notifications that stack at bottom-left */
+@keyframes fcard-slide-in {
+  from { opacity: 0; transform: translateY(18px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0)    scale(1); }
+}
+@keyframes fcard-pulse-border {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 77, 79, 0.0), 0 4px 18px rgba(15,23,42,.12); }
+  50%       { box-shadow: 0 0 0 4px rgba(255, 77, 79, 0.28), 0 4px 18px rgba(15,23,42,.12); }
+}
+.fcard-enter {
+  animation: fcard-slide-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.fcard-pulse {
+  animation: fcard-pulse-border 1.4s ease-in-out infinite;
+}
+
 /* Tracking 2.0 — selected marker tooltip */
 .tracking2-tooltip.leaflet-tooltip {
   background: #0f172a;
