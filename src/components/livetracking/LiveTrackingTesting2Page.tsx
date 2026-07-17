@@ -594,7 +594,7 @@ function TripSummary({
   // Claim workflow control, shown below the trip's own action row (in place
   // of the plain "Take it" button) so the map popup mirrors the card/drawer
   const claimRow = claim && (
-    <div style={{ marginTop: 6 }} onClick={(e) => e.stopPropagation()}>
+    <div style={{ marginTop: 6, display: 'flex', justifyContent: 'flex-end' }} onClick={(e) => e.stopPropagation()}>
       <ClaimControl accent={accent} claim={claim} compact />
     </div>
   )
