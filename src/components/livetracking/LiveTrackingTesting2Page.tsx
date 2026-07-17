@@ -710,65 +710,58 @@ function TripSummary({
     )
   }
 
-  // ── Default: PRD 4.4 map card fields ──
-  // Conditions per PRD: ETA/delay = "not available" for To Check/Notified;
-  // Current Delay hidden entirely when On Time.
+  // ── Default: PRD §4 map overlay card — exactly the 6 data fields ──
+  // Rules:
+  //   ETA fields   → "not available" when status = To Check / Notified
+  //   Current Delay → "not available" when To Check/Notified; hidden entirely when On Time
+  //   Driver Last Online → only shown when offline
   const etaUnavailable = status === 'To Check' || status === 'Notified'
   const hideDelay = status === 'On Time' && stop.online
-  const nextPointName = stop.to?.name ?? stop.destination
+  const nextPointName = stop.to?.name ?? stop.destination ?? '—'
   const dummyStop = stop as DummyStop
   const rawNextPointEta = dummyStop._nextPointEta !== undefined ? dummyStop._nextPointEta : stop.eta
-  const rawLastPointEta = dummyStop._lastPointEta !== undefined ? dummyStop._lastPointEta : (stop.eta ? shiftTime(stop.eta, 10 + (dhHash(stop.id) % 15)) : null)
+  const rawLastPointEta = dummyStop._lastPointEta !== undefined
+    ? dummyStop._lastPointEta
+    : (stop.eta ? shiftTime(stop.eta, 10 + (dhHash(stop.id) % 15)) : null)
   const nextPointEtaStr = etaUnavailable ? 'not available' : (rawNextPointEta ? formatTimeAmPm(rawNextPointEta) : '—')
   const lastPointEtaStr = etaUnavailable ? 'not available' : (rawLastPointEta ? formatTimeAmPm(rawLastPointEta) : '—')
-  const currentDelayStr = etaUnavailable ? 'not available' : (delayMin !== null && delayMin > 0 ? `+${delayMin} min` : '—')
+  const delayVal = delayMin !== null && delayMin > 0 ? `${delayMin} min` : null
+  const currentDelayStr = etaUnavailable ? 'not available' : (delayVal ?? '—')
+
+  // Reusable label-value row
+  const dataRow = (label: string, value: string, valueColor = '#1a1a1a', bold = false) => (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12 }}>
+      <Text style={{ fontSize: 11, color: '#8c8c8c', flexShrink: 0, whiteSpace: 'nowrap' }}>{label}</Text>
+      <Text style={{ fontSize: 11.5, fontWeight: bold ? 600 : 400, color: valueColor, textAlign: 'right', minWidth: 0, wordBreak: 'break-word' }}>{value}</Text>
+    </div>
+  )
 
   return (
     <div style={{ width: 272, maxWidth: '100%', boxSizing: 'border-box', overflow: 'hidden' }}>
-      {/* Header: route label + customer code + status */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+      {/* Minimal header — route code + status badge so dispatcher knows which trip */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
         <span style={{ background: '#e6f4ff', color: '#1677ff', fontSize: 11.5, fontWeight: 600, padding: '0 7px', borderRadius: 4, whiteSpace: 'nowrap', flexShrink: 0 }}>
           {stop.label}
         </span>
-        <Text style={{ fontSize: 11, color: '#8c8c8c', flex: 1, minWidth: 0 }} ellipsis>{stop.customerCode}</Text>
-        <span style={{ flexShrink: 0, background: s.bg, color: s.color, border: `1px solid ${s.border}`, fontSize: 11, fontWeight: 500, padding: '1px 8px', borderRadius: 6, whiteSpace: 'nowrap' }}>
+        <span style={{ marginLeft: 'auto', flexShrink: 0, background: s.bg, color: s.color, border: `1px solid ${s.border}`, fontSize: 11, fontWeight: 500, padding: '1px 8px', borderRadius: 6, whiteSpace: 'nowrap' }}>
           {statusLabel}
         </span>
       </div>
-      {/* Progress bar */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8 }}>
-        {progressBar}
-        <Text style={{ fontSize: 11, fontWeight: 600, color: '#1a1a1a', flexShrink: 0 }}>{progressPct}%</Text>
-      </div>
-      {/* PRD 4.4 data rows */}
-      <div style={{ borderTop: '1px solid #f0f0f0', marginTop: 8, paddingTop: 8, display: 'flex', flexDirection: 'column', gap: 5 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline' }}>
-          <Text style={{ fontSize: 11, color: '#8c8c8c', flexShrink: 0 }}>Next Point</Text>
-          <Text style={{ fontSize: 11.5, fontWeight: 500, color: '#1a1a1a', textAlign: 'right', minWidth: 0 }} ellipsis>{nextPointName}</Text>
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-          <Text style={{ fontSize: 11, color: '#8c8c8c', flexShrink: 0 }}>Next Point ETA</Text>
-          <Text style={{ fontSize: 11.5, fontWeight: 600, color: etaUnavailable ? '#8c8c8c' : '#1677ff' }}>{nextPointEtaStr}</Text>
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-          <Text style={{ fontSize: 11, color: '#8c8c8c', flexShrink: 0 }}>Last Point ETA</Text>
-          <Text style={{ fontSize: 11.5, fontWeight: 500, color: etaUnavailable ? '#8c8c8c' : '#595959' }}>{lastPointEtaStr}</Text>
-        </div>
-        {!hideDelay && (
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-            <Text style={{ fontSize: 11, color: '#8c8c8c', flexShrink: 0 }}>Current Delay</Text>
-            <Text style={{ fontSize: 11.5, fontWeight: 600, color: etaUnavailable ? '#8c8c8c' : '#ff4d4f' }}>{currentDelayStr}</Text>
-          </div>
+      {/* PRD §4 — 6 data fields */}
+      <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {dataRow('Customer Code', stop.customerCode ?? '—')}
+        {dataRow('Next Point', nextPointName)}
+        {dataRow('Next Point ETA', nextPointEtaStr, etaUnavailable ? '#8c8c8c' : '#1677ff', !etaUnavailable)}
+        {dataRow('Last Point ETA', lastPointEtaStr, etaUnavailable ? '#8c8c8c' : '#595959')}
+        {!hideDelay && dataRow(
+          'Current Delay',
+          currentDelayStr,
+          etaUnavailable ? '#8c8c8c' : (delayVal ? '#ff4d4f' : '#8c8c8c'),
+          !etaUnavailable && !!delayVal,
         )}
+        {!stop.online && dataRow('Driver Last Online', stop.lastOnline ?? 'unknown', '#ff4d4f')}
       </div>
-      {/* Driver Last Online — only when offline (PRD 4.4) */}
-      {!stop.online && (
-        <div style={{ marginTop: 6, padding: '4px 8px', background: '#fff1f0', borderRadius: 6, border: '1px solid #ffccc7' }}>
-          <Text style={{ fontSize: 11, color: '#ff4d4f', fontWeight: 500 }}>
-            Last online: {stop.lastOnline ?? 'unknown'}
-          </Text>
-        </div>
-      )}
+      {/* Actions */}
       <div style={{ borderTop: '1px solid #f0f0f0', marginTop: 8, paddingTop: 8, display: 'flex', gap: 6 }}>
         <Button size="small" type="primary" icon={<EyeOutlined />} onClick={onViewDetail} style={{ flex: 1, fontSize: 12, minWidth: 0 }}>
           View detail
@@ -2564,8 +2557,8 @@ function DhRev01Card({
         padding: '10px 12px', minWidth: 0,
       }}
     >
-      {/* Row 1: route name full-width */}
-      <Text style={{ fontSize: 12, color: '#8c8c8c', display: 'block', minWidth: 0 }} ellipsis>{routeName}</Text>
+      {/* Row 1: route name — capped at 35% to keep it compact */}
+      <Text style={{ fontSize: 12, color: '#8c8c8c', display: 'block', maxWidth: '35%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{routeName}</Text>
       {/* Row 2: status chip left | slack chip right */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
         <span style={{ ...pill, color: rs.color, background: rs.bg, borderColor: rs.border }}>{rs.label}</span>
@@ -2629,9 +2622,9 @@ function DhRev02Card({
         padding: '10px 12px', minWidth: 0,
       }}
     >
-      {/* Row 1: route name left | start time right */}
+      {/* Row 1: route name left (max 35%) | start time right */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-        <Text style={{ fontSize: 12, color: '#8c8c8c', flex: 1, minWidth: 0 }} ellipsis>{routeName}</Text>
+        <Text style={{ fontSize: 12, color: '#8c8c8c', maxWidth: '35%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 0 }}>{routeName}</Text>
         <Text style={{ fontSize: 12, color: '#8c8c8c', whiteSpace: 'nowrap', flexShrink: 0 }}>{formatTimeAmPm(stop.scheduled)}</Text>
       </div>
       {/* Row 2: status chip left | slack chip right */}
@@ -2709,9 +2702,9 @@ function DhRev03Card({
         <Text style={{ fontSize: 12.5, fontWeight: 600, color: '#1a1a1a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{firstName(stop.driver)}</Text>
         <Text style={{ fontSize: 12, color: '#8c8c8c', whiteSpace: 'nowrap', marginLeft: 'auto', flexShrink: 0 }}>{formatTimeAmPm(stop.scheduled)}</Text>
       </div>
-      {/* Row 3: route name left | claim action right — same text style as "Claimed by" */}
+      {/* Row 3: route name (max 35%) | claim action right — same text style as "Claimed by" */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-        <Text style={{ fontSize: 11.5, color: '#8c8c8c', flex: 1, minWidth: 0 }} ellipsis>{routeName}</Text>
+        <Text style={{ fontSize: 11.5, color: '#8c8c8c', maxWidth: '35%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 0 }}>{routeName}</Text>
         {showAction && (
           <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
             {claim ? (
@@ -2955,6 +2948,7 @@ const ACTION_PLACEMENT_OPTIONS: { value: ActionPlacement; label: string }[] = [
    since the panel is short and wide instead of tall and narrow. ── */
 function TripDetailPanel({
   stop,
+  info,
   position,
   onClose,
   onNotify,
@@ -2964,6 +2958,7 @@ function TripDetailPanel({
   claim,
 }: {
   stop: VehicleStop
+  info: DhInfo
   position: DrawerPosition
   onClose: () => void
   onNotify: () => void
@@ -2975,7 +2970,6 @@ function TripDetailPanel({
   const status = deriveStatus(stop)
   const style = STATUS_STYLE[status]
   const statusLabel = stop.online ? status : 'Offline'
-  const lateMin = stop.online && status === 'Late' && stop.eta ? toMinutes(stop.eta) - toMinutes(stop.scheduled) : 0
   const accent = statusColor(stop)
 
   // Contacts and next-trip — use real data if available (dummy stops), else deterministic mock
@@ -2987,49 +2981,34 @@ function TripDetailPanel({
   const customerPhone = _ds._customerPhone !== undefined ? _ds._customerPhone : mockPhone(h + 7)
   const nextTrip = _ds._nextTrip !== undefined ? (_ds._nextTrip ?? mockNextTrip(stop)) : mockNextTrip(stop)
 
-  const contactSections = (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-      {/* Driver */}
-      <div style={{ padding: '10px 0', borderBottom: '1px solid #f5f5f5' }}>
-        <Text style={{ fontSize: 11, color: '#8c8c8c', display: 'block', marginBottom: 6, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Driver</Text>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <Text style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1a', display: 'block' }}>{stop.driver}</Text>
-            <Text style={{ fontSize: 12, color: '#8c8c8c' }}>{driverPhone}</Text>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: stop.online ? '#52c41a' : '#ff4d4f', display: 'inline-block' }} />
-            <Text style={{ fontSize: 11.5, color: stop.online ? '#16a34a' : '#ff4d4f' }}>{stop.online ? 'Online' : 'Offline'}</Text>
-          </div>
-        </div>
-      </div>
-      {/* Fleet Owner */}
-      <div style={{ padding: '10px 0', borderBottom: '1px solid #f5f5f5' }}>
-        <Text style={{ fontSize: 11, color: '#8c8c8c', display: 'block', marginBottom: 6, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Fleet Owner</Text>
-        <Text style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1a', display: 'block' }}>{stop.fleetOwner}</Text>
-        <Text style={{ fontSize: 12, color: '#8c8c8c' }}>{fleetPhone}</Text>
-      </div>
-      {/* Customer PIC */}
-      <div style={{ padding: '10px 0', borderBottom: '1px solid #f5f5f5' }}>
-        <Text style={{ fontSize: 11, color: '#8c8c8c', display: 'block', marginBottom: 6, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-          Customer PIC <Text style={{ fontSize: 10, fontWeight: 400 }}>({stop.customerCode})</Text>
-        </Text>
-        <Text style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1a', display: 'block' }}>{customerPIC}</Text>
-        <Text style={{ fontSize: 12, color: '#8c8c8c' }}>{customerPhone}</Text>
-      </div>
-      {/* Next Trip */}
-      <div style={{ padding: '10px 0' }}>
-        <Text style={{ fontSize: 11, color: '#8c8c8c', display: 'block', marginBottom: 6, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Next Trip</Text>
-        {nextTrip ? (
-          <>
-            <Text style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1a', display: 'block' }}>{nextTrip.routeCode}</Text>
-            <Text style={{ fontSize: 12, color: '#8c8c8c' }}>Starts {formatTimeAmPm(nextTrip.startTime)} · {nextTrip.destination}</Text>
-          </>
-        ) : (
-          <Text style={{ fontSize: 12, color: '#8c8c8c' }}>No next trip</Text>
-        )}
-      </div>
+  // PRD §8.2 — within-2-hours check: next trip must start ≤ 120 min after current scheduled
+  const within2Hours = nextTrip
+    ? toMinutes(nextTrip.startTime) - toMinutes(stop.scheduled) <= 120
+    : false
+
+  // PRD §8.2 — Expected Delay derived from info.slackMin
+  const expectedDelayStr = info.slackMin > 0 ? 'not applicable' : info.slackMin === 0 ? '0 min' : `${-info.slackMin} min`
+
+  // PRD §8.2 — First Point ETA for next trip (start time + ~10–25 min)
+  const nextTripFirstPointEta = nextTrip ? shiftTime(nextTrip.startTime, 10 + (h % 15)) : null
+
+  // PRD §8.2 — Customer Code for next trip (mocked deterministically)
+  const nextTripCustomerCode = `CUST-${String((h * 7 + 13) % 900 + 100)}`
+
+  // Shared table row helper for §8.1
+  const thLbl: React.CSSProperties = { fontSize: 11.5, color: '#8c8c8c', whiteSpace: 'nowrap', width: 110, flexShrink: 0 }
+  const thVal: React.CSSProperties = { fontSize: 12, color: '#1a1a1a', fontWeight: 600, minWidth: 0 }
+
+  // Shared data row for §8.2
+  const infoRow = (label: string, value: string, valueColor = '#1a1a1a', bold = false) => (
+    <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+      <Text style={{ fontSize: 11.5, color: '#8c8c8c', flexShrink: 0, width: 130 }}>{label}</Text>
+      <Text style={{ fontSize: 12, fontWeight: bold ? 600 : 400, color: valueColor, minWidth: 0 }}>{value}</Text>
     </div>
+  )
+
+  const sectionHead = (title: string) => (
+    <Text style={{ fontSize: 11, fontWeight: 700, color: '#595959', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 8 }}>{title}</Text>
   )
 
   return (
@@ -3052,17 +3031,21 @@ function TripDetailPanel({
             : { borderRadius: 12, width: '100%', height: 232, marginTop: 12 }),
       }}
     >
+      {/* PRD §8 Header: Route Code (Start Time) */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', borderBottom: '1px solid #f0f0f0', flexShrink: 0 }}>
-        <Text style={{ fontSize: 14, fontWeight: 600, color: '#1a1a1a' }}>Trip detail</Text>
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-          <WifiOutlined style={{ color: stop.online ? '#52c41a' : '#ff4d4f', fontSize: 15 }} />
-          <span style={{ background: '#e6f4ff', color: '#1677ff', fontSize: 12, fontWeight: 600, padding: '1px 8px', borderRadius: 5 }}>{stop.label}</span>
-          <span style={{ background: style.bg, color: style.color, border: `1px solid ${style.border}`, fontSize: 11.5, fontWeight: 600, padding: '1px 9px', borderRadius: 6 }}>{statusLabel}</span>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <Text style={{ fontSize: 14, fontWeight: 600, color: '#1a1a1a' }}>{stop.label}</Text>
+          <Text style={{ fontSize: 12, color: '#8c8c8c', marginLeft: 6 }}>({formatTimeAmPm(stop.scheduled)})</Text>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+          <WifiOutlined style={{ color: stop.online ? '#52c41a' : '#ff4d4f', fontSize: 14 }} />
+          <span style={{ background: style.bg, color: style.color, border: `1px solid ${style.border}`, fontSize: 11.5, fontWeight: 600, padding: '1px 9px', borderRadius: 6, whiteSpace: 'nowrap' }}>{statusLabel}</span>
           <Button size="small" type="text" icon={<CloseOutlined />} onClick={onClose} title="Close" />
         </div>
       </div>
 
       <div style={{ padding: 16, overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {/* Action buttons */}
         {claim ? (
           <div style={{ flexShrink: 0 }}>
             <ClaimControl accent={accent} claim={claim} />
@@ -3080,7 +3063,63 @@ function TripDetailPanel({
             </Tooltip>
           </div>
         )}
-        {contactSections}
+
+        {/* PRD §8.1 — Contact Information */}
+        <div>
+          {sectionHead('Contact Information')}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 0, border: '1px solid #f0f0f0', borderRadius: 8, overflow: 'hidden' }}>
+            {/* Header row */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', background: '#fafafa', borderBottom: '1px solid #f0f0f0' }}>
+              <Text style={{ ...thLbl, fontWeight: 600, color: '#595959' }}>Role</Text>
+              <Text style={{ ...thVal, fontWeight: 600, color: '#595959', flex: 1 }}>Name</Text>
+              <Text style={{ fontSize: 12, fontWeight: 600, color: '#595959', flexShrink: 0 }}>Contact No.</Text>
+            </div>
+            {/* Fleet Owner */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderBottom: '1px solid #f5f5f5' }}>
+              <Text style={thLbl}>Fleet Owner</Text>
+              <Text style={{ ...thVal, flex: 1 }} ellipsis>{stop.fleetOwner}</Text>
+              <Text style={{ fontSize: 11.5, color: '#1677ff', whiteSpace: 'nowrap', flexShrink: 0 }}>{fleetPhone}</Text>
+            </div>
+            {/* Driver */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderBottom: '1px solid #f5f5f5' }}>
+              <Text style={thLbl}>
+                Driver
+                <span style={{ marginLeft: 6, width: 7, height: 7, borderRadius: '50%', background: stop.online ? '#52c41a' : '#ff4d4f', display: 'inline-block', verticalAlign: 'middle' }} />
+              </Text>
+              <Text style={{ ...thVal, flex: 1 }} ellipsis>{stop.driver}</Text>
+              <Text style={{ fontSize: 11.5, color: '#1677ff', whiteSpace: 'nowrap', flexShrink: 0 }}>{driverPhone}</Text>
+            </div>
+            {/* Customer PIC */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px' }}>
+              <Text style={thLbl}>Customer PIC</Text>
+              <Text style={{ ...thVal, flex: 1 }} ellipsis>{customerPIC}</Text>
+              <Text style={{ fontSize: 11.5, color: '#1677ff', whiteSpace: 'nowrap', flexShrink: 0 }}>{customerPhone}</Text>
+            </div>
+          </div>
+        </div>
+
+        {/* PRD §8.2 — Driver's Next Trip */}
+        <div>
+          {sectionHead("Driver's Next Trip")}
+          {within2Hours && nextTrip ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {infoRow('Customer Code', nextTripCustomerCode)}
+              {infoRow('Route Code', nextTrip.routeCode, '#1677ff', true)}
+              {infoRow('Start Time', formatTimeAmPm(nextTrip.startTime))}
+              {infoRow('First Point ETA', nextTripFirstPointEta ? formatTimeAmPm(nextTripFirstPointEta) : '—', '#1677ff')}
+              {infoRow('Expected Delay', expectedDelayStr, info.slackMin < 0 ? '#ff4d4f' : '#8c8c8c')}
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                <Text style={{ fontSize: 11.5, color: '#8c8c8c', flexShrink: 0, width: 130 }}>Daily Schedule Details</Text>
+                <Text style={{ fontSize: 12, color: '#1677ff', cursor: 'pointer', textDecoration: 'underline', minWidth: 0 }}
+                  onClick={(e) => e.stopPropagation()}>View schedule</Text>
+              </div>
+            </div>
+          ) : (
+            <Text style={{ fontSize: 12, color: '#8c8c8c' }}>
+              Driver does not have any trip starting in the next 2 hours.
+            </Text>
+          )}
+        </div>
       </div>
     </div>
   )
@@ -4288,6 +4327,7 @@ export default function LiveTrackingTesting2Page() {
           {drawerOpen && selectedStop && drawerPosition === 'side' && (
             <TripDetailPanel
               stop={selectedStop}
+              info={dhById[selectedStop.id] ?? { l1: 'stable', l2: null, currentDelayMin: 0, nextTripDelayMin: 0, predictedDelayMin: 0, slackMin: 999 }}
               position="side"
               onClose={() => setDrawerOpen(false)}
               onNotify={() => notifyDriver(selectedStop.id)}
@@ -4303,6 +4343,7 @@ export default function LiveTrackingTesting2Page() {
         {drawerOpen && selectedStop && drawerPosition === 'bottom' && (
           <TripDetailPanel
             stop={selectedStop}
+            info={dhById[selectedStop.id] ?? { l1: 'stable', l2: null, currentDelayMin: 0, nextTripDelayMin: 0, predictedDelayMin: 0, slackMin: 999 }}
             position="bottom"
             onClose={() => setDrawerOpen(false)}
             onNotify={() => notifyDriver(selectedStop.id)}
@@ -4320,6 +4361,7 @@ export default function LiveTrackingTesting2Page() {
       {drawerOpen && selectedStop && drawerPosition === 'overlay' && (
         <TripDetailPanel
           stop={selectedStop}
+          info={dhById[selectedStop.id] ?? { l1: 'stable', l2: null, currentDelayMin: 0, nextTripDelayMin: 0, predictedDelayMin: 0, slackMin: 999 }}
           position="overlay"
           onClose={() => setDrawerOpen(false)}
           onNotify={() => notifyDriver(selectedStop.id)}
