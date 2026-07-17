@@ -1488,7 +1488,7 @@ const DH_L1_META: { key: DhLevel1; label: string; color: string; soft: string; b
 const DH_L2_META: Record<Exclude<DhLevel1, 'stable'>, { key: DhLevel2; label: string; short: string }[]> = {
   immediate: [
     { key: 'cur-first', label: 'Late (First Point)', short: 'Late (First Point)' },
-    { key: 'will-first', label: 'Will be Late (First Point)', short: 'Will be Late (1st)' },
+    { key: 'will-first', label: 'Will be Late (First Point)', short: 'Will be Late (First Point)' },
     { key: 'next', label: 'Next Trip Delayed', short: 'Next Trip' },
     { key: 'offline', label: 'ETA Unavailable', short: 'ETA Unavail.' },
   ],
@@ -3710,7 +3710,7 @@ export default function LiveTrackingTesting2Page() {
   const [listMapRatio, setListMapRatio] = useState<ListMapRatio>('60:40')
   const [highlightStyle, setHighlightStyle] = useState<HighlightStyle>('two-level-panel')
   const [showNeedsAttention, setShowNeedsAttention] = useState(true)
-  const [flashingStyle, setFlashingStyle] = useState<FlashingStyle>('pulse')
+  const [flashingStyle, setFlashingStyle] = useState<FlashingStyle>('ring')
   const [highlightBoxPadding, setHighlightBoxPadding] = useState(10)
   const [l1FontSize, setL1FontSize] = useState(24)
   const [l2FontSize, setL2FontSize] = useState(11)
