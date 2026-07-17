@@ -1494,14 +1494,14 @@ const DH_L1_META: { key: DhLevel1; label: string; color: string; soft: string; b
 
 const DH_L2_META: Record<Exclude<DhLevel1, 'stable'>, { key: DhLevel2; label: string; short: string }[]> = {
   immediate: [
-    { key: 'cur-first', label: 'Late (FP)', short: 'Late (FP)' },
-    { key: 'will-first', label: 'Will be Late (FP)', short: 'Will be Late (FP)' },
+    { key: 'cur-first', label: 'Late (First Point)', short: 'Late (First Point)' },
+    { key: 'will-first', label: 'Will be Late (First Point)', short: 'Will be Late (1st)' },
     { key: 'next', label: 'Next Trip Delayed', short: 'Next Trip' },
     { key: 'offline', label: 'ETA Unavailable', short: 'ETA Unavail.' },
   ],
   risk: [
-    { key: 'cur-other', label: 'Late (OP)', short: 'Late (OP)' },
-    { key: 'will-other', label: 'Will be Late (OP)', short: 'Will be Late (OP)' },
+    { key: 'cur-other', label: 'Late (Other Points)', short: 'Late (Other Points)' },
+    { key: 'will-other', label: 'Will be Late (Other Points)', short: 'Will be Late (Others)' },
     { key: 'no-slack', label: 'No Schedule Slack', short: 'No Slack' },
   ],
 }
@@ -2315,10 +2315,10 @@ function richStatus(stop: VehicleStop, info: DhInfo): { label: string; color: st
   if (!stop.online) return { label: 'Offline', color: '#ff4d4f', bg: '#fff1f0', border: '#ffccc7' }
   if (stop.notified) return { label: 'Notified', ...STATUS_STYLE['Notified'] }
   switch (info.l2) {
-    case 'cur-first':  return { label: 'Late (FP)',          color: '#d4b106', bg: '#fffbe6', border: '#ffe58f' }
-    case 'cur-other':  return { label: 'Late (OP)',          color: '#d46b08', bg: '#fff7e6', border: '#ffd591' }
-    case 'will-first': return { label: 'Will be Late (FP)',  color: '#d4b106', bg: '#fffbe6', border: '#ffe58f' }
-    case 'will-other': return { label: 'Will be Late (OP)', color: '#d46b08', bg: '#fff7e6', border: '#ffd591' }
+    case 'cur-first':  return { label: 'Late (First Point)',          color: '#d4b106', bg: '#fffbe6', border: '#ffe58f' }
+    case 'cur-other':  return { label: 'Late (Other Points)',         color: '#d46b08', bg: '#fff7e6', border: '#ffd591' }
+    case 'will-first': return { label: 'Will be Late (First Point)',  color: '#d4b106', bg: '#fffbe6', border: '#ffe58f' }
+    case 'will-other': return { label: 'Will be Late (Other Points)', color: '#d46b08', bg: '#fff7e6', border: '#ffd591' }
   }
   const base = deriveStatus(stop)
   return { label: base, ...STATUS_STYLE[base] }
