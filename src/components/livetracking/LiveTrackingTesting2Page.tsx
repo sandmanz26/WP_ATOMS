@@ -33,6 +33,8 @@ import {
   FilterOutlined,
   UserOutlined,
   TeamOutlined,
+  SortAscendingOutlined,
+  SortDescendingOutlined,
 } from '@ant-design/icons'
 import {
   type VehicleStop,
@@ -738,17 +740,8 @@ function TripSummary({
 
   return (
     <div style={{ width: 272, maxWidth: '100%', boxSizing: 'border-box', overflow: 'hidden' }}>
-      {/* Minimal header — route code + status badge so dispatcher knows which trip */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-        <span style={{ background: '#e6f4ff', color: '#1677ff', fontSize: 11.5, fontWeight: 600, padding: '0 7px', borderRadius: 4, whiteSpace: 'nowrap', flexShrink: 0 }}>
-          {stop.label}
-        </span>
-        <span style={{ marginLeft: 'auto', flexShrink: 0, background: s.bg, color: s.color, border: `1px solid ${s.border}`, fontSize: 11, fontWeight: 500, padding: '1px 8px', borderRadius: 6, whiteSpace: 'nowrap' }}>
-          {statusLabel}
-        </span>
-      </div>
       {/* PRD §4 — 6 data fields */}
-      <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         {dataRow('Customer Code', stop.customerCode ?? '—')}
         {dataRow('Next Point', nextPointName)}
         {dataRow('Next Point ETA', nextPointEtaStr, etaUnavailable ? '#8c8c8c' : '#1677ff', !etaUnavailable)}
@@ -2565,7 +2558,9 @@ function DhRev01Card({
       }}
     >
       {/* Row 1: route name — capped at 35% to keep it compact */}
-      <Text style={{ fontSize: 12, color: '#8c8c8c', display: 'block', maxWidth: '35%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{routeName}</Text>
+      <Tooltip title={routeName} placement="topLeft">
+        <Text style={{ fontSize: 13, color: '#8c8c8c', display: 'block', maxWidth: '35%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{routeName}</Text>
+      </Tooltip>
       {/* Row 2: status chip left | slack chip right */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
         <span style={{ ...pill, color: rs.color, background: rs.bg, borderColor: rs.border }}>{rs.label}</span>
@@ -2631,7 +2626,9 @@ function DhRev02Card({
     >
       {/* Row 1: route name left (max 35%) | start time right */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-        <Text style={{ fontSize: 12, color: '#8c8c8c', maxWidth: '35%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 0 }}>{routeName}</Text>
+        <Tooltip title={routeName} placement="topLeft">
+          <Text style={{ fontSize: 13, color: '#8c8c8c', maxWidth: '35%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 0 }}>{routeName}</Text>
+        </Tooltip>
         <Text style={{ fontSize: 12, color: '#8c8c8c', whiteSpace: 'nowrap', flexShrink: 0 }}>{formatTimeAmPm(stop.scheduled)}</Text>
       </div>
       {/* Row 2: status chip left | slack chip right */}
@@ -2711,7 +2708,9 @@ function DhRev03Card({
       </div>
       {/* Row 3: route name (max 35%) left | claim + 3-dot far right */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-        <Text style={{ fontSize: 11.5, color: '#8c8c8c', maxWidth: '35%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 0 }}>{routeName}</Text>
+        <Tooltip title={routeName} placement="bottomLeft">
+          <Text style={{ fontSize: 12.5, color: '#8c8c8c', maxWidth: '35%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 0 }}>{routeName}</Text>
+        </Tooltip>
         {showAction && (
           <div style={{ display: 'flex', gap: 6, flexShrink: 0, marginLeft: 'auto' }}>
             {claim ? (
@@ -3061,36 +3060,32 @@ function TripDetailPanel({
       </div>
 
       <div style={{ padding: '14px 16px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 18 }}>
-        {/* PRD §8.1 — Contact Information */}
+        {/* PRD §8.1 — Contact Information (WTA-style 2-column grid) */}
         <div>
           {sectionHead('Contact Information')}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 0, border: '1px solid #f0f0f0', borderRadius: 8, overflow: 'hidden' }}>
-            {/* Header row */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', background: '#fafafa', borderBottom: '1px solid #f0f0f0' }}>
-              <Text style={{ ...thLbl, fontWeight: 600, color: '#595959' }}>Role</Text>
-              <Text style={{ ...thVal, fontWeight: 600, color: '#595959', flex: 1 }}>Name</Text>
-              <Text style={{ fontSize: 12, fontWeight: 600, color: '#595959', flexShrink: 0 }}>Contact No.</Text>
+          <div style={{ display: 'flex', flexDirection: 'column', borderTop: '1px solid #f0f0f0' }}>
+            {/* Row 1: Fleet Owner | Driver */}
+            <div style={{ display: 'flex', paddingBottom: 12, paddingTop: 12, borderBottom: '1px solid #f0f0f0' }}>
+              <div style={{ flex: 1, paddingRight: 12 }}>
+                <Text style={{ fontSize: 11.5, color: '#8c8c8c', display: 'block', marginBottom: 3 }}>Fleet Owner</Text>
+                <Text style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1a', display: 'block' }} ellipsis>{stop.fleetOwner}</Text>
+                <Text style={{ fontSize: 12, color: '#1677ff' }}>{fleetPhone}</Text>
+              </div>
+              <div style={{ width: 1, background: '#f0f0f0', flexShrink: 0, margin: '0 12px 0 0' }} />
+              <div style={{ flex: 1 }}>
+                <Text style={{ fontSize: 11.5, color: '#8c8c8c', display: 'block', marginBottom: 3 }}>
+                  Driver
+                  <span style={{ marginLeft: 6, width: 7, height: 7, borderRadius: '50%', background: stop.online ? '#52c41a' : '#ff4d4f', display: 'inline-block', verticalAlign: 'middle' }} />
+                </Text>
+                <Text style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1a', display: 'block' }} ellipsis>{stop.driver}</Text>
+                <Text style={{ fontSize: 12, color: '#1677ff' }}>{driverPhone}</Text>
+              </div>
             </div>
-            {/* Fleet Owner */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderBottom: '1px solid #f5f5f5' }}>
-              <Text style={thLbl}>Fleet Owner</Text>
-              <Text style={{ ...thVal, flex: 1 }} ellipsis>{stop.fleetOwner}</Text>
-              <Text style={{ fontSize: 11.5, color: '#1677ff', whiteSpace: 'nowrap', flexShrink: 0 }}>{fleetPhone}</Text>
-            </div>
-            {/* Driver */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderBottom: '1px solid #f5f5f5' }}>
-              <Text style={thLbl}>
-                Driver
-                <span style={{ marginLeft: 6, width: 7, height: 7, borderRadius: '50%', background: stop.online ? '#52c41a' : '#ff4d4f', display: 'inline-block', verticalAlign: 'middle' }} />
-              </Text>
-              <Text style={{ ...thVal, flex: 1 }} ellipsis>{stop.driver}</Text>
-              <Text style={{ fontSize: 11.5, color: '#1677ff', whiteSpace: 'nowrap', flexShrink: 0 }}>{driverPhone}</Text>
-            </div>
-            {/* Customer PIC */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px' }}>
-              <Text style={thLbl}>Customer PIC</Text>
-              <Text style={{ ...thVal, flex: 1 }} ellipsis>{customerPIC}</Text>
-              <Text style={{ fontSize: 11.5, color: '#1677ff', whiteSpace: 'nowrap', flexShrink: 0 }}>{customerPhone}</Text>
+            {/* Row 2: Customer PIC */}
+            <div style={{ paddingTop: 12 }}>
+              <Text style={{ fontSize: 11.5, color: '#8c8c8c', display: 'block', marginBottom: 3 }}>Customer PIC</Text>
+              <Text style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1a', display: 'block' }} ellipsis>{customerPIC}</Text>
+              <Text style={{ fontSize: 12, color: '#1677ff' }}>{customerPhone}</Text>
             </div>
           </div>
         </div>
@@ -4188,8 +4183,8 @@ export default function LiveTrackingTesting2Page() {
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                 <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search route, driver, plate..." style={{ borderRadius: 8, width: 210 }} allowClear />
                 {filterBtn}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Text style={{ fontSize: 13, color: '#8c8c8c', whiteSpace: 'nowrap' }}>Sort</Text>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  {sortBy.endsWith('-desc') ? <SortDescendingOutlined style={{ fontSize: 16, color: '#8c8c8c' }} /> : <SortAscendingOutlined style={{ fontSize: 16, color: '#8c8c8c' }} />}
                   <Select size="middle" value={sortBy} onChange={setSortBy} options={SORT_OPTIONS} style={{ width: 152 }} />
                 </div>
               </div>
@@ -4248,8 +4243,8 @@ export default function LiveTrackingTesting2Page() {
                   allowClear
                 />
                 {filterBtn}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Text style={{ fontSize: 13, color: '#8c8c8c', whiteSpace: 'nowrap' }}>Sort</Text>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  {sortBy.endsWith('-desc') ? <SortDescendingOutlined style={{ fontSize: 16, color: '#8c8c8c' }} /> : <SortAscendingOutlined style={{ fontSize: 16, color: '#8c8c8c' }} />}
                   <Select size="middle" value={sortBy} onChange={setSortBy} options={SORT_OPTIONS} style={{ width: 152 }} />
                 </div>
               </div>
