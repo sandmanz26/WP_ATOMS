@@ -857,7 +857,7 @@ const SLACK_POSITION_OPTIONS: { value: SlackPosition; label: string }[] = [
 // Card style that applies specifically when a 2-level highlight is active.
 // The regular Card style only affects TripGridCard (not DhGridCard), so 2-level
 // mode gets its own density selector to avoid a dead control in the panel.
-type DhCardStyle = 'standard' | 'info' | 'compact' | 'minimal' | 'slim' | 'internal'
+type DhCardStyle = 'standard' | 'info' | 'compact' | 'minimal' | 'slim' | 'internal' | 'rev01' | 'rev02' | 'rev03'
 type L2Spacing = 12 | 16 | 20 | 24
 
 const L2_SPACING_OPTIONS: { value: L2Spacing; label: string }[] = [
@@ -874,6 +874,9 @@ const DH_CARD_STYLE_OPTIONS: { value: DhCardStyle; label: string }[] = [
   { value: 'minimal', label: 'Minimal' },
   { value: 'slim', label: 'Slim' },
   { value: 'internal', label: 'Internal' },
+  { value: 'rev01', label: 'Rev 01' },
+  { value: 'rev02', label: 'Rev 02' },
+  { value: 'rev03', label: 'Rev 03' },
 ]
 
 /* ── Additional filter dimensions beyond the KPI/highlight bar ── */
@@ -1491,15 +1494,15 @@ const DH_L1_META: { key: DhLevel1; label: string; color: string; soft: string; b
 
 const DH_L2_META: Record<Exclude<DhLevel1, 'stable'>, { key: DhLevel2; label: string; short: string }[]> = {
   immediate: [
-    { key: 'cur-first', label: 'Late (first point)', short: 'Late · 1st stop' },
-    { key: 'will-first', label: 'Will be late (first point)', short: 'Will be late · 1st' },
-    { key: 'next', label: 'Next trip delayed', short: 'Next trip' },
-    { key: 'offline', label: 'ETA unavailable / offline', short: 'ETA unavail.' },
+    { key: 'cur-first', label: 'Late (FP)', short: 'Late (FP)' },
+    { key: 'will-first', label: 'Will be Late (FP)', short: 'Will be Late (FP)' },
+    { key: 'next', label: 'Next Trip Delayed', short: 'Next Trip' },
+    { key: 'offline', label: 'ETA Unavailable', short: 'ETA Unavail.' },
   ],
   risk: [
-    { key: 'cur-other', label: 'Late (other points)', short: 'Late · en route' },
-    { key: 'will-other', label: 'Will be late (other points)', short: 'Will be late · route' },
-    { key: 'no-slack', label: 'No schedule slack', short: 'No slack' },
+    { key: 'cur-other', label: 'Late (OP)', short: 'Late (OP)' },
+    { key: 'will-other', label: 'Will be Late (OP)', short: 'Will be Late (OP)' },
+    { key: 'no-slack', label: 'No Schedule Slack', short: 'No Slack' },
   ],
 }
 
@@ -2306,6 +2309,21 @@ function slackChipColors(slackMin: number): { color: string; bg: string; border:
   return { color: '#16a34a', bg: '#f6ffed', border: '#b7eb8f' }
 }
 
+// Derive a rich status label + badge style using l2 for FP/OP distinction.
+// FP (first point) = amber; OP (other points) = orange.
+function richStatus(stop: VehicleStop, info: DhInfo): { label: string; color: string; bg: string; border: string } {
+  if (!stop.online) return { label: 'Offline', color: '#ff4d4f', bg: '#fff1f0', border: '#ffccc7' }
+  if (stop.notified) return { label: 'Notified', ...STATUS_STYLE['Notified'] }
+  switch (info.l2) {
+    case 'cur-first':  return { label: 'Late (FP)',          color: '#d4b106', bg: '#fffbe6', border: '#ffe58f' }
+    case 'cur-other':  return { label: 'Late (OP)',          color: '#d46b08', bg: '#fff7e6', border: '#ffd591' }
+    case 'will-first': return { label: 'Will be Late (FP)',  color: '#d4b106', bg: '#fffbe6', border: '#ffe58f' }
+    case 'will-other': return { label: 'Will be Late (OP)', color: '#d46b08', bg: '#fff7e6', border: '#ffd591' }
+  }
+  const base = deriveStatus(stop)
+  return { label: base, ...STATUS_STYLE[base] }
+}
+
 function DhGridCard({
   stop,
   info,
@@ -2338,15 +2356,10 @@ function DhGridCard({
   showSlack?: boolean
 }) {
   const accent = info.l1 === 'immediate' ? '#ff4d4f' : info.l1 === 'risk' ? '#faad14' : '#16a34a'
-  const baseStatus = deriveStatus(stop)
-  const statusLabel = !stop.online ? 'Offline' : info.currentDelayMin > 0 ? 'Late' : info.predictedDelayMin > 0 ? 'Will be late' : baseStatus
-  const urgent = !stop.online || statusLabel === 'Late'
-  const statusStyle =
-    statusLabel === 'Will be late'
-      ? { color: '#d48806', bg: '#fffbe6', border: '#ffe58f' }
-      : statusLabel === 'Offline'
-        ? { color: STATUS_STYLE['To Check'].color, bg: STATUS_STYLE['To Check'].bg, border: STATUS_STYLE['To Check'].border }
-        : { color: STATUS_STYLE[baseStatus].color, bg: STATUS_STYLE[baseStatus].bg, border: STATUS_STYLE[baseStatus].border }
+  const rs = richStatus(stop, info)
+  const statusLabel = rs.label
+  const statusStyle = rs
+  const urgent = !stop.online || (info.l1 === 'immediate' && info.l2 !== 'next')
   const slack = slackChipColors(info.slackMin)
   const showDelays = info.l1 !== 'stable'
   return (
@@ -2454,15 +2467,10 @@ function DhInternalCard({
   innerRef: (el: HTMLDivElement | null) => void
 }) {
   const accent = info.l1 === 'immediate' ? '#ff4d4f' : info.l1 === 'risk' ? '#faad14' : '#16a34a'
-  const baseStatus = deriveStatus(stop)
-  const statusLabel = !stop.online ? 'Offline' : info.currentDelayMin > 0 ? 'Late' : info.predictedDelayMin > 0 ? 'Will be late' : baseStatus
-  const urgent = !stop.online || statusLabel === 'Late'
-  const statusStyle =
-    statusLabel === 'Will be late'
-      ? { color: '#d48806', bg: '#fffbe6', border: '#ffe58f' }
-      : statusLabel === 'Offline'
-        ? { color: STATUS_STYLE['To Check'].color, bg: STATUS_STYLE['To Check'].bg, border: STATUS_STYLE['To Check'].border }
-        : { color: STATUS_STYLE[baseStatus].color, bg: STATUS_STYLE[baseStatus].bg, border: STATUS_STYLE[baseStatus].border }
+  const rs = richStatus(stop, info)
+  const statusLabel = rs.label
+  const statusStyle = rs
+  const urgent = !stop.online || (info.l1 === 'immediate' && info.l2 !== 'next')
   const slack = slackChipColors(info.slackMin)
   const pill: React.CSSProperties = {
     display: 'inline-flex', alignItems: 'center',
@@ -2517,6 +2525,203 @@ function DhInternalCard({
           ) : null}
         </div>
       )}
+    </div>
+  )
+}
+
+/* ── Rev 01: Route name full-width top row → Status | Slack row →
+   WiFi+Driver | StartTime row → Actions row (right-aligned). ── */
+function DhRev01Card({
+  stop, info, selected, handled, showAction, claim, onClick, onTake, innerRef,
+}: {
+  stop: VehicleStop; info: DhInfo; selected: boolean; handled: boolean
+  showAction: boolean; claim?: ClaimBundle
+  onClick: () => void; onTake: () => void
+  innerRef: (el: HTMLDivElement | null) => void
+}) {
+  const accent = info.l1 === 'immediate' ? '#ff4d4f' : info.l1 === 'risk' ? '#faad14' : '#16a34a'
+  const rs = richStatus(stop, info)
+  const urgent = !stop.online || (info.l1 === 'immediate' && info.l2 !== 'next')
+  const slack = slackChipColors(info.slackMin)
+  const pill: React.CSSProperties = {
+    display: 'inline-flex', alignItems: 'center',
+    background: '#f5f5f5', color: '#595959', border: '1px solid #e8e8e8',
+    fontSize: 11.5, fontWeight: 500, padding: '3px 10px', borderRadius: 6, whiteSpace: 'nowrap', flexShrink: 0,
+  }
+  const routeName = stop.destination ?? (stop.from && stop.to ? `${stop.from.name} → ${stop.to.name}` : stop.label)
+  return (
+    <div
+      ref={innerRef} role="button" tabIndex={0} onClick={onClick}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClick() }}
+      style={{
+        display: 'flex', flexDirection: 'column', gap: 7,
+        background: selected ? '#e6f4ff' : '#fff',
+        border: `1px solid ${selected ? '#1677ff' : '#f0f0f0'}`,
+        borderRadius: 10, cursor: 'pointer', overflow: 'hidden',
+        padding: '10px 12px', minWidth: 0,
+      }}
+    >
+      {/* Row 1: route name full-width */}
+      <Text style={{ fontSize: 12, color: '#8c8c8c', display: 'block', minWidth: 0 }} ellipsis>{routeName}</Text>
+      {/* Row 2: status chip left | slack chip right */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+        <span style={{ ...pill, color: rs.color, background: rs.bg, borderColor: rs.border }}>{rs.label}</span>
+        <span style={{ ...pill, color: slack.color, background: slack.bg, borderColor: slack.border, marginLeft: 'auto' }}>
+          Slack: {info.slackMin > 0 ? `+${info.slackMin}` : info.slackMin}min
+        </span>
+      </div>
+      {/* Row 3: wifi + driver left | start time right */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+        <WifiOutlined style={{ color: stop.online ? '#52c41a' : '#ff4d4f', fontSize: 11.5, flexShrink: 0 }} />
+        <Text style={{ fontSize: 12, color: '#8c8c8c', whiteSpace: 'nowrap', flexShrink: 0 }}>({stop.plate})</Text>
+        <Text style={{ fontSize: 12.5, fontWeight: 600, color: '#1a1a1a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{firstName(stop.driver)}</Text>
+        <Text style={{ fontSize: 12, color: '#8c8c8c', whiteSpace: 'nowrap', marginLeft: 'auto', flexShrink: 0 }}>{formatTimeAmPm(stop.scheduled)}</Text>
+      </div>
+      {/* Row 4: actions right-aligned */}
+      {showAction && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6 }}>
+          {claim ? (
+            <ClaimControl accent={accent} claim={claim} />
+          ) : urgent && !handled ? (
+            <>
+              <Button size="small" onClick={(e) => { e.stopPropagation(); onTake() }}>Claim</Button>
+              <Button size="small" icon={<MoreOutlined />} onClick={(e) => e.stopPropagation()} />
+            </>
+          ) : null}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ── Rev 02: Route name + StartTime on same top row → Status | Slack row →
+   WiFi+Driver | Actions on same bottom row. ── */
+function DhRev02Card({
+  stop, info, selected, handled, showAction, claim, onClick, onTake, innerRef,
+}: {
+  stop: VehicleStop; info: DhInfo; selected: boolean; handled: boolean
+  showAction: boolean; claim?: ClaimBundle
+  onClick: () => void; onTake: () => void
+  innerRef: (el: HTMLDivElement | null) => void
+}) {
+  const accent = info.l1 === 'immediate' ? '#ff4d4f' : info.l1 === 'risk' ? '#faad14' : '#16a34a'
+  const rs = richStatus(stop, info)
+  const urgent = !stop.online || (info.l1 === 'immediate' && info.l2 !== 'next')
+  const slack = slackChipColors(info.slackMin)
+  const pill: React.CSSProperties = {
+    display: 'inline-flex', alignItems: 'center',
+    background: '#f5f5f5', color: '#595959', border: '1px solid #e8e8e8',
+    fontSize: 11.5, fontWeight: 500, padding: '3px 10px', borderRadius: 6, whiteSpace: 'nowrap', flexShrink: 0,
+  }
+  const routeName = stop.destination ?? (stop.from && stop.to ? `${stop.from.name} → ${stop.to.name}` : stop.label)
+  return (
+    <div
+      ref={innerRef} role="button" tabIndex={0} onClick={onClick}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClick() }}
+      style={{
+        display: 'flex', flexDirection: 'column', gap: 7,
+        background: selected ? '#e6f4ff' : '#fff',
+        border: `1px solid ${selected ? '#1677ff' : '#f0f0f0'}`,
+        borderRadius: 10, cursor: 'pointer', overflow: 'hidden',
+        padding: '10px 12px', minWidth: 0,
+      }}
+    >
+      {/* Row 1: route name left | start time right */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+        <Text style={{ fontSize: 12, color: '#8c8c8c', flex: 1, minWidth: 0 }} ellipsis>{routeName}</Text>
+        <Text style={{ fontSize: 12, color: '#8c8c8c', whiteSpace: 'nowrap', flexShrink: 0 }}>{formatTimeAmPm(stop.scheduled)}</Text>
+      </div>
+      {/* Row 2: status chip left | slack chip right */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+        <span style={{ ...pill, color: rs.color, background: rs.bg, borderColor: rs.border }}>{rs.label}</span>
+        <span style={{ ...pill, color: slack.color, background: slack.bg, borderColor: slack.border, marginLeft: 'auto' }}>
+          Slack: {info.slackMin > 0 ? `+${info.slackMin}` : info.slackMin}min
+        </span>
+      </div>
+      {/* Row 3: wifi + driver left | actions right */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+        <WifiOutlined style={{ color: stop.online ? '#52c41a' : '#ff4d4f', fontSize: 11.5, flexShrink: 0 }} />
+        <Text style={{ fontSize: 12, color: '#8c8c8c', whiteSpace: 'nowrap', flexShrink: 0 }}>({stop.plate})</Text>
+        <Text style={{ fontSize: 12.5, fontWeight: 600, color: '#1a1a1a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{firstName(stop.driver)}</Text>
+        {showAction && (
+          <div style={{ display: 'flex', gap: 6, marginLeft: 'auto', flexShrink: 0 }}>
+            {claim ? (
+              <ClaimControl accent={accent} claim={claim} />
+            ) : urgent && !handled ? (
+              <>
+                <Button size="small" onClick={(e) => { e.stopPropagation(); onTake() }}>Claim</Button>
+                <Button size="small" icon={<MoreOutlined />} onClick={(e) => e.stopPropagation()} />
+              </>
+            ) : null}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/* ── Rev 03: Status | Slack top row → WiFi+Driver | Time middle row →
+   Route name (de-emphasised) | Claim status bottom row. ── */
+function DhRev03Card({
+  stop, info, selected, handled, showAction, claim, onClick, onTake, innerRef,
+}: {
+  stop: VehicleStop; info: DhInfo; selected: boolean; handled: boolean
+  showAction: boolean; claim?: ClaimBundle
+  onClick: () => void; onTake: () => void
+  innerRef: (el: HTMLDivElement | null) => void
+}) {
+  const accent = info.l1 === 'immediate' ? '#ff4d4f' : info.l1 === 'risk' ? '#faad14' : '#16a34a'
+  const rs = richStatus(stop, info)
+  const urgent = !stop.online || (info.l1 === 'immediate' && info.l2 !== 'next')
+  const slack = slackChipColors(info.slackMin)
+  const pill: React.CSSProperties = {
+    display: 'inline-flex', alignItems: 'center',
+    background: '#f5f5f5', color: '#595959', border: '1px solid #e8e8e8',
+    fontSize: 11.5, fontWeight: 500, padding: '3px 10px', borderRadius: 6, whiteSpace: 'nowrap', flexShrink: 0,
+  }
+  const routeName = stop.destination ?? (stop.from && stop.to ? `${stop.from.name} → ${stop.to.name}` : stop.label)
+  return (
+    <div
+      ref={innerRef} role="button" tabIndex={0} onClick={onClick}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClick() }}
+      style={{
+        display: 'flex', flexDirection: 'column', gap: 7,
+        background: selected ? '#e6f4ff' : '#fff',
+        border: `1px solid ${selected ? '#1677ff' : '#f0f0f0'}`,
+        borderRadius: 10, cursor: 'pointer', overflow: 'hidden',
+        padding: '10px 12px', minWidth: 0,
+      }}
+    >
+      {/* Row 1: status chip left | slack chip right */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+        <span style={{ ...pill, color: rs.color, background: rs.bg, borderColor: rs.border }}>{rs.label}</span>
+        <span style={{ ...pill, color: slack.color, background: slack.bg, borderColor: slack.border, marginLeft: 'auto' }}>
+          Slack: {info.slackMin > 0 ? `+${info.slackMin}` : info.slackMin}min
+        </span>
+      </div>
+      {/* Row 2: wifi + driver left | start time right */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+        <WifiOutlined style={{ color: stop.online ? '#52c41a' : '#ff4d4f', fontSize: 11.5, flexShrink: 0 }} />
+        <Text style={{ fontSize: 12, color: '#8c8c8c', whiteSpace: 'nowrap', flexShrink: 0 }}>({stop.plate})</Text>
+        <Text style={{ fontSize: 12.5, fontWeight: 600, color: '#1a1a1a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{firstName(stop.driver)}</Text>
+        <Text style={{ fontSize: 12, color: '#8c8c8c', whiteSpace: 'nowrap', marginLeft: 'auto', flexShrink: 0 }}>{formatTimeAmPm(stop.scheduled)}</Text>
+      </div>
+      {/* Row 3: route name (small, gray) left | claim action right */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+        <Text style={{ fontSize: 11, color: '#bfbfbf', flex: 1, minWidth: 0 }} ellipsis>{routeName}</Text>
+        {showAction && (
+          <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+            {claim ? (
+              <ClaimControl accent={accent} claim={claim} />
+            ) : urgent && !handled ? (
+              <>
+                <Button size="small" onClick={(e) => { e.stopPropagation(); onTake() }}>Claim</Button>
+                <Button size="small" icon={<MoreOutlined />} onClick={(e) => e.stopPropagation()} />
+              </>
+            ) : null}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
@@ -3733,6 +3938,16 @@ export default function LiveTrackingTesting2Page() {
     const scopeAllows = claimCardScope === 'all' || claimLevel !== 'stable'
     const claim = actionModel === 'claim' && scopeAllows ? claimBundle(stop) : undefined
     if (isTwoLevel) {
+      const revProps = {
+        key: stop.id, stop, info: dhById[stop.id],
+        selected: selectedId === stop.id, handled: handledIds.has(stop.id),
+        showAction: actionPlacement === 'card', claim,
+        onClick: () => openCard(stop.id), onTake: () => markHandled(stop.id),
+        innerRef: (el: HTMLDivElement | null) => { cardRefs.current[stop.id] = el },
+      }
+      if (dhCardStyle === 'rev01') return <DhRev01Card {...revProps} />
+      if (dhCardStyle === 'rev02') return <DhRev02Card {...revProps} />
+      if (dhCardStyle === 'rev03') return <DhRev03Card {...revProps} />
       if (dhCardStyle === 'internal') {
         return (
           <DhInternalCard
