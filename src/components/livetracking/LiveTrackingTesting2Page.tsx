@@ -3021,49 +3021,39 @@ function TripDetailPanel({
         display: 'flex',
         flexDirection: 'column',
         ...(position === 'side'
-          // order: 3 keeps it after the list/map regardless of which one
-          // "Map position" put first (they use order 1/2 to swap sides)
           ? { borderRadius: 12, width: 340, height: '100%', order: 3 }
           : position === 'overlay'
-            // Classic overlay — fixed on top of everything, sliding in from
-            // the right, instead of pushing the list/map layout
             ? { borderRadius: 0, position: 'fixed', top: 0, right: 0, bottom: 0, width: 380, zIndex: 1500, boxShadow: '-8px 0 28px rgba(15,23,42,.18)' }
-            : { borderRadius: 12, width: '100%', height: 232, marginTop: 12 }),
+            : { borderRadius: 12, width: '100%', height: 240, marginTop: 12 }),
       }}
     >
-      {/* PRD §8 Header: Route Code (Start Time) */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', borderBottom: '1px solid #f0f0f0', flexShrink: 0 }}>
-        <div style={{ minWidth: 0, flex: 1 }}>
-          <Text style={{ fontSize: 14, fontWeight: 600, color: '#1a1a1a' }}>{stop.label}</Text>
-          <Text style={{ fontSize: 12, color: '#8c8c8c', marginLeft: 6 }}>({formatTimeAmPm(stop.scheduled)})</Text>
+      {/* Header — mirrors the WTA-style drawer: title + actions top row, badge second row */}
+      <div style={{ padding: '12px 16px', borderBottom: '1px solid #f0f0f0', flexShrink: 0 }}>
+        {/* Row 1: title left | action buttons + close right */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Text style={{ fontSize: 17, fontWeight: 700, color: '#1a1a1a', flex: 1, minWidth: 0 }}>{stop.label}</Text>
+          {claim ? (
+            <ClaimControl accent={accent} claim={claim} compact />
+          ) : (
+            <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+              <Button size="small" icon={<BellOutlined />} disabled={stop.notified} onClick={onNotify} title={stop.notified ? 'Notified' : 'Notify driver'} />
+              <Button size="small" icon={<CheckOutlined />} disabled={!urgent || handled} onClick={onMarkHandled} title={handled ? 'Handled' : 'Mark handled'} />
+              <Tooltip title="Demo only">
+                <Button size="small" icon={<PhoneOutlined />} />
+              </Tooltip>
+            </div>
+          )}
+          <Button size="small" type="text" icon={<CloseOutlined />} onClick={onClose} title="Close" style={{ flexShrink: 0 }} />
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-          <WifiOutlined style={{ color: stop.online ? '#52c41a' : '#ff4d4f', fontSize: 14 }} />
+        {/* Row 2: start time + status badge + wifi */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
+          <Text style={{ fontSize: 12.5, color: '#8c8c8c' }}>{formatTimeAmPm(stop.scheduled)}</Text>
           <span style={{ background: style.bg, color: style.color, border: `1px solid ${style.border}`, fontSize: 11.5, fontWeight: 600, padding: '1px 9px', borderRadius: 6, whiteSpace: 'nowrap' }}>{statusLabel}</span>
-          <Button size="small" type="text" icon={<CloseOutlined />} onClick={onClose} title="Close" />
+          <WifiOutlined style={{ color: stop.online ? '#52c41a' : '#ff4d4f', fontSize: 13, marginLeft: 2 }} />
         </div>
       </div>
 
-      <div style={{ padding: 16, overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 14 }}>
-        {/* Action buttons */}
-        {claim ? (
-          <div style={{ flexShrink: 0 }}>
-            <ClaimControl accent={accent} claim={claim} />
-          </div>
-        ) : (
-          <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-            <Button type="primary" icon={<BellOutlined />} disabled={stop.notified} onClick={onNotify} style={{ flex: 1 }}>
-              {stop.notified ? 'Notified' : 'Notify driver'}
-            </Button>
-            <Button icon={<CheckOutlined />} disabled={!urgent || handled} onClick={onMarkHandled} style={{ flex: 1 }}>
-              {handled ? 'Handled' : 'Mark handled'}
-            </Button>
-            <Tooltip title="Demo only">
-              <Button icon={<PhoneOutlined />} />
-            </Tooltip>
-          </div>
-        )}
-
+      <div style={{ padding: '14px 16px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 18 }}>
         {/* PRD §8.1 — Contact Information */}
         <div>
           {sectionHead('Contact Information')}
@@ -3102,7 +3092,7 @@ function TripDetailPanel({
         <div>
           {sectionHead("Driver's Next Trip")}
           {within2Hours && nextTrip ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {infoRow('Customer Code', nextTripCustomerCode)}
               {infoRow('Route Code', nextTrip.routeCode, '#1677ff', true)}
               {infoRow('Start Time', formatTimeAmPm(nextTrip.startTime))}
@@ -3685,7 +3675,7 @@ export default function LiveTrackingTesting2Page() {
   const [actionModel, setActionModel] = useState<ActionModel>('claim')
   const [claimButtonStyle, setClaimButtonStyle] = useState<ClaimButtonStyle>('text')
   const [claimCardScope, setClaimCardScope] = useState<ClaimCardScope>('all')
-  const [dhCardStyle, setDhCardStyle] = useState<DhCardStyle>('internal')
+  const [dhCardStyle, setDhCardStyle] = useState<DhCardStyle>('rev03')
   const [l2Spacing, setL2Spacing] = useState<L2Spacing>(12)
   const [l2MatchL1Width, setL2MatchL1Width] = useState(false)
   const [claimColorMode, setClaimColorMode] = useState<ClaimColorMode>('category')
