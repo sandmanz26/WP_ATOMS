@@ -2087,7 +2087,7 @@ function TwoLevelPanelHeader({ level1, level2, l1Counts, l2Counts, onLevel1Chang
               padding: `${boxPadding}px 16px ${boxPadding}px 14px`,
               borderRadius: 10,
               border: `1.5px solid ${active ? m.color : '#f0f0f0'}`,
-              borderTop: `3px solid ${active ? m.color : '#e8e8e8'}`,
+              borderTop: `3px solid ${m.color}`,
               background: active ? m.soft : '#fff',
               cursor: 'pointer', transition: 'all .15s',
               minWidth: 106,
