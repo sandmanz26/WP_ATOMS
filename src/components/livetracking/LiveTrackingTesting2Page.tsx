@@ -768,7 +768,6 @@ function TripSummary({
         </Button>
         {takeBtn}
       </div>
-      {claimRow}
     </div>
   )
 }
