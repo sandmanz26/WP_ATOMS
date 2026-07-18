@@ -641,12 +641,11 @@ function TripSummary({
               ? <span style={{ color: '#ff4d4f' }}>Last seen {stop.lastOnline ?? 'unknown'}</span>
               : <span style={{ color: '#8c8c8c' }}>Sched. {formatTimeAmPm(stop.scheduled)}</span>}
         </Text>
-        <div style={{ display: 'flex', gap: 5, marginTop: 8 }}>
-          <Button size="small" type="primary" icon={<EyeOutlined />} onClick={onViewDetail} style={{ flex: 1, fontSize: 11.5, minWidth: 0, padding: '0 6px' }}>
-            View detail
-          </Button>
-          {takeBtn}
-        </div>
+        {(takeBtn || claimRow) && (
+          <div style={{ display: 'flex', gap: 5, marginTop: 8 }}>
+            {takeBtn}
+          </div>
+        )}
         {claimRow}
       </div>
     )
@@ -701,12 +700,11 @@ function TripSummary({
             Vehicle: <strong style={{ color: '#1a1a1a' }}>{stop.plate}</strong>
           </Text>
         </div>
-        <div style={{ borderTop: '1px solid #f0f0f0', marginTop: 8, paddingTop: 8, display: 'flex', gap: 6 }}>
-          <Button size="small" type="primary" icon={<EyeOutlined />} onClick={onViewDetail} style={{ flex: 1, fontSize: 12, minWidth: 0 }}>
-            View detail
-          </Button>
-          {takeBtn}
-        </div>
+        {(takeBtn || claimRow) && (
+          <div style={{ borderTop: '1px solid #f0f0f0', marginTop: 8, paddingTop: 8, display: 'flex', gap: 6 }}>
+            {takeBtn}
+          </div>
+        )}
         {claimRow}
       </div>
     )
@@ -754,13 +752,12 @@ function TripSummary({
         )}
         {!stop.online && dataRow('Driver Last Online', stop.lastOnline ?? 'unknown', '#ff4d4f')}
       </div>
-      {/* Actions */}
-      <div style={{ borderTop: '1px solid #f0f0f0', marginTop: 8, paddingTop: 8, display: 'flex', gap: 6 }}>
-        <Button size="small" type="primary" icon={<EyeOutlined />} onClick={onViewDetail} style={{ flex: 1, fontSize: 12, minWidth: 0 }}>
-          View detail
-        </Button>
-        {takeBtn}
-      </div>
+      {(takeBtn || claimRow) && (
+        <div style={{ borderTop: '1px solid #f0f0f0', marginTop: 8, paddingTop: 8, display: 'flex', gap: 6 }}>
+          {takeBtn}
+        </div>
+      )}
+      {claimRow}
     </div>
   )
 }
@@ -3925,12 +3922,10 @@ export default function LiveTrackingTesting2Page() {
     setDrawerOpen(false)
   }
 
-  // Every other card style: one click toggles the trip selection (which shows
-  // its InfoWindow on the map / highlights the card) without opening the drawer.
-  // The drawer is opened explicitly via the card's "View detail" button.
+  // Clicking a list card selects the trip and opens the detail drawer.
   const openCard = (id: string) => {
-    setSelectedId((prev) => prev === id ? null : id)
-    setDrawerOpen(false)
+    setSelectedId(id)
+    setDrawerOpen(true)
   }
 
   const sectionLabel = (text: string, color = '#94a3b8') => (
