@@ -641,12 +641,6 @@ function TripSummary({
               ? <span style={{ color: '#ff4d4f' }}>Last seen {stop.lastOnline ?? 'unknown'}</span>
               : <span style={{ color: '#8c8c8c' }}>Sched. {formatTimeAmPm(stop.scheduled)}</span>}
         </Text>
-        {(takeBtn || claimRow) && (
-          <div style={{ display: 'flex', gap: 5, marginTop: 8 }}>
-            {takeBtn}
-          </div>
-        )}
-        {claimRow}
       </div>
     )
   }
@@ -700,12 +694,6 @@ function TripSummary({
             Vehicle: <strong style={{ color: '#1a1a1a' }}>{stop.plate}</strong>
           </Text>
         </div>
-        {(takeBtn || claimRow) && (
-          <div style={{ borderTop: '1px solid #f0f0f0', marginTop: 8, paddingTop: 8, display: 'flex', gap: 6 }}>
-            {takeBtn}
-          </div>
-        )}
-        {claimRow}
       </div>
     )
   }
@@ -728,11 +716,11 @@ function TripSummary({
   const delayVal = delayMin !== null && delayMin > 0 ? `${delayMin} min` : null
   const currentDelayStr = etaUnavailable ? 'not available' : (delayVal ?? '—')
 
-  // Reusable label-value row
+  // Table-style label-value row: fixed label column so values all start at the same x
   const dataRow = (label: string, value: string, valueColor = '#1a1a1a', bold = false) => (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12 }}>
-      <Text style={{ fontSize: 11, color: '#8c8c8c', flexShrink: 0, whiteSpace: 'nowrap' }}>{label}</Text>
-      <Text style={{ fontSize: 11.5, fontWeight: bold ? 600 : 400, color: valueColor, textAlign: 'right', minWidth: 0, wordBreak: 'break-word' }}>{value}</Text>
+    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+      <Text style={{ fontSize: 11, color: '#8c8c8c', flexShrink: 0, whiteSpace: 'nowrap', width: 100 }}>{label}</Text>
+      <Text style={{ fontSize: 11.5, fontWeight: bold ? 600 : 400, color: valueColor, minWidth: 0, wordBreak: 'break-word', flex: 1, textAlign: 'right' }}>{value}</Text>
     </div>
   )
 
@@ -752,12 +740,6 @@ function TripSummary({
         )}
         {!stop.online && dataRow('Driver Last Online', stop.lastOnline ?? 'unknown', '#ff4d4f')}
       </div>
-      {(takeBtn || claimRow) && (
-        <div style={{ borderTop: '1px solid #f0f0f0', marginTop: 8, paddingTop: 8, display: 'flex', gap: 6 }}>
-          {takeBtn}
-        </div>
-      )}
-      {claimRow}
     </div>
   )
 }
@@ -2525,11 +2507,11 @@ function DhInternalCard({
 /* ── Rev 01: Route name full-width top row → Status | Slack row →
    WiFi+Driver | StartTime row → Actions row (right-aligned). ── */
 function DhRev01Card({
-  stop, info, selected, handled, showAction, claim, onClick, onTake, innerRef,
+  stop, info, selected, handled, showAction, claim, onClick, onTake, onOpenDrawer, innerRef,
 }: {
   stop: VehicleStop; info: DhInfo; selected: boolean; handled: boolean
   showAction: boolean; claim?: ClaimBundle
-  onClick: () => void; onTake: () => void
+  onClick: () => void; onTake: () => void; onOpenDrawer: () => void
   innerRef: (el: HTMLDivElement | null) => void
 }) {
   const accent = info.l1 === 'immediate' ? '#ff4d4f' : info.l1 === 'risk' ? '#faad14' : '#16a34a'
@@ -2542,6 +2524,10 @@ function DhRev01Card({
     fontSize: 11.5, fontWeight: 500, padding: '3px 10px', borderRadius: 6, whiteSpace: 'nowrap', flexShrink: 0,
   }
   const routeName = stop.destination ?? (stop.from && stop.to ? `${stop.from.name} → ${stop.to.name}` : stop.label)
+  const drawerMenuItems = [
+    { key: 'contact', label: 'Contact Information', onClick: () => onOpenDrawer() },
+    { key: 'next-trip', label: "Driver's Next Trip", onClick: () => onOpenDrawer() },
+  ]
   return (
     <div
       ref={innerRef} role="button" tabIndex={0} onClick={onClick}
@@ -2572,19 +2558,17 @@ function DhRev01Card({
         <Text style={{ fontSize: 12.5, fontWeight: 600, color: '#1a1a1a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{firstName(stop.driver)}</Text>
         <Text style={{ fontSize: 12, color: '#8c8c8c', whiteSpace: 'nowrap', marginLeft: 'auto', flexShrink: 0 }}>{formatTimeAmPm(stop.scheduled)}</Text>
       </div>
-      {/* Row 4: actions right-aligned */}
-      {showAction && (
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6 }}>
-          {claim ? (
-            <ClaimControl accent={accent} claim={claim} />
-          ) : urgent && !handled ? (
-            <>
-              <Button size="small" onClick={(e) => { e.stopPropagation(); onTake() }}>Claim</Button>
-              <Button size="small" icon={<MoreOutlined />} onClick={(e) => e.stopPropagation()} />
-            </>
-          ) : null}
-        </div>
-      )}
+      {/* Row 4: claim action (if applicable) + always-visible 3-dot drawer menu */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 6 }}>
+        {showAction && claim ? (
+          <ClaimControl accent={accent} claim={claim} />
+        ) : showAction && urgent && !handled ? (
+          <Button size="small" onClick={(e) => { e.stopPropagation(); onTake() }}>Claim</Button>
+        ) : null}
+        <Dropdown menu={{ items: drawerMenuItems }} trigger={['click']} placement="bottomRight">
+          <Button size="small" icon={<MoreOutlined />} onClick={(e) => e.stopPropagation()} />
+        </Dropdown>
+      </div>
     </div>
   )
 }
@@ -2592,11 +2576,11 @@ function DhRev01Card({
 /* ── Rev 02: Route name + StartTime on same top row → Status | Slack row →
    WiFi+Driver | Actions on same bottom row. ── */
 function DhRev02Card({
-  stop, info, selected, handled, showAction, claim, onClick, onTake, innerRef,
+  stop, info, selected, handled, showAction, claim, onClick, onTake, onOpenDrawer, innerRef,
 }: {
   stop: VehicleStop; info: DhInfo; selected: boolean; handled: boolean
   showAction: boolean; claim?: ClaimBundle
-  onClick: () => void; onTake: () => void
+  onClick: () => void; onTake: () => void; onOpenDrawer: () => void
   innerRef: (el: HTMLDivElement | null) => void
 }) {
   const accent = info.l1 === 'immediate' ? '#ff4d4f' : info.l1 === 'risk' ? '#faad14' : '#16a34a'
@@ -2609,6 +2593,10 @@ function DhRev02Card({
     fontSize: 11.5, fontWeight: 500, padding: '3px 10px', borderRadius: 6, whiteSpace: 'nowrap', flexShrink: 0,
   }
   const routeName = stop.destination ?? (stop.from && stop.to ? `${stop.from.name} → ${stop.to.name}` : stop.label)
+  const drawerMenuItems = [
+    { key: 'contact', label: 'Contact Information', onClick: () => onOpenDrawer() },
+    { key: 'next-trip', label: "Driver's Next Trip", onClick: () => onOpenDrawer() },
+  ]
   return (
     <div
       ref={innerRef} role="button" tabIndex={0} onClick={onClick}
@@ -2635,23 +2623,21 @@ function DhRev02Card({
           Slack: {info.slackMin > 0 ? `+${info.slackMin}` : info.slackMin}min
         </span>
       </div>
-      {/* Row 3: wifi + driver left | actions right */}
+      {/* Row 3: wifi + driver left | claim action + 3-dot right */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
         <WifiOutlined style={{ color: stop.online ? '#52c41a' : '#ff4d4f', fontSize: 11.5, flexShrink: 0 }} />
         <Text style={{ fontSize: 12, color: '#8c8c8c', whiteSpace: 'nowrap', flexShrink: 0 }}>({stop.plate})</Text>
         <Text style={{ fontSize: 12.5, fontWeight: 600, color: '#1a1a1a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{firstName(stop.driver)}</Text>
-        {showAction && (
-          <div style={{ display: 'flex', gap: 6, marginLeft: 'auto', flexShrink: 0 }}>
-            {claim ? (
-              <ClaimControl accent={accent} claim={claim} />
-            ) : urgent && !handled ? (
-              <>
-                <Button size="small" onClick={(e) => { e.stopPropagation(); onTake() }}>Claim</Button>
-                <Button size="small" icon={<MoreOutlined />} onClick={(e) => e.stopPropagation()} />
-              </>
-            ) : null}
-          </div>
-        )}
+        <div style={{ display: 'flex', gap: 6, marginLeft: 'auto', flexShrink: 0, alignItems: 'center' }}>
+          {showAction && claim ? (
+            <ClaimControl accent={accent} claim={claim} />
+          ) : showAction && urgent && !handled ? (
+            <Button size="small" onClick={(e) => { e.stopPropagation(); onTake() }}>Claim</Button>
+          ) : null}
+          <Dropdown menu={{ items: drawerMenuItems }} trigger={['click']} placement="bottomRight">
+            <Button size="small" icon={<MoreOutlined />} onClick={(e) => e.stopPropagation()} />
+          </Dropdown>
+        </div>
       </div>
     </div>
   )
@@ -2660,11 +2646,11 @@ function DhRev02Card({
 /* ── Rev 03: Status | Slack top row → WiFi+Driver | Time middle row →
    Route name (de-emphasised) | Claim status bottom row. ── */
 function DhRev03Card({
-  stop, info, selected, handled, showAction, claim, onClick, onTake, innerRef,
+  stop, info, selected, handled, showAction, claim, onClick, onTake, onOpenDrawer, innerRef,
 }: {
   stop: VehicleStop; info: DhInfo; selected: boolean; handled: boolean
   showAction: boolean; claim?: ClaimBundle
-  onClick: () => void; onTake: () => void
+  onClick: () => void; onTake: () => void; onOpenDrawer: () => void
   innerRef: (el: HTMLDivElement | null) => void
 }) {
   const accent = info.l1 === 'immediate' ? '#ff4d4f' : info.l1 === 'risk' ? '#faad14' : '#16a34a'
@@ -2677,6 +2663,10 @@ function DhRev03Card({
     fontSize: 11.5, fontWeight: 500, padding: '3px 10px', borderRadius: 6, whiteSpace: 'nowrap', flexShrink: 0,
   }
   const routeName = stop.destination ?? (stop.from && stop.to ? `${stop.from.name} → ${stop.to.name}` : stop.label)
+  const drawerMenuItems = [
+    { key: 'contact', label: 'Contact Information', onClick: () => onOpenDrawer() },
+    { key: 'next-trip', label: "Driver's Next Trip", onClick: () => onOpenDrawer() },
+  ]
   return (
     <div
       ref={innerRef} role="button" tabIndex={0} onClick={onClick}
@@ -2703,23 +2693,21 @@ function DhRev03Card({
         <Text style={{ fontSize: 12.5, fontWeight: 600, color: '#1a1a1a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{firstName(stop.driver)}</Text>
         <Text style={{ fontSize: 12, color: '#8c8c8c', whiteSpace: 'nowrap', marginLeft: 'auto', flexShrink: 0 }}>{formatTimeAmPm(stop.scheduled)}</Text>
       </div>
-      {/* Row 3: route name (max 35%) left | claim + 3-dot far right */}
+      {/* Row 3: route name (max 35%) left | claim action + 3-dot far right */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
         <Tooltip title={routeName} placement="bottomLeft">
           <Text style={{ fontSize: 12.5, color: '#8c8c8c', maxWidth: '35%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 0 }}>{routeName}</Text>
         </Tooltip>
-        {showAction && (
-          <div style={{ display: 'flex', gap: 6, flexShrink: 0, marginLeft: 'auto' }}>
-            {claim ? (
-              <ClaimControl accent={accent} claim={claim} />
-            ) : urgent && !handled ? (
-              <>
-                <Button size="small" onClick={(e) => { e.stopPropagation(); onTake() }}>Claim</Button>
-                <Button size="small" icon={<MoreOutlined />} onClick={(e) => e.stopPropagation()} />
-              </>
-            ) : null}
-          </div>
-        )}
+        <div style={{ display: 'flex', gap: 6, flexShrink: 0, marginLeft: 'auto', alignItems: 'center' }}>
+          {showAction && claim ? (
+            <ClaimControl accent={accent} claim={claim} />
+          ) : showAction && urgent && !handled ? (
+            <Button size="small" onClick={(e) => { e.stopPropagation(); onTake() }}>Claim</Button>
+          ) : null}
+          <Dropdown menu={{ items: drawerMenuItems }} trigger={['click']} placement="bottomRight">
+            <Button size="small" icon={<MoreOutlined />} onClick={(e) => e.stopPropagation()} />
+          </Dropdown>
+        </div>
       </div>
     </div>
   )
@@ -3056,7 +3044,7 @@ function TripDetailPanel({
         </div>
       </div>
 
-      <div style={{ padding: '14px 16px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 18 }}>
+      <div style={{ padding: '14px 16px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 28 }}>
         {/* PRD §8.1 — Contact Information (WTA-style 2-column grid) */}
         <div>
           {sectionHead('Contact Information')}
@@ -3922,8 +3910,14 @@ export default function LiveTrackingTesting2Page() {
     setDrawerOpen(false)
   }
 
-  // Clicking a list card selects the trip and opens the detail drawer.
+  // Clicking a list card selects the trip (shows InfoWindow on map). Drawer stays closed.
   const openCard = (id: string) => {
+    setSelectedId((prev) => prev === id ? null : id)
+    setDrawerOpen(false)
+  }
+
+  // Opens the detail drawer for a specific trip (triggered by the card's 3-dot menu).
+  const openDrawer = (id: string) => {
     setSelectedId(id)
     setDrawerOpen(true)
   }
@@ -3972,6 +3966,7 @@ export default function LiveTrackingTesting2Page() {
         selected: selectedId === stop.id, handled: handledIds.has(stop.id),
         showAction: actionPlacement === 'card', claim,
         onClick: () => openCard(stop.id), onTake: () => markHandled(stop.id),
+        onOpenDrawer: () => openDrawer(stop.id),
         innerRef: (el: HTMLDivElement | null) => { cardRefs.current[stop.id] = el },
       }
       if (dhCardStyle === 'rev01') return <DhRev01Card {...revProps} />
