@@ -2286,19 +2286,22 @@ function slackChipColors(slackMin: number): { color: string; bg: string; border:
   return { color: '#595959', bg: '#f5f5f5', border: '#d9d9d9' }                      // Positive → Grey
 }
 
-// Derive a rich status label + badge style using l2 for FP/OP distinction.
-// FP (first point) = amber; OP (other points) = orange.
+const RED    = { color: '#cf1322', bg: '#fff1f0', border: '#ffa39e' }
+const ORANGE = { color: '#d46b08', bg: '#fff7e6', border: '#ffd591' }
+
+// Trip status label + colour per spec:
+// On Time → Green, Will be Late (FP) → Red, Will be Late (OP) → Orange,
+// Late (FP) → Red, Late (OP) → Orange, To Check → Red, Notified → Blue.
 function richStatus(stop: VehicleStop, info: DhInfo): { label: string; color: string; bg: string; border: string } {
-  if (!stop.online) return { label: 'Offline', color: '#ff4d4f', bg: '#fff1f0', border: '#ffccc7' }
-  if (stop.notified) return { label: 'Notified', ...STATUS_STYLE['Notified'] }
+  if (!stop.online || info.l2 === 'offline') return { label: 'To Check', ...RED }
+  if (stop.notified)   return { label: 'Notified',                         ...STATUS_STYLE['Notified'] }
   switch (info.l2) {
-    case 'cur-first':  return { label: 'Late (First Point)',          color: '#d4b106', bg: '#fffbe6', border: '#ffe58f' }
-    case 'cur-other':  return { label: 'Late (Other Points)',         color: '#d46b08', bg: '#fff7e6', border: '#ffd591' }
-    case 'will-first': return { label: 'Will be Late (First Point)',  color: '#d4b106', bg: '#fffbe6', border: '#ffe58f' }
-    case 'will-other': return { label: 'Will be Late (Other Points)', color: '#d46b08', bg: '#fff7e6', border: '#ffd591' }
+    case 'cur-first':  return { label: 'Late (First Point)',           ...RED }
+    case 'cur-other':  return { label: 'Late (Other Point)',           ...ORANGE }
+    case 'will-first': return { label: 'Will be Late (First Point)',   ...RED }
+    case 'will-other': return { label: 'Will be Late (Other Point)',   ...ORANGE }
   }
-  const base = deriveStatus(stop)
-  return { label: base, ...STATUS_STYLE[base] }
+  return { label: 'On Time', ...STATUS_STYLE['On Time'] }
 }
 
 function DhGridCard({
