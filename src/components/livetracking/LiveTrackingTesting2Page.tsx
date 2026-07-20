@@ -886,7 +886,7 @@ interface ClaimBundle {
    Once claimed or completed it's no longer actionable by clicking it — so it
    drops the button chrome entirely and reads as plain status text — plus a
    "More actions" menu for release/take-over/mark-complete. ── */
-function ClaimControl({ accent, claim, compact }: { accent: string; claim: ClaimBundle; compact?: boolean }) {
+function ClaimControl({ accent, claim, compact, hideDropdown }: { accent: string; claim: ClaimBundle; compact?: boolean; hideDropdown?: boolean }) {
   const {
     claimedBy, actionComplete, overdue, notified, buttonStyle, urgent, colorMode, buttonWidth, flashingStyle,
     onClaim, onRelease, onTakeOver, onMarkComplete,
@@ -965,9 +965,11 @@ function ClaimControl({ accent, claim, compact }: { accent: string; claim: Claim
     <div style={{ marginTop: compact ? 0 : 8 }} onClick={(e) => e.stopPropagation()}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: !settled && !isFullWidth ? 'flex-end' : undefined }}>
         {!settled && !showText ? <Tooltip title="Claim">{cta}</Tooltip> : cta}
-        <Dropdown menu={{ items }} trigger={['click']} placement="bottomRight">
-          <Button size="small" icon={<MoreOutlined />} style={{ height: 24, width: 24, padding: 0, flexShrink: 0 }} onClick={(e) => e.stopPropagation()} />
-        </Dropdown>
+        {!hideDropdown && (
+          <Dropdown menu={{ items }} trigger={['click']} placement="bottomRight">
+            <Button size="small" icon={<MoreOutlined />} style={{ height: 24, width: 24, padding: 0, flexShrink: 0 }} onClick={(e) => e.stopPropagation()} />
+          </Dropdown>
+        )}
       </div>
       {!compact && overdue && !actionComplete && (
         <Text style={{ fontSize: 10, color: '#ff4d4f', fontWeight: 600, display: 'block', marginTop: 3 }}>
@@ -2585,10 +2587,10 @@ function DhRev01Card({
         <Text style={{ fontSize: 12.5, fontWeight: 600, color: '#1a1a1a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{stop.driver}</Text>
         <Text style={{ fontSize: 12, color: '#8c8c8c', whiteSpace: 'nowrap', marginLeft: 'auto', flexShrink: 0 }}>{formatTimeAmPm(stop.scheduled)}</Text>
       </div>
-      {/* Row 4: claim action (if applicable) + always-visible 3-dot */}
+      {/* Row 4: claim action (if applicable) + single unified 3-dot */}
       <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 6 }}>
         {showAction && claim ? (
-          <ClaimControl accent={accent} claim={claim} />
+          <ClaimControl accent={accent} claim={claim} hideDropdown />
         ) : showAction && urgent && !handled ? (
           <Button size="small" onClick={(e) => { e.stopPropagation(); onTake() }}>Claim</Button>
         ) : null}
@@ -2644,14 +2646,14 @@ function DhRev02Card({
           Slack: {info.slackMin > 0 ? `+${info.slackMin}` : info.slackMin}min
         </span>
       </div>
-      {/* Row 3: wifi + driver (as-is) left | claim action + 3-dot right */}
+      {/* Row 3: wifi + driver (as-is) left | claim action + single unified 3-dot right */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
         <WifiOutlined style={{ color: stop.online ? '#52c41a' : '#ff4d4f', fontSize: 11.5, flexShrink: 0 }} />
         <Text style={{ fontSize: 12, color: '#8c8c8c', whiteSpace: 'nowrap', flexShrink: 0 }}>({stop.plate})</Text>
         <Text style={{ fontSize: 12.5, fontWeight: 600, color: '#1a1a1a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{stop.driver}</Text>
         <div style={{ display: 'flex', gap: 6, marginLeft: 'auto', flexShrink: 0, alignItems: 'center' }}>
           {showAction && claim ? (
-            <ClaimControl accent={accent} claim={claim} />
+            <ClaimControl accent={accent} claim={claim} hideDropdown />
           ) : showAction && urgent && !handled ? (
             <Button size="small" onClick={(e) => { e.stopPropagation(); onTake() }}>Claim</Button>
           ) : null}
@@ -2710,12 +2712,12 @@ function DhRev03Card({
         <Text style={{ fontSize: 12.5, fontWeight: 600, color: '#1a1a1a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{stop.driver}</Text>
         <Text style={{ fontSize: 12, color: '#8c8c8c', whiteSpace: 'nowrap', marginLeft: 'auto', flexShrink: 0 }}>{formatTimeAmPm(stop.scheduled)}</Text>
       </div>
-      {/* Row 3: route code (stop.label = col H) left | claim action + 3-dot far right */}
+      {/* Row 3: route code (stop.label = col H) left | claim action + single unified 3-dot far right */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
         <Text style={{ fontSize: 12.5, color: '#8c8c8c', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 1, minWidth: 0 }}>{stop.label}</Text>
         <div style={{ display: 'flex', gap: 6, flexShrink: 0, marginLeft: 'auto', alignItems: 'center' }}>
           {showAction && claim ? (
-            <ClaimControl accent={accent} claim={claim} />
+            <ClaimControl accent={accent} claim={claim} hideDropdown />
           ) : showAction && urgent && !handled ? (
             <Button size="small" onClick={(e) => { e.stopPropagation(); onTake() }}>Claim</Button>
           ) : null}
