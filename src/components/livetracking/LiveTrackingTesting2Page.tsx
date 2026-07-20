@@ -2281,9 +2281,9 @@ function mockNextTrip(stop: VehicleStop): { routeCode: string; startTime: string
 }
 
 function slackChipColors(slackMin: number): { color: string; bg: string; border: string } {
-  if (slackMin < 0) return { color: '#ff4d4f', bg: '#fff1f0', border: '#ffccc7' }
-  if (slackMin <= 5) return { color: '#d48806', bg: '#fffbe6', border: '#ffe58f' }
-  return { color: '#16a34a', bg: '#f6ffed', border: '#b7eb8f' }
+  if (slackMin < 0)  return { color: '#cf1322', bg: '#fff1f0', border: '#ffa39e' }  // Negative → Red
+  if (slackMin === 0) return { color: '#d46b08', bg: '#fff7e6', border: '#ffd591' }  // Zero → Orange
+  return { color: '#595959', bg: '#f5f5f5', border: '#d9d9d9' }                      // Positive → Grey
 }
 
 // Derive a rich status label + badge style using l2 for FP/OP distinction.
