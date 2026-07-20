@@ -2590,7 +2590,7 @@ function DhRev01Card({
       {/* Row 4: claim action (if applicable) + single unified 3-dot */}
       <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 6 }}>
         {showAction && claim ? (
-          <ClaimControl accent={accent} claim={claim} hideDropdown />
+          <ClaimControl accent={accent} claim={claim} compact hideDropdown />
         ) : showAction && urgent && !handled ? (
           <Button size="small" onClick={(e) => { e.stopPropagation(); onTake() }}>Claim</Button>
         ) : null}
@@ -2653,7 +2653,7 @@ function DhRev02Card({
         <Text style={{ fontSize: 12.5, fontWeight: 600, color: '#1a1a1a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{stop.driver}</Text>
         <div style={{ display: 'flex', gap: 6, marginLeft: 'auto', flexShrink: 0, alignItems: 'center' }}>
           {showAction && claim ? (
-            <ClaimControl accent={accent} claim={claim} hideDropdown />
+            <ClaimControl accent={accent} claim={claim} compact hideDropdown />
           ) : showAction && urgent && !handled ? (
             <Button size="small" onClick={(e) => { e.stopPropagation(); onTake() }}>Claim</Button>
           ) : null}
@@ -2717,7 +2717,7 @@ function DhRev03Card({
         <Text style={{ fontSize: 12.5, color: '#8c8c8c', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 1, minWidth: 0 }}>{stop.label}</Text>
         <div style={{ display: 'flex', gap: 6, flexShrink: 0, marginLeft: 'auto', alignItems: 'center' }}>
           {showAction && claim ? (
-            <ClaimControl accent={accent} claim={claim} hideDropdown />
+            <ClaimControl accent={accent} claim={claim} compact hideDropdown />
           ) : showAction && urgent && !handled ? (
             <Button size="small" onClick={(e) => { e.stopPropagation(); onTake() }}>Claim</Button>
           ) : null}
@@ -4079,56 +4079,48 @@ export default function LiveTrackingTesting2Page() {
   const activeFilterCount = (filterDriverStatus !== 'all' ? 1 : 0) + (filterAttention !== 'all' ? 1 : 0)
 
   const filterPopoverContent = (
-    <div style={{ width: 210 }}>
-      <div style={{ marginBottom: 12 }}>
-        <Text style={{ fontSize: 11, fontWeight: 700, color: '#8c8c8c', display: 'block', marginBottom: 6, letterSpacing: 0.5 }}>DRIVER STATUS</Text>
-        <div style={{ display: 'flex', gap: 4 }}>
-          {([['all', 'All'], ['online', 'Online'], ['offline', 'Offline']] as [FilterDriverStatus, string][]).map(([v, l]) => (
-            <button
-              key={v}
-              onClick={() => setFilterDriverStatus(v)}
-              style={{
-                flex: 1, padding: '4px 6px', borderRadius: 6, cursor: 'pointer', fontSize: 12,
-                border: `1px solid ${filterDriverStatus === v ? '#1677ff' : '#e8e8e8'}`,
-                background: filterDriverStatus === v ? '#e6f4ff' : '#fff',
-                color: filterDriverStatus === v ? '#1677ff' : '#595959',
-                fontWeight: filterDriverStatus === v ? 600 : 400,
-                transition: 'all .12s',
-              }}
-            >{l}</button>
-          ))}
+    <div style={{ width: 480, padding: '4px 0' }}>
+      <Text style={{ fontSize: 16, fontWeight: 700, color: '#1a1a1a', display: 'block', marginBottom: 20 }}>Filter</Text>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px 24px' }}>
+        {/* Driver Status */}
+        <div>
+          <Text style={{ fontSize: 13, color: '#1a1a1a', display: 'block', marginBottom: 8 }}>Driver Status</Text>
+          <Select
+            value={filterDriverStatus}
+            onChange={(v) => setFilterDriverStatus(v)}
+            style={{ width: '100%' }}
+            options={[
+              { value: 'all', label: 'All' },
+              { value: 'online', label: 'Online' },
+              { value: 'offline', label: 'Offline' },
+            ]}
+          />
+        </div>
+        {/* Ops Attention */}
+        <div>
+          <Text style={{ fontSize: 13, color: '#1a1a1a', display: 'block', marginBottom: 8 }}>Ops Attention</Text>
+          <Select
+            value={filterAttention}
+            onChange={(v) => setFilterAttention(v)}
+            style={{ width: '100%' }}
+            options={[
+              { value: 'all', label: 'All' },
+              { value: 'unclaimed', label: 'Unclaimed' },
+              { value: 'mine', label: 'Claimed by me' },
+              { value: 'others', label: 'Claimed by others' },
+              { value: 'complete', label: 'Action complete' },
+            ]}
+          />
         </div>
       </div>
-      <div>
-        <Text style={{ fontSize: 11, fontWeight: 700, color: '#8c8c8c', display: 'block', marginBottom: 6, letterSpacing: 0.5 }}>OPS ATTENTION</Text>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          {([
-            ['all', 'All'],
-            ['unclaimed', 'Unclaimed'],
-            ['mine', 'Claimed by me'],
-            ['others', 'Claimed by others'],
-            ['complete', 'Action complete'],
-          ] as [FilterAttention, string][]).map(([v, l]) => (
-            <button
-              key={v}
-              onClick={() => setFilterAttention(v)}
-              style={{
-                width: '100%', padding: '5px 10px', borderRadius: 6, cursor: 'pointer', fontSize: 12, textAlign: 'left',
-                border: `1px solid ${filterAttention === v ? '#1677ff' : '#e8e8e8'}`,
-                background: filterAttention === v ? '#e6f4ff' : '#fff',
-                color: filterAttention === v ? '#1677ff' : '#595959',
-                fontWeight: filterAttention === v ? 600 : 400,
-                transition: 'all .12s',
-              }}
-            >{l}</button>
-          ))}
-        </div>
-      </div>
-      {activeFilterCount > 0 && (
-        <Button size="small" type="link" onClick={() => { setFilterDriverStatus('all'); setFilterAttention('all') }} style={{ marginTop: 10, padding: 0 }}>
-          Clear filters
+      <div style={{ marginTop: 24 }}>
+        <Button
+          onClick={() => { setFilterDriverStatus('all'); setFilterAttention('all') }}
+          style={{ borderRadius: 6 }}
+        >
+          Clear all filters
         </Button>
-      )}
+      </div>
     </div>
   )
 
