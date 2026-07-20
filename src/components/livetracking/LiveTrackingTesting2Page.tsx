@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, Component, type ReactNode } from 'react'
 import { GoogleMap, Marker, Polyline, InfoWindow, TrafficLayer, useJsApiLoader } from '@react-google-maps/api'
-import { Typography, Input, Button, Switch, Tooltip, Select, Slider, message, Dropdown, Modal, Popover } from 'antd'
+import { Typography, Input, Button, Switch, Tooltip, Select, Slider, message, Dropdown, Modal, Popover, TimePicker } from 'antd'
 import {
   SearchOutlined,
   WifiOutlined,
@@ -3689,6 +3689,17 @@ export default function LiveTrackingTesting2Page() {
   const [slackPosition, setSlackPosition] = useState<SlackPosition>('row')
   const [filterDriverStatus, setFilterDriverStatus] = useState<FilterDriverStatus>('all')
   const [filterAttention, setFilterAttention] = useState<FilterAttention>('all')
+  const [filterCustomerCodes, setFilterCustomerCodes] = useState<string[]>([])
+  const [filterFleetOwners, setFilterFleetOwners] = useState<string[]>([])
+  const [filterDrivers, setFilterDrivers] = useState<string[]>([])
+  const [filterVehicles, setFilterVehicles] = useState<string[]>([])
+  const [filterStartTimeFrom, setFilterStartTimeFrom] = useState<string | null>(null)
+  const [filterStartTimeTo, setFilterStartTimeTo] = useState<string | null>(null)
+  const [filterTripStatuses, setFilterTripStatuses] = useState<string[]>([])
+  const [filterOpsStatuses, setFilterOpsStatuses] = useState<string[]>([])
+  const [filterClaimedBy, setFilterClaimedBy] = useState<string[]>([])
+  const [filterSlack, setFilterSlack] = useState<string[]>([])
+  const [filterNextTripSoon, setFilterNextTripSoon] = useState<'all' | 'yes' | 'no'>('all')
   const [filterPopoverOpen, setFilterPopoverOpen] = useState(false)
   const [handledIds, setHandledIds] = useState<Set<string>>(new Set())
   const [notifiedIds, setNotifiedIds] = useState<Set<string>>(new Set())
@@ -3787,6 +3798,25 @@ export default function LiveTrackingTesting2Page() {
     stops.find((s) => s.online && deriveStatus(s) === 'On Time'),
   ].filter((s): s is VehicleStop => !!s)
 
+  // Derived option lists for multi-select filters
+  const customerCodeOptions = useMemo(() =>
+    [...new Set(stops.map(s => s.customerCode).filter(Boolean))].sort().map(v => ({ value: v, label: v }))
+  , [stops])
+  const fleetOwnerOptions = useMemo(() =>
+    [...new Set(stops.map(s => s.fleetOwner ?? '').filter(Boolean))].sort().map(v => ({ value: v, label: v }))
+  , [stops])
+  const driverOptions = useMemo(() =>
+    [...new Set(stops.map(s => s.driver).filter(Boolean))].sort().map(v => ({ value: v, label: v }))
+  , [stops])
+  const vehicleOptions = useMemo(() =>
+    [...new Set(stops.map(s => s.plate).filter(Boolean))].sort().map(v => ({ value: v, label: v }))
+  , [stops])
+  const claimedByOptions = useMemo(() => {
+    const names = new Set(Object.values(claimedBy).filter(Boolean))
+    names.add(CURRENT_USER)
+    return [...names].sort().map(v => ({ value: v, label: v }))
+  }, [claimedBy])
+
   // Double-highlight classification for every trip. Claim workflow biz req 3:
   // marking a trip's action complete re-categorises it as Stable regardless
   // of what the underlying placeholder delay math says.
@@ -3822,10 +3852,40 @@ export default function LiveTrackingTesting2Page() {
     } else if (!kpiMatch(s, filter)) {
       return false
     }
+    // Customer Code
+    if (filterCustomerCodes.length > 0 && !filterCustomerCodes.includes(s.customerCode)) return false
+    // Fleet Owner
+    if (filterFleetOwners.length > 0 && !filterFleetOwners.includes(s.fleetOwner ?? '')) return false
+    // Driver
+    if (filterDrivers.length > 0 && !filterDrivers.includes(s.driver)) return false
+    // Vehicle
+    if (filterVehicles.length > 0 && !filterVehicles.includes(s.plate)) return false
+    // Start Time range
+    if (filterStartTimeFrom && toMinutes(s.scheduled) < toMinutes(filterStartTimeFrom)) return false
+    if (filterStartTimeTo && toMinutes(s.scheduled) > toMinutes(filterStartTimeTo)) return false
+    // Trip Status
+    if (filterTripStatuses.length > 0) {
+      const info = dhById[s.id]
+      let ts = 'on-time'
+      if (!s.online || info?.l2 === 'offline') ts = 'to-check'
+      else if (s.notified) ts = 'notified'
+      else if (info?.l2 === 'cur-first') ts = 'late-first'
+      else if (info?.l2 === 'cur-other') ts = 'late-other'
+      else if (info?.l2 === 'will-first') ts = 'will-late-first'
+      else if (info?.l2 === 'will-other') ts = 'will-late-other'
+      if (!filterTripStatuses.includes(ts)) return false
+    }
     // Driver status filter
     if (filterDriverStatus === 'online' && !s.online) return false
     if (filterDriverStatus === 'offline' && s.online) return false
-    // Ops attention filter (only meaningful when action model = claim)
+    // Ops Attention Status (multi-select)
+    if (filterOpsStatuses.length > 0) {
+      const isClaimed = !!claimedBy[s.id]
+      const isComplete = actionCompleteIds.has(s.id)
+      const opsStatus = isComplete ? 'complete' : isClaimed ? 'claimed' : 'to-claim'
+      if (!filterOpsStatuses.includes(opsStatus)) return false
+    }
+    // Legacy single-select ops attention (used by other UI controls)
     if (filterAttention !== 'all') {
       const isClaimed = !!claimedBy[s.id]
       const isComplete = actionCompleteIds.has(s.id)
@@ -3833,6 +3893,22 @@ export default function LiveTrackingTesting2Page() {
       if (filterAttention === 'mine' && claimedBy[s.id] !== CURRENT_USER) return false
       if (filterAttention === 'others' && (claimedBy[s.id] === CURRENT_USER || !isClaimed || isComplete)) return false
       if (filterAttention === 'complete' && !isComplete) return false
+    }
+    // Claimed By
+    if (filterClaimedBy.length > 0 && !filterClaimedBy.includes(claimedBy[s.id] ?? '')) return false
+    // Schedule Slack
+    if (filterSlack.length > 0) {
+      const slack = dhById[s.id]?.slackMin ?? 999
+      const cat = slack < 0 ? 'negative' : slack === 0 ? 'zero' : 'positive'
+      if (!filterSlack.includes(cat)) return false
+    }
+    // Next Trip in <2 hrs
+    if (filterNextTripSoon !== 'all') {
+      const ds = s as DummyStop
+      const nt = ds._nextTrip
+      const hasSoon = nt != null && (toMinutes(nt.startTime) - toMinutes(s.scheduled)) < 120
+      if (filterNextTripSoon === 'yes' && !hasSoon) return false
+      if (filterNextTripSoon === 'no' && hasSoon) return false
     }
     if (search.trim()) {
       const q = search.toLowerCase()
@@ -3918,6 +3994,17 @@ export default function LiveTrackingTesting2Page() {
     setSearch('')
     setFilterDriverStatus('all')
     setFilterAttention('all')
+    setFilterCustomerCodes([])
+    setFilterFleetOwners([])
+    setFilterDrivers([])
+    setFilterVehicles([])
+    setFilterStartTimeFrom(null)
+    setFilterStartTimeTo(null)
+    setFilterTripStatuses([])
+    setFilterOpsStatuses([])
+    setFilterClaimedBy([])
+    setFilterSlack([])
+    setFilterNextTripSoon('all')
   }
 
   // Accordion cards only toggle their own inline expansion — no docked
@@ -4076,50 +4163,138 @@ export default function LiveTrackingTesting2Page() {
     )
   }
 
-  const activeFilterCount = (filterDriverStatus !== 'all' ? 1 : 0) + (filterAttention !== 'all' ? 1 : 0)
+  const activeFilterCount =
+    (filterCustomerCodes.length > 0 ? 1 : 0) +
+    (filterFleetOwners.length > 0 ? 1 : 0) +
+    (filterDrivers.length > 0 ? 1 : 0) +
+    (filterVehicles.length > 0 ? 1 : 0) +
+    (filterStartTimeFrom || filterStartTimeTo ? 1 : 0) +
+    (filterTripStatuses.length > 0 ? 1 : 0) +
+    (filterDriverStatus !== 'all' ? 1 : 0) +
+    (filterOpsStatuses.length > 0 ? 1 : 0) +
+    (filterClaimedBy.length > 0 ? 1 : 0) +
+    (filterSlack.length > 0 ? 1 : 0) +
+    (filterNextTripSoon !== 'all' ? 1 : 0)
+
+  const multiSelectProps = {
+    mode: 'multiple' as const,
+    allowClear: true,
+    showSearch: true,
+    maxTagCount: 'responsive' as const,
+    style: { width: '100%' },
+    dropdownStyle: { zIndex: 2200 },
+  }
+  const singleSelectProps = { style: { width: '100%' }, dropdownStyle: { zIndex: 2200 } }
+  const filterLabel = (text: string) => (
+    <Text style={{ fontSize: 12.5, color: '#595959', display: 'block', marginBottom: 6 }}>{text}</Text>
+  )
 
   const filterPopoverContent = (
-    <div style={{ width: 480, padding: '4px 0' }}>
+    <div style={{ width: 560, padding: '4px 0', maxHeight: '80vh', overflowY: 'auto' }}>
       <Text style={{ fontSize: 16, fontWeight: 700, color: '#1a1a1a', display: 'block', marginBottom: 20 }}>Filter</Text>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px 24px' }}>
-        {/* Driver Status */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 20px' }}>
+        {/* 1. Customer Code */}
         <div>
-          <Text style={{ fontSize: 13, color: '#1a1a1a', display: 'block', marginBottom: 8 }}>Driver Status</Text>
-          <Select
-            value={filterDriverStatus}
-            onChange={(v) => setFilterDriverStatus(v)}
-            style={{ width: '100%' }}
-            options={[
-              { value: 'all', label: 'All' },
-              { value: 'online', label: 'Online' },
-              { value: 'offline', label: 'Offline' },
-            ]}
-          />
+          {filterLabel('Customer Code')}
+          <Select {...multiSelectProps} value={filterCustomerCodes} onChange={setFilterCustomerCodes}
+            options={customerCodeOptions} placeholder="All" />
         </div>
-        {/* Ops Attention */}
+        {/* 2. Fleet Owner */}
         <div>
-          <Text style={{ fontSize: 13, color: '#1a1a1a', display: 'block', marginBottom: 8 }}>Ops Attention</Text>
-          <Select
-            value={filterAttention}
-            onChange={(v) => setFilterAttention(v)}
-            style={{ width: '100%' }}
+          {filterLabel('Fleet Owner')}
+          <Select {...multiSelectProps} value={filterFleetOwners} onChange={setFilterFleetOwners}
+            options={fleetOwnerOptions} placeholder="All" />
+        </div>
+        {/* 3. Driver */}
+        <div>
+          {filterLabel('Driver')}
+          <Select {...multiSelectProps} value={filterDrivers} onChange={setFilterDrivers}
+            options={driverOptions} placeholder="All" />
+        </div>
+        {/* 4. Vehicle */}
+        <div>
+          {filterLabel('Vehicle')}
+          <Select {...multiSelectProps} value={filterVehicles} onChange={setFilterVehicles}
+            options={vehicleOptions} placeholder="All" />
+        </div>
+        {/* 5. Start Time — full width */}
+        <div style={{ gridColumn: '1 / -1' }}>
+          {filterLabel('Start Time')}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <TimePicker format="HH:mm" minuteStep={5} placeholder="From"
+              style={{ flex: 1 }} popupStyle={{ zIndex: 2200 }}
+              value={filterStartTimeFrom ? (() => { const [h, m] = filterStartTimeFrom.split(':'); const d = new Date(); d.setHours(+h, +m, 0); return d as unknown as import('dayjs').Dayjs })() : null}
+              onChange={(_, s) => setFilterStartTimeFrom(s as string || null)} />
+            <Text style={{ color: '#8c8c8c', flexShrink: 0 }}>–</Text>
+            <TimePicker format="HH:mm" minuteStep={5} placeholder="To"
+              style={{ flex: 1 }} popupStyle={{ zIndex: 2200 }}
+              value={filterStartTimeTo ? (() => { const [h, m] = filterStartTimeTo.split(':'); const d = new Date(); d.setHours(+h, +m, 0); return d as unknown as import('dayjs').Dayjs })() : null}
+              onChange={(_, s) => setFilterStartTimeTo(s as string || null)} />
+          </div>
+        </div>
+        {/* 6. Trip Status */}
+        <div>
+          {filterLabel('Trip Status')}
+          <Select {...multiSelectProps} value={filterTripStatuses} onChange={setFilterTripStatuses} placeholder="All"
+            options={[
+              { value: 'late-first',      label: 'Late (First Point)' },
+              { value: 'late-other',      label: 'Late (Other Point)' },
+              { value: 'will-late-first', label: 'Will be Late (First Point)' },
+              { value: 'will-late-other', label: 'Will be Late (Other Point)' },
+              { value: 'to-check',        label: 'To Check' },
+              { value: 'notified',        label: 'Notified' },
+              { value: 'on-time',         label: 'On Time' },
+            ]} />
+        </div>
+        {/* 7. Driver Status */}
+        <div>
+          {filterLabel('Driver Status')}
+          <Select {...singleSelectProps} value={filterDriverStatus} onChange={setFilterDriverStatus}
+            options={[
+              { value: 'all',     label: 'All' },
+              { value: 'online',  label: 'Online' },
+              { value: 'offline', label: 'Offline' },
+            ]} />
+        </div>
+        {/* 8. Ops Attention Status */}
+        <div>
+          {filterLabel('Ops Attention Status')}
+          <Select {...multiSelectProps} value={filterOpsStatuses} onChange={setFilterOpsStatuses} placeholder="All"
+            options={[
+              { value: 'to-claim', label: 'To Claim' },
+              { value: 'claimed',  label: 'Claimed' },
+              { value: 'complete', label: 'Action Complete' },
+            ]} />
+        </div>
+        {/* 9. Claimed By */}
+        <div>
+          {filterLabel('Claimed By')}
+          <Select {...multiSelectProps} value={filterClaimedBy} onChange={setFilterClaimedBy}
+            options={claimedByOptions} placeholder="All" />
+        </div>
+        {/* 10. Schedule Slack */}
+        <div>
+          {filterLabel('Schedule Slack')}
+          <Select {...multiSelectProps} value={filterSlack} onChange={setFilterSlack} placeholder="All"
+            options={[
+              { value: 'negative', label: 'Negative' },
+              { value: 'zero',     label: '0' },
+              { value: 'positive', label: 'Positive' },
+            ]} />
+        </div>
+        {/* 11. Next Trip in <2 hrs */}
+        <div>
+          {filterLabel('Next Trip in <2 hrs')}
+          <Select {...singleSelectProps} value={filterNextTripSoon} onChange={setFilterNextTripSoon}
             options={[
               { value: 'all', label: 'All' },
-              { value: 'unclaimed', label: 'Unclaimed' },
-              { value: 'mine', label: 'Claimed by me' },
-              { value: 'others', label: 'Claimed by others' },
-              { value: 'complete', label: 'Action complete' },
-            ]}
-          />
+              { value: 'yes', label: 'Yes' },
+              { value: 'no',  label: 'No' },
+            ]} />
         </div>
       </div>
-      <div style={{ marginTop: 24 }}>
-        <Button
-          onClick={() => { setFilterDriverStatus('all'); setFilterAttention('all') }}
-          style={{ borderRadius: 6 }}
-        >
-          Clear all filters
-        </Button>
+      <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid #f0f0f0' }}>
+        <Button onClick={clearFilters} style={{ borderRadius: 6 }}>Clear all filters</Button>
       </div>
     </div>
   )
@@ -4129,7 +4304,6 @@ export default function LiveTrackingTesting2Page() {
       open={filterPopoverOpen}
       onOpenChange={setFilterPopoverOpen}
       content={filterPopoverContent}
-      title="Filter"
       trigger="click"
       placement="bottomRight"
     >
