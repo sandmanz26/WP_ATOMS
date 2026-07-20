@@ -818,6 +818,13 @@ const SLACK_POSITION_OPTIONS: { value: SlackPosition; label: string }[] = [
   { value: 'inline', label: 'Inline (by status)' },
 ]
 
+type SlackFormat = 'min' | 'hm'
+
+const SLACK_FORMAT_OPTIONS: { value: SlackFormat; label: string }[] = [
+  { value: 'min', label: 'Minutes (130min)' },
+  { value: 'hm', label: 'Hours + min (2hr 10min)' },
+]
+
 // Card style that applies specifically when a 2-level highlight is active.
 // The regular Card style only affects TripGridCard (not DhGridCard), so 2-level
 // mode gets its own density selector to avoid a dead control in the panel.
@@ -2285,8 +2292,17 @@ function slackChipColors(slackMin: number): { color: string; bg: string; border:
   if (slackMin === 0) return { color: '#d46b08', bg: '#fff7e6', border: '#ffd591' }  // Zero → Orange
   return { color: '#595959', bg: '#f5f5f5', border: '#d9d9d9' }                      // Positive/Unknown → Grey
 }
-function fmtSlack(min: number): string {
+function fmtSlack(min: number, format: SlackFormat = 'min'): string {
   if (min === 999) return '-'
+  if (format === 'hm') {
+    const abs = Math.abs(min)
+    const h = Math.floor(abs / 60)
+    const m = abs % 60
+    const sign = min < 0 ? '-' : '+'
+    if (h === 0) return `${sign}${m}min`
+    if (m === 0) return `${sign}${h}hr`
+    return `${sign}${h}hr ${m}min`
+  }
   return min > 0 ? `+${min}min` : `${min}min`
 }
 
@@ -2325,6 +2341,7 @@ function DhGridCard({
   showDriverStatusText = true,
   slackPosition = 'row',
   showSlack = true,
+  slackFormat = 'min' as SlackFormat,
 }: {
   stop: VehicleStop
   info: DhInfo
@@ -2340,6 +2357,7 @@ function DhGridCard({
   showDriverStatusText?: boolean
   slackPosition?: SlackPosition
   showSlack?: boolean
+  slackFormat?: SlackFormat
 }) {
   const accent = info.l1 === 'immediate' ? '#ff4d4f' : info.l1 === 'risk' ? '#faad14' : '#16a34a'
   const rs = richStatus(stop, info)
@@ -2374,7 +2392,7 @@ function DhGridCard({
           <Text style={{ fontSize: 11.5, color: '#8c8c8c', whiteSpace: 'nowrap' }}>{formatTimeAmPm(stop.scheduled)}</Text>
           {slackPosition === 'inline' && showSlack && (
             <span style={{ background: slack.bg, color: slack.color, border: `1px solid ${slack.border}`, fontSize: 10.5, fontWeight: 600, padding: '0 6px', borderRadius: 6, whiteSpace: 'nowrap', flexShrink: 0 }}>
-              Slack {fmtSlack(info.slackMin)}
+              Slack {fmtSlack(info.slackMin, slackFormat)}
             </span>
           )}
           <span
@@ -2398,7 +2416,7 @@ function DhGridCard({
           <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 7, flexWrap: 'wrap' }}>
             {slackPosition === 'row' && showSlack && (
               <span style={{ background: slack.bg, color: slack.color, border: `1px solid ${slack.border}`, fontSize: 10.5, fontWeight: 600, padding: '0 7px', borderRadius: 6, whiteSpace: 'nowrap' }}>
-                Slack {fmtSlack(info.slackMin)}
+                Slack {fmtSlack(info.slackMin, slackFormat)}
               </span>
             )}
             {showDelays && showDelayText && (
@@ -2445,12 +2463,13 @@ function DhGridCard({
    Route code badge left; trip status + slack chips right-aligned in the
    same row. Driver row below. Actions pinned bottom-right. ── */
 function DhInternalCard({
-  stop, info, selected, handled, showAction, claim, onClick, onTake, innerRef,
+  stop, info, selected, handled, showAction, claim, onClick, onTake, innerRef, slackFormat = 'min',
 }: {
   stop: VehicleStop; info: DhInfo; selected: boolean; handled: boolean
   showAction: boolean; claim?: ClaimBundle
   onClick: () => void; onTake: () => void
   innerRef: (el: HTMLDivElement | null) => void
+  slackFormat?: SlackFormat
 }) {
   const accent = info.l1 === 'immediate' ? '#ff4d4f' : info.l1 === 'risk' ? '#faad14' : '#16a34a'
   const rs = richStatus(stop, info)
@@ -2487,7 +2506,7 @@ function DhInternalCard({
             {statusLabel}
           </span>
           <span style={{ ...pill, color: slack.color, background: slack.bg, borderColor: slack.border }}>
-            Slack: {fmtSlack(info.slackMin)}
+            Slack: {fmtSlack(info.slackMin, slackFormat)}
           </span>
         </div>
       </div>
@@ -2551,12 +2570,13 @@ function buildTripMoreMenu(claim: ClaimBundle | undefined, onOpenDrawer: () => v
 /* ── Rev 01: Route name full-width top row → Status | Slack row →
    WiFi+Driver | StartTime row → Actions row (right-aligned). ── */
 function DhRev01Card({
-  stop, info, selected, handled, showAction, claim, onClick, onTake, onOpenDrawer, innerRef,
+  stop, info, selected, handled, showAction, claim, onClick, onTake, onOpenDrawer, innerRef, slackFormat = 'min',
 }: {
   stop: VehicleStop; info: DhInfo; selected: boolean; handled: boolean
   showAction: boolean; claim?: ClaimBundle
   onClick: () => void; onTake: () => void; onOpenDrawer: () => void
   innerRef: (el: HTMLDivElement | null) => void
+  slackFormat?: SlackFormat
 }) {
   const accent = info.l1 === 'immediate' ? '#ff4d4f' : info.l1 === 'risk' ? '#faad14' : '#16a34a'
   const rs = richStatus(stop, info)
@@ -2586,7 +2606,7 @@ function DhRev01Card({
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
         <span style={{ ...pill, color: rs.color, background: rs.bg, borderColor: rs.border }}>{rs.label}</span>
         <span style={{ ...pill, color: slack.color, background: slack.bg, borderColor: slack.border, marginLeft: 'auto' }}>
-          Slack: {fmtSlack(info.slackMin)}
+          Slack: {fmtSlack(info.slackMin, slackFormat)}
         </span>
       </div>
       {/* Row 3: wifi + driver (as-is) left | start time right */}
@@ -2614,12 +2634,13 @@ function DhRev01Card({
 /* ── Rev 02: Route name + StartTime on same top row → Status | Slack row →
    WiFi+Driver | Actions on same bottom row. ── */
 function DhRev02Card({
-  stop, info, selected, handled, showAction, claim, onClick, onTake, onOpenDrawer, innerRef,
+  stop, info, selected, handled, showAction, claim, onClick, onTake, onOpenDrawer, innerRef, slackFormat = 'min',
 }: {
   stop: VehicleStop; info: DhInfo; selected: boolean; handled: boolean
   showAction: boolean; claim?: ClaimBundle
   onClick: () => void; onTake: () => void; onOpenDrawer: () => void
   innerRef: (el: HTMLDivElement | null) => void
+  slackFormat?: SlackFormat
 }) {
   const accent = info.l1 === 'immediate' ? '#ff4d4f' : info.l1 === 'risk' ? '#faad14' : '#16a34a'
   const rs = richStatus(stop, info)
@@ -2652,7 +2673,7 @@ function DhRev02Card({
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
         <span style={{ ...pill, color: rs.color, background: rs.bg, borderColor: rs.border }}>{rs.label}</span>
         <span style={{ ...pill, color: slack.color, background: slack.bg, borderColor: slack.border, marginLeft: 'auto' }}>
-          Slack: {fmtSlack(info.slackMin)}
+          Slack: {fmtSlack(info.slackMin, slackFormat)}
         </span>
       </div>
       {/* Row 3: wifi + driver (as-is) left | claim action + single unified 3-dot right */}
@@ -2678,12 +2699,13 @@ function DhRev02Card({
 /* ── Rev 03: Status | Slack top row → WiFi+Driver | Time middle row →
    Route name (de-emphasised) | Claim status bottom row. ── */
 function DhRev03Card({
-  stop, info, selected, handled, showAction, claim, onClick, onTake, onOpenDrawer, innerRef,
+  stop, info, selected, handled, showAction, claim, onClick, onTake, onOpenDrawer, innerRef, slackFormat = 'min',
 }: {
   stop: VehicleStop; info: DhInfo; selected: boolean; handled: boolean
   showAction: boolean; claim?: ClaimBundle
   onClick: () => void; onTake: () => void; onOpenDrawer: () => void
   innerRef: (el: HTMLDivElement | null) => void
+  slackFormat?: SlackFormat
 }) {
   const accent = info.l1 === 'immediate' ? '#ff4d4f' : info.l1 === 'risk' ? '#faad14' : '#16a34a'
   const rs = richStatus(stop, info)
@@ -2711,7 +2733,7 @@ function DhRev03Card({
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
         <span style={{ ...pill, color: rs.color, background: rs.bg, borderColor: rs.border }}>{rs.label}</span>
         <span style={{ ...pill, color: slack.color, background: slack.bg, borderColor: slack.border, marginLeft: 'auto' }}>
-          Slack: {fmtSlack(info.slackMin)}
+          Slack: {fmtSlack(info.slackMin, slackFormat)}
         </span>
       </div>
       {/* Row 2: wifi + driver (as-is) left | start time right */}
@@ -3339,6 +3361,8 @@ function DisplaySettingsPanel({
   onShowDriverStatusTextChange,
   slackPosition,
   onSlackPositionChange,
+  slackFormat,
+  onSlackFormatChange,
   l2Spacing,
   onL2SpacingChange,
   l2MatchL1Width,
@@ -3403,6 +3427,8 @@ function DisplaySettingsPanel({
   onShowDriverStatusTextChange: (v: boolean) => void
   slackPosition: SlackPosition
   onSlackPositionChange: (v: SlackPosition) => void
+  slackFormat: SlackFormat
+  onSlackFormatChange: (v: SlackFormat) => void
   l2Spacing: L2Spacing
   onL2SpacingChange: (v: L2Spacing) => void
   l2MatchL1Width: boolean
@@ -3527,6 +3553,9 @@ function DisplaySettingsPanel({
             <div style={{ height: 1, background: '#f0f0f0' }} />
             <SettingRow label="Slack position">
               <Select size="small" value={slackPosition} onChange={onSlackPositionChange} options={SLACK_POSITION_OPTIONS} style={{ width: 104 }} dropdownStyle={{ zIndex: 2100 }} />
+            </SettingRow>
+            <SettingRow label="Slack format">
+              <Select size="small" value={slackFormat} onChange={onSlackFormatChange} options={SLACK_FORMAT_OPTIONS} style={{ width: 150 }} dropdownStyle={{ zIndex: 2100 }} />
             </SettingRow>
             <SettingRow label="Show delay text">
               <Switch size="small" checked={showDelayText} onChange={onShowDelayTextChange} />
@@ -3696,6 +3725,7 @@ export default function LiveTrackingTesting2Page() {
   const [showDelayText, setShowDelayText] = useState(true)
   const [showDriverStatusText, setShowDriverStatusText] = useState(true)
   const [slackPosition, setSlackPosition] = useState<SlackPosition>('row')
+  const [slackFormat, setSlackFormat] = useState<SlackFormat>('min')
   const [filterDriverStatus, setFilterDriverStatus] = useState<FilterDriverStatus>('all')
   const [filterAttention, setFilterAttention] = useState<FilterAttention>('all')
   const [filterCustomerCodes, setFilterCustomerCodes] = useState<string[]>([])
@@ -4081,6 +4111,7 @@ export default function LiveTrackingTesting2Page() {
         onClick: () => openCard(stop.id), onTake: () => markHandled(stop.id),
         onOpenDrawer: () => openDrawer(stop.id),
         innerRef: (el: HTMLDivElement | null) => { cardRefs.current[stop.id] = el },
+        slackFormat,
       }
       if (dhCardStyle === 'rev01') return <DhRev01Card {...revProps} />
       if (dhCardStyle === 'rev02') return <DhRev02Card {...revProps} />
@@ -4098,6 +4129,7 @@ export default function LiveTrackingTesting2Page() {
             onClick={() => openCard(stop.id)}
             onTake={() => markHandled(stop.id)}
             innerRef={(el) => { cardRefs.current[stop.id] = el }}
+            slackFormat={slackFormat}
           />
         )
       }
@@ -4130,6 +4162,7 @@ export default function LiveTrackingTesting2Page() {
           showDriverStatusText={dhPreset.showDriverStatusText}
           slackPosition={dhPreset.slackPosition}
           showSlack={dhPreset.showSlack}
+          slackFormat={slackFormat}
         />
       )
     }
@@ -4600,6 +4633,8 @@ export default function LiveTrackingTesting2Page() {
           onShowDriverStatusTextChange={setShowDriverStatusText}
           slackPosition={slackPosition}
           onSlackPositionChange={setSlackPosition}
+          slackFormat={slackFormat}
+          onSlackFormatChange={setSlackFormat}
           l2Spacing={l2Spacing}
           onL2SpacingChange={setL2Spacing}
           l2MatchL1Width={l2MatchL1Width}
