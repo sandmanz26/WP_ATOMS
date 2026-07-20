@@ -2283,7 +2283,11 @@ function mockNextTrip(stop: VehicleStop): { routeCode: string; startTime: string
 function slackChipColors(slackMin: number): { color: string; bg: string; border: string } {
   if (slackMin < 0)  return { color: '#cf1322', bg: '#fff1f0', border: '#ffa39e' }  // Negative → Red
   if (slackMin === 0) return { color: '#d46b08', bg: '#fff7e6', border: '#ffd591' }  // Zero → Orange
-  return { color: '#595959', bg: '#f5f5f5', border: '#d9d9d9' }                      // Positive → Grey
+  return { color: '#595959', bg: '#f5f5f5', border: '#d9d9d9' }                      // Positive/Unknown → Grey
+}
+function fmtSlack(min: number): string {
+  if (min === 999) return '-'
+  return min > 0 ? `+${min}min` : `${min}min`
 }
 
 const RED    = { color: '#cf1322', bg: '#fff1f0', border: '#ffa39e' }
@@ -2370,7 +2374,7 @@ function DhGridCard({
           <Text style={{ fontSize: 11.5, color: '#8c8c8c', whiteSpace: 'nowrap' }}>{formatTimeAmPm(stop.scheduled)}</Text>
           {slackPosition === 'inline' && showSlack && (
             <span style={{ background: slack.bg, color: slack.color, border: `1px solid ${slack.border}`, fontSize: 10.5, fontWeight: 600, padding: '0 6px', borderRadius: 6, whiteSpace: 'nowrap', flexShrink: 0 }}>
-              Slack {info.slackMin > 0 ? `+${info.slackMin}` : info.slackMin} min
+              Slack {fmtSlack(info.slackMin)}
             </span>
           )}
           <span
@@ -2394,7 +2398,7 @@ function DhGridCard({
           <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 7, flexWrap: 'wrap' }}>
             {slackPosition === 'row' && showSlack && (
               <span style={{ background: slack.bg, color: slack.color, border: `1px solid ${slack.border}`, fontSize: 10.5, fontWeight: 600, padding: '0 7px', borderRadius: 6, whiteSpace: 'nowrap' }}>
-                Slack {info.slackMin > 0 ? `+${info.slackMin}` : info.slackMin} min
+                Slack {fmtSlack(info.slackMin)}
               </span>
             )}
             {showDelays && showDelayText && (
@@ -2483,7 +2487,7 @@ function DhInternalCard({
             {statusLabel}
           </span>
           <span style={{ ...pill, color: slack.color, background: slack.bg, borderColor: slack.border }}>
-            Slack: {info.slackMin > 0 ? `+${info.slackMin}` : info.slackMin} min
+            Slack: {fmtSlack(info.slackMin)}
           </span>
         </div>
       </div>
@@ -2582,7 +2586,7 @@ function DhRev01Card({
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
         <span style={{ ...pill, color: rs.color, background: rs.bg, borderColor: rs.border }}>{rs.label}</span>
         <span style={{ ...pill, color: slack.color, background: slack.bg, borderColor: slack.border, marginLeft: 'auto' }}>
-          Slack: {info.slackMin > 0 ? `+${info.slackMin}` : info.slackMin}min
+          Slack: {fmtSlack(info.slackMin)}
         </span>
       </div>
       {/* Row 3: wifi + driver (as-is) left | start time right */}
@@ -2648,7 +2652,7 @@ function DhRev02Card({
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
         <span style={{ ...pill, color: rs.color, background: rs.bg, borderColor: rs.border }}>{rs.label}</span>
         <span style={{ ...pill, color: slack.color, background: slack.bg, borderColor: slack.border, marginLeft: 'auto' }}>
-          Slack: {info.slackMin > 0 ? `+${info.slackMin}` : info.slackMin}min
+          Slack: {fmtSlack(info.slackMin)}
         </span>
       </div>
       {/* Row 3: wifi + driver (as-is) left | claim action + single unified 3-dot right */}
@@ -2707,7 +2711,7 @@ function DhRev03Card({
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
         <span style={{ ...pill, color: rs.color, background: rs.bg, borderColor: rs.border }}>{rs.label}</span>
         <span style={{ ...pill, color: slack.color, background: slack.bg, borderColor: slack.border, marginLeft: 'auto' }}>
-          Slack: {info.slackMin > 0 ? `+${info.slackMin}` : info.slackMin}min
+          Slack: {fmtSlack(info.slackMin)}
         </span>
       </div>
       {/* Row 2: wifi + driver (as-is) left | start time right */}
