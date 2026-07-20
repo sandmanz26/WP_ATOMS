@@ -2292,9 +2292,11 @@ const ORANGE = { color: '#d46b08', bg: '#fff7e6', border: '#ffd591' }
 // Trip status label + colour per spec:
 // On Time → Green, Will be Late (FP) → Red, Will be Late (OP) → Orange,
 // Late (FP) → Red, Late (OP) → Orange, To Check → Red, Notified → Blue.
+// Notified is checked FIRST: a driver can be offline AND already notified;
+// in that case "Notified" is more informative than "To Check".
 function richStatus(stop: VehicleStop, info: DhInfo): { label: string; color: string; bg: string; border: string } {
-  if (!stop.online || info.l2 === 'offline') return { label: 'To Check', ...RED }
-  if (stop.notified)   return { label: 'Notified',                         ...STATUS_STYLE['Notified'] }
+  if (stop.notified)                          return { label: 'Notified',   ...STATUS_STYLE['Notified'] }
+  if (!stop.online || info.l2 === 'offline')  return { label: 'To Check',   ...RED }
   switch (info.l2) {
     case 'cur-first':  return { label: 'Late (First Point)',           ...RED }
     case 'cur-other':  return { label: 'Late (Other Point)',           ...ORANGE }

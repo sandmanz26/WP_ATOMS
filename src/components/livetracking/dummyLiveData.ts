@@ -759,7 +759,7 @@ function makeDummyStops(): DummyStop[] {
     { id: '91', label: 'Route 1', destination: '(Bus Stop) J Gateway, Boon Lay Way (Opp Blk 201)',
       customerCode: 'See Hup Seng CP Pte Ltd', scheduled: '07:15', eta: null,
       driver: 'Junaidi', fleetOwner: 'Edwin Transport & Trading', plate: 'PA822A',
-      online: false, notified: false, lastOnline: '21 Jul 2026, 10:05 AM',
+      online: false, notified: true, lastOnline: '21 Jul 2026, 10:05 AM',
       dh: { l1: 'immediate', l2: 'offline', currentDelayMin: 0, nextTripDelayMin: 0, predictedDelayMin: 0, slackMin: 999 },
       nextPointEta: null, lastPointEta: null,
       driverPhone: '+65 90870711', fleetPhone: '+65 99990007', customerPic: 'Kit Chui Mei', customerPhone: '+65 97342802',
