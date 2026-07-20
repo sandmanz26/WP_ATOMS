@@ -639,7 +639,7 @@ function makeDummyStops(): DummyStop[] {
     { id: '76', label: 'Glaxo 2(IN)-Jurong East/Chinese Gardens/Lakeside/Boon Lay/Pioneer', destination: '(Bus Stop) J Gateway, Boon Lay Way (Opp Blk 201)',
       customerCode: 'Glaxosmithkline Biologicals', scheduled: '07:00', eta: null,
       driver: 'Ah Choo', fleetOwner: 'Peh Ah Choo', plate: 'PD9666A',
-      online: false, notified: false, lastOnline: '7 Jul 2026, 12:15 PM',
+      online: false, notified: true, lastOnline: '7 Jul 2026, 12:15 PM',
       dh: { l1: 'immediate', l2: 'offline', currentDelayMin: 0, nextTripDelayMin: 0, predictedDelayMin: 0, slackMin: 999 },
       nextPointEta: null, lastPointEta: null,
       driverPhone: '+65 91445137', fleetPhone: '+65 99990025', customerPic: 'Lynn Tan', customerPhone: '+65 82231330',
