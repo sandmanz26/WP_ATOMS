@@ -36,6 +36,16 @@ function fmt(n: number) {
   return `$ ${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
+/* Status matrix shared by Mark as Sent, Add Adjustment, and Log Payment
+   (PRD MOVE-2398 §6.3/§8.3/§9.3 — same table in all three). */
+function computeStatusFromBalance(grandTotal: number, outstandingBalance: number, dueDate: Date, now: Date): InvoiceStatus {
+  if (outstandingBalance <= 0) return 'Paid'
+  const isOverdue = !Number.isNaN(dueDate.getTime()) && now > dueDate
+  if (isOverdue) return 'Overdue'
+  if (outstandingBalance < grandTotal) return 'Partially Paid'
+  return 'Open'
+}
+
 function LabelValue({ label, value }: { label: string; value: string }) {
   return (
     <div>
@@ -129,15 +139,9 @@ export default function InvoiceDetailTesting2Page({ invoiceId }: Props) {
     setToast('Invoice marked as sent')
 
     // 3. Status update — dependent on outstanding balance and due date
+    // (PRD MOVE-2901 §8.3 status matrix)
     const dueDate = new Date(invoice.dueDate)
-    let nextStatus: InvoiceStatus
-    if (invoice.outstandingBalance <= 0) {
-      nextStatus = 'Paid'
-    } else if (!Number.isNaN(dueDate.getTime()) && now > dueDate) {
-      nextStatus = 'Overdue'
-    } else {
-      nextStatus = 'Open'
-    }
+    const nextStatus = computeStatusFromBalance(invoice.grandTotal, invoice.outstandingBalance, dueDate, now)
     setStatus(nextStatus)
 
     // 4. Capture the action + status change in change history
