@@ -328,9 +328,12 @@ export default function InvoiceTesting2Page({ onNavigate }: Props) {
       </div>
 
       {/* Filter row — no card background, floats on the page itself,
-          detached from the table below by just a margin. */}
+          detached from the table below by just a margin. Everything
+          (label, date range, search, filter) sits as one right-aligned
+          cluster instead of being split to opposite ends. */}
       <div style={{
-        padding: '0 4px', display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16,
+        padding: '0 4px', display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
+        gap: 12, marginBottom: 16,
       }}>
         <Text style={{ fontSize: 13, color: '#1a1a1a', flexShrink: 0 }}>Last updated on :</Text>
         <RangePicker
@@ -340,7 +343,6 @@ export default function InvoiceTesting2Page({ onNavigate }: Props) {
           onChange={(v) => { setLastUpdatedRange(v as [Dayjs, Dayjs] | null); setPage(1) }}
           placeholder={['Start of Date', 'End Date']}
         />
-        <div style={{ flex: 1 }} />
         <Input
           size="small"
           placeholder="Search Invoices"
