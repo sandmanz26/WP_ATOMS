@@ -24,7 +24,7 @@ function StatusBadge({ status }: { status: InvoiceStatus }) {
   return (
     <span style={{
       display: 'inline-flex', alignItems: 'center',
-      padding: '3px 13px', borderRadius: 999, fontSize: 13, fontWeight: 400,
+      padding: '4px 16px', borderRadius: 8, fontSize: 14, fontWeight: 400,
       color: cfg.color, background: cfg.bg, border: `1px solid ${cfg.border}`,
     }}>
       {status}

@@ -31,7 +31,7 @@ function StatusBadge({ status }: { status: InvoiceStatus }) {
   return (
     <span style={{
       display: 'inline-flex', alignItems: 'center',
-      padding: '3px 13px', borderRadius: 999, fontSize: 13, fontWeight: 400,
+      padding: '4px 16px', borderRadius: 8, fontSize: 14, fontWeight: 400,
       color: cfg.color, background: cfg.bg, border: `1px solid ${cfg.border}`,
       whiteSpace: 'nowrap',
     }}>
@@ -473,12 +473,12 @@ export default function InvoiceTesting2Page({ onNavigate }: Props) {
                   <Text style={{ fontSize: 13, fontWeight: 700, color: '#1a1a1a' }}>{fmt(drawerInvoice.grandTotal)}</Text>
                 </div>
                 <div>
-                  <Text style={{ fontSize: 11, color: '#8c8c8c', display: 'block', marginBottom: 2 }}>Amount Paid</Text>
+                  <Text style={{ fontSize: 11, color: '#8c8c8c', display: 'block', marginBottom: 2 }}>Amount Received</Text>
                   <Text style={{ fontSize: 13, fontWeight: 600 }}>{fmt(drawerInvoice.amountReceived)}</Text>
                 </div>
                 <div>
                   <Text style={{ fontSize: 11, color: '#8c8c8c', display: 'block', marginBottom: 2 }}>Outstanding Balance</Text>
-                  <Text style={{ fontSize: 13, fontWeight: 600, color: drawerInvoice.outstandingBalance > 0 ? '#ff4d4f' : '#52c41a' }}>
+                  <Text style={{ fontSize: 13, fontWeight: 600 }}>
                     {fmt(drawerInvoice.outstandingBalance)}
                   </Text>
                 </div>
