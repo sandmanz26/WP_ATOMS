@@ -525,13 +525,80 @@ function KpiBar({
 
 type SortKey = 'start' | 'slack-asc' | 'slack-desc' | 'delay-asc' | 'delay-desc'
 
-const SORT_OPTIONS: { value: SortKey; label: string }[] = [
-  { value: 'start', label: 'Start time' },
-  { value: 'slack-asc', label: 'Slack (low → high)' },
-  { value: 'slack-desc', label: 'Slack (high → low)' },
-  { value: 'delay-asc', label: 'Delay (low → high)' },
-  { value: 'delay-desc', label: 'Delay (high → low)' },
+const SORT_OPTIONS: { value: SortKey; label: string; short: string }[] = [
+  { value: 'start',      label: 'Start time',        short: 'Start' },
+  { value: 'slack-asc',  label: 'Slack (low → high)', short: 'Slack ↑' },
+  { value: 'slack-desc', label: 'Slack (high → low)', short: 'Slack ↓' },
+  { value: 'delay-asc',  label: 'Delay (low → high)', short: 'Delay ↑' },
+  { value: 'delay-desc', label: 'Delay (high → low)', short: 'Delay ↓' },
 ]
+
+type SortStyle = 'dropdown' | 'segmented' | 'compact'
+
+const SORT_STYLE_OPTIONS: { value: SortStyle; label: string }[] = [
+  { value: 'dropdown',  label: 'Dropdown' },
+  { value: 'segmented', label: 'Segmented' },
+  { value: 'compact',   label: 'Compact (icon)' },
+]
+
+function SortControl({ value, onChange, style: sortStyle }: { value: SortKey; onChange: (v: SortKey) => void; style: SortStyle }) {
+  const isDesc = value.endsWith('-desc')
+  const icon = isDesc
+    ? <SortDescendingOutlined style={{ fontSize: 16, color: '#8c8c8c' }} />
+    : <SortAscendingOutlined  style={{ fontSize: 16, color: '#8c8c8c' }} />
+
+  if (sortStyle === 'dropdown') {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+        {icon}
+        <Select size="middle" value={value} onChange={onChange} options={SORT_OPTIONS} style={{ width: 152 }} />
+      </div>
+    )
+  }
+
+  if (sortStyle === 'segmented') {
+    return (
+      <div style={{ display: 'flex', gap: 3, background: '#f5f5f5', borderRadius: 8, padding: 3 }}>
+        {SORT_OPTIONS.map((o) => {
+          const active = value === o.value
+          return (
+            <button
+              key={o.value}
+              onClick={() => onChange(o.value)}
+              style={{
+                padding: '4px 10px', borderRadius: 6, border: 'none', cursor: 'pointer',
+                fontSize: 12, fontWeight: active ? 600 : 400, whiteSpace: 'nowrap',
+                background: active ? '#fff' : 'transparent',
+                color: active ? '#1a1a1a' : '#8c8c8c',
+                boxShadow: active ? '0 1px 3px rgba(0,0,0,.12)' : 'none',
+                transition: 'all .15s',
+              }}
+            >
+              {o.short}
+            </button>
+          )
+        })}
+      </div>
+    )
+  }
+
+  // compact: icon button → dropdown menu
+  const menuItems = SORT_OPTIONS.map((o) => ({
+    key: o.value,
+    label: o.label,
+    style: value === o.value ? { fontWeight: 600, color: '#1677ff' } : {},
+  }))
+  return (
+    <Dropdown menu={{ items: menuItems, onClick: ({ key }) => onChange(key as SortKey) }} trigger={['click']} placement="bottomRight">
+      <Button
+        icon={icon}
+        style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 10px', fontWeight: 500, fontSize: 13, color: '#595959' }}
+      >
+        {SORT_OPTIONS.find((o) => o.value === value)?.short}
+      </Button>
+    </Dropdown>
+  )
+}
 
 /* ── Map/marker tooltip style — how much the InfoWindow/card popover shows ── */
 type MapCardStyle = 'default' | 'compact' | 'detailed'
@@ -3363,6 +3430,8 @@ function DisplaySettingsPanel({
   onSlackPositionChange,
   slackFormat,
   onSlackFormatChange,
+  sortStyle,
+  onSortStyleChange,
   l2Spacing,
   onL2SpacingChange,
   l2MatchL1Width,
@@ -3429,6 +3498,8 @@ function DisplaySettingsPanel({
   onSlackPositionChange: (v: SlackPosition) => void
   slackFormat: SlackFormat
   onSlackFormatChange: (v: SlackFormat) => void
+  sortStyle: SortStyle
+  onSortStyleChange: (v: SortStyle) => void
   l2Spacing: L2Spacing
   onL2SpacingChange: (v: L2Spacing) => void
   l2MatchL1Width: boolean
@@ -3556,6 +3627,9 @@ function DisplaySettingsPanel({
             </SettingRow>
             <SettingRow label="Slack format">
               <Select size="small" value={slackFormat} onChange={onSlackFormatChange} options={SLACK_FORMAT_OPTIONS} style={{ width: 150 }} dropdownStyle={{ zIndex: 2100 }} />
+            </SettingRow>
+            <SettingRow label="Sort style">
+              <Select size="small" value={sortStyle} onChange={onSortStyleChange} options={SORT_STYLE_OPTIONS} style={{ width: 120 }} dropdownStyle={{ zIndex: 2100 }} />
             </SettingRow>
             <SettingRow label="Show delay text">
               <Switch size="small" checked={showDelayText} onChange={onShowDelayTextChange} />
@@ -3726,6 +3800,7 @@ export default function LiveTrackingTesting2Page() {
   const [showDriverStatusText, setShowDriverStatusText] = useState(true)
   const [slackPosition, setSlackPosition] = useState<SlackPosition>('row')
   const [slackFormat, setSlackFormat] = useState<SlackFormat>('min')
+  const [sortStyle, setSortStyle] = useState<SortStyle>('dropdown')
   const [filterDriverStatus, setFilterDriverStatus] = useState<FilterDriverStatus>('all')
   const [filterAttention, setFilterAttention] = useState<FilterAttention>('all')
   const [filterCustomerCodes, setFilterCustomerCodes] = useState<string[]>([])
@@ -4398,10 +4473,7 @@ export default function LiveTrackingTesting2Page() {
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                 <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search Trips" style={{ borderRadius: 8, width: 210 }} allowClear />
                 {filterBtn}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  {sortBy.endsWith('-desc') ? <SortDescendingOutlined style={{ fontSize: 16, color: '#8c8c8c' }} /> : <SortAscendingOutlined style={{ fontSize: 16, color: '#8c8c8c' }} />}
-                  <Select size="middle" value={sortBy} onChange={setSortBy} options={SORT_OPTIONS} style={{ width: 152 }} />
-                </div>
+                <SortControl value={sortBy} onChange={setSortBy} style={sortStyle} />
               </div>
             )
             if (isFlashingCard) return <TwoLevelPanelHeader {...l2Props} boxPadding={highlightBoxPadding} rightSlot={rightSlot} />
@@ -4458,10 +4530,7 @@ export default function LiveTrackingTesting2Page() {
                   allowClear
                 />
                 {filterBtn}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  {sortBy.endsWith('-desc') ? <SortDescendingOutlined style={{ fontSize: 16, color: '#8c8c8c' }} /> : <SortAscendingOutlined style={{ fontSize: 16, color: '#8c8c8c' }} />}
-                  <Select size="middle" value={sortBy} onChange={setSortBy} options={SORT_OPTIONS} style={{ width: 152 }} />
-                </div>
+                <SortControl value={sortBy} onChange={setSortBy} style={sortStyle} />
               </div>
             </div>
           )}
@@ -4635,6 +4704,8 @@ export default function LiveTrackingTesting2Page() {
           onSlackPositionChange={setSlackPosition}
           slackFormat={slackFormat}
           onSlackFormatChange={setSlackFormat}
+          sortStyle={sortStyle}
+          onSortStyleChange={setSortStyle}
           l2Spacing={l2Spacing}
           onL2SpacingChange={setL2Spacing}
           l2MatchL1Width={l2MatchL1Width}
