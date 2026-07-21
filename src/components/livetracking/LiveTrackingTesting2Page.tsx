@@ -1575,7 +1575,7 @@ function TwoLevelCardHeader({
       </div>
     )
   }
-  return <><div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>{l1Tiles}{rightSlot && <div style={{ flexShrink: 0 }}>{rightSlot}</div>}</div>{l2Tabs}</>
+  return <><div style={{ display: 'flex', alignItems: 'flex-end', gap: 10, flexWrap: 'wrap' }}>{l1Tiles}{rightSlot && <div style={{ flexShrink: 0 }}>{rightSlot}</div>}</div>{l2Tabs}</>
 }
 
 /* ── Minimalist two-level header — no colored icon tiles, just a thin
@@ -1855,7 +1855,7 @@ function TwoLevelStatsHeader({ level1, level2, l1Counts, l2Counts, onLevel1Chang
   )
   const l2 = <TwoLevelL2Chips level1={level1} level2={level2} l2Counts={l2Counts} onLevel2Change={onLevel2Change} l2Spacing={l2Spacing} l2FontSize={l2FontSize} />
   if (l2MatchL1Width) return <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}><div>{l1}{l2}</div>{rightSlot && <div style={{ flexShrink: 0 }}>{rightSlot}</div>}</div>
-  return <><div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>{l1}{rightSlot && <div style={{ flexShrink: 0 }}>{rightSlot}</div>}</div>{l2}</>
+  return <><div style={{ display: 'flex', alignItems: 'flex-end', gap: 12 }}>{l1}{rightSlot && <div style={{ flexShrink: 0 }}>{rightSlot}</div>}</div>{l2}</>
 }
 
 /* ── Badge variant: compact pill-shaped buttons, each with a small filled
@@ -1900,7 +1900,7 @@ function TwoLevelBadgeHeader({ level1, level2, l1Counts, l2Counts, onLevel1Chang
   )
   const l2 = <TwoLevelL2Chips level1={level1} level2={level2} l2Counts={l2Counts} onLevel2Change={onLevel2Change} l2Spacing={l2Spacing} l2FontSize={l2FontSize} />
   if (l2MatchL1Width) return <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap' }}><div>{l1}{l2}</div>{rightSlot && <div style={{ flexShrink: 0 }}>{rightSlot}</div>}</div>
-  return <><div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>{l1}{rightSlot && <div style={{ flexShrink: 0 }}>{rightSlot}</div>}</div>{l2}</>
+  return <><div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, flexWrap: 'wrap' }}>{l1}{rightSlot && <div style={{ flexShrink: 0 }}>{rightSlot}</div>}</div>{l2}</>
 }
 
 /* ── Progress variant: a proportional stacked bar showing the share of trips
@@ -2029,7 +2029,7 @@ function TwoLevelInlineHeader({ level1, level2, l1Counts, l2Counts, onLevel1Chan
   if (l2MatchL1Width) return <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}><div>{l1}{l2}</div>{rightSlot && <div style={{ marginLeft: 'auto', flexShrink: 0 }}>{rightSlot}</div>}</div>
   return (
     <>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6 }}>
         {l1}
         <div style={{ marginLeft: 'auto', flexShrink: 0 }}>{rightSlot}</div>
       </div>
@@ -2097,7 +2097,7 @@ function TwoLevelPanelHeader({ level1, level2, l1Counts, l2Counts, onLevel1Chang
   if (l2MatchL1Width) return <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}><div>{l1}{l2}</div>{rightSlot && <div style={{ flexShrink: 0 }}>{rightSlot}</div>}</div>
   return (
     <>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12 }}>
         {l1}
         <div style={{ marginLeft: 'auto', flexShrink: 0 }}>{rightSlot}</div>
       </div>
@@ -2154,7 +2154,7 @@ function TwoLevelMetroHeader({ level1, level2, l1Counts, l2Counts, onLevel1Chang
   if (l2MatchL1Width) return <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}><div>{l1}{l2}</div>{rightSlot && <div style={{ flexShrink: 0 }}>{rightSlot}</div>}</div>
   return (
     <>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12 }}>
         {l1}
         <div style={{ marginLeft: 'auto', flexShrink: 0 }}>{rightSlot}</div>
       </div>
@@ -2217,7 +2217,7 @@ function TwoLevelEqualHeader({ level1, level2, l1Counts, l2Counts, onLevel1Chang
   if (l2MatchL1Width) return <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}><div>{l1}{l2}</div>{rightSlot && <div style={{ flexShrink: 0 }}>{rightSlot}</div>}</div>
   return (
     <>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12 }}>
         {l1}
         <div style={{ marginLeft: 'auto', flexShrink: 0 }}>{rightSlot}</div>
       </div>
@@ -4396,7 +4396,7 @@ export default function LiveTrackingTesting2Page() {
             const l2Props = { level1: dhLevel1, level2: dhLevel2, l1Counts: dhL1Counts, l2Counts: dhL2Counts, onLevel1Change: handleLevel1Change, onLevel2Change: setDhLevel2, l2Spacing, l2MatchL1Width, flashingStyle, l1FontSize, l2FontSize }
             const rightSlot = (
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search route, driver, plate..." style={{ borderRadius: 8, width: 210 }} allowClear />
+                <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search Trips" style={{ borderRadius: 8, width: 210 }} allowClear />
                 {filterBtn}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                   {sortBy.endsWith('-desc') ? <SortDescendingOutlined style={{ fontSize: 16, color: '#8c8c8c' }} /> : <SortAscendingOutlined style={{ fontSize: 16, color: '#8c8c8c' }} />}
@@ -4453,7 +4453,7 @@ export default function LiveTrackingTesting2Page() {
                 <Input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search route, driver, plate..."
+                  placeholder="Search Trips"
                   style={{ borderRadius: 8, width: 240 }}
                   allowClear
                 />
