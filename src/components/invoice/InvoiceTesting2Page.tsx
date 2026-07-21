@@ -327,10 +327,10 @@ export default function InvoiceTesting2Page({ onNavigate }: Props) {
         ))}
       </div>
 
-      {/* Filter row — its own card, detached from the table below */}
+      {/* Filter row — no card background, floats on the page itself,
+          detached from the table below by just a margin. */}
       <div style={{
-        padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 12,
-        background: '#fff', border: '1px solid #f0f0f0', borderRadius: 10, marginBottom: 16,
+        padding: '0 4px', display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16,
       }}>
         <Text style={{ fontSize: 13, color: '#1a1a1a', flexShrink: 0 }}>Last updated on :</Text>
         <RangePicker
