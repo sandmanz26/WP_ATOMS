@@ -13,6 +13,8 @@ import Tracking2Page from '@/components/livetracking/Tracking2Page'
 import TestingPage from '@/components/testing/TestingPage'
 import InvoicePage from '@/components/invoice/InvoicePage'
 import InvoiceDetailPage from '@/components/invoice/InvoiceDetailPage'
+import InvoiceTesting2Page from '@/components/invoice/InvoiceTesting2Page'
+import InvoiceDetailTesting2Page from '@/components/invoice/InvoiceDetailTesting2Page'
 import NotificationPage from '@/components/sales-module/NotificationPage'
 import { Button } from 'antd'
 import { ArrowLeftOutlined } from '@ant-design/icons'
@@ -31,6 +33,8 @@ export type AppPage =
   | { type: 'testing' }
   | { type: 'invoice' }
   | { type: 'invoice-detail'; invoiceId: string }
+  | { type: 'invoice-testing-2' }
+  | { type: 'invoice-detail-testing-2'; invoiceId: string }
   | { type: 'notification' }
 
 export default function App() {
@@ -117,6 +121,36 @@ export default function App() {
         onNavigate={navigate}
       >
         <InvoiceDetailPage invoiceId={page.invoiceId} onBack={() => navigate({ type: 'invoice' })} />
+      </AppLayout>
+    )
+  }
+
+  if (page.type === 'invoice-testing-2') {
+    return (
+      <AppLayout activeKey="invoice-testing-2" breadcrumbLabel="Invoice 2.0" onNavigate={navigate}>
+        <InvoiceTesting2Page onNavigate={navigate} />
+      </AppLayout>
+    )
+  }
+
+  if (page.type === 'invoice-detail-testing-2') {
+    return (
+      <AppLayout
+        activeKey="invoice-testing-2"
+        breadcrumbItems={['Invoice 2.0', 'Invoice Detail']}
+        topBarRight={
+          <Button
+            size="small"
+            icon={<ArrowLeftOutlined />}
+            onClick={() => navigate({ type: 'invoice-testing-2' })}
+            style={{ borderRadius: 6 }}
+          >
+            Return to Invoice
+          </Button>
+        }
+        onNavigate={navigate}
+      >
+        <InvoiceDetailTesting2Page invoiceId={page.invoiceId} onBack={() => navigate({ type: 'invoice-testing-2' })} />
       </AppLayout>
     )
   }

@@ -59,6 +59,13 @@ export default function AppLayout({
             ),
             onClick: () => onNavigate?.({ type: 'invoice' }),
           },
+          {
+            key: 'invoice-testing-2',
+            label: (
+              <Text style={{ fontSize: 13, paddingLeft: 8 }}>Invoice 2.0</Text>
+            ),
+            onClick: () => onNavigate?.({ type: 'invoice-testing-2' }),
+          },
         ]
       : []),
   ]
