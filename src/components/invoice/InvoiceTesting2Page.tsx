@@ -4,7 +4,7 @@ import {
 } from 'antd'
 import type { Dayjs } from 'dayjs'
 import {
-  SearchOutlined, FilterOutlined, EyeOutlined, DownOutlined, FileTextOutlined,
+  FilterOutlined, EyeOutlined, DownOutlined, FileTextOutlined,
   PlusOutlined, PaperClipOutlined, DownloadOutlined, HistoryOutlined,
   LeftOutlined, RightOutlined,
 } from '@ant-design/icons'
@@ -327,47 +327,65 @@ export default function InvoiceTesting2Page({ onNavigate }: Props) {
         ))}
       </div>
 
-      {/* Table card */}
-      <div style={{ background: '#fff', borderRadius: 10, border: '1px solid #f0f0f0', overflow: 'hidden' }}>
-        {/* Filter row */}
-        <div style={{ padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 12, borderBottom: '1px solid #f0f0f0' }}>
-          <Text style={{ fontSize: 13, color: '#595959', flexShrink: 0 }}>Last updated on:</Text>
-          <RangePicker
+      {/* Filter row — its own card, detached from the table below */}
+      <div style={{
+        padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 12,
+        background: '#fff', border: '1px solid #f0f0f0', borderRadius: 10, marginBottom: 16,
+      }}>
+        <Text style={{ fontSize: 13, color: '#1a1a1a', flexShrink: 0 }}>Last updated on :</Text>
+        <RangePicker
+          size="small"
+          style={{ borderRadius: 6 }}
+          value={lastUpdatedRange}
+          onChange={(v) => { setLastUpdatedRange(v as [Dayjs, Dayjs] | null); setPage(1) }}
+          placeholder={['Start of Date', 'End Date']}
+        />
+        <div style={{ flex: 1 }} />
+        <Input
+          size="small"
+          placeholder="Search Invoices"
+          style={{ width: 200, borderRadius: 6 }}
+          value={search}
+          onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+          allowClear
+        />
+        <Popover
+          content={filterContent}
+          trigger="click"
+          open={filterOpen}
+          onOpenChange={setFilterOpen}
+          placement="bottomRight"
+          arrow={false}
+        >
+          <Button
             size="small"
-            style={{ borderRadius: 6 }}
-            value={lastUpdatedRange}
-            onChange={(v) => { setLastUpdatedRange(v as [Dayjs, Dayjs] | null); setPage(1) }}
+            icon={<FilterOutlined />}
+            style={{
+              borderRadius: 6,
+              borderColor: hasFilter ? '#1677ff' : undefined,
+              color: hasFilter ? '#1677ff' : undefined,
+            }}
           />
-          <div style={{ flex: 1 }} />
-          <Input
-            size="small"
-            prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
-            placeholder="Search Invoices"
-            style={{ width: 200, borderRadius: 6 }}
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-            allowClear
-          />
-          <Popover
-            content={filterContent}
-            trigger="click"
-            open={filterOpen}
-            onOpenChange={setFilterOpen}
-            placement="bottomRight"
-            arrow={false}
-          >
-            <Button
-              size="small"
-              icon={<FilterOutlined />}
-              style={{
-                borderRadius: 6,
-                borderColor: hasFilter ? '#1677ff' : undefined,
-                color: hasFilter ? '#1677ff' : undefined,
-              }}
-            />
-          </Popover>
-        </div>
+        </Popover>
+      </div>
 
+      {/* Table card */}
+      <div className="invoice2-table" style={{ background: '#fff', borderRadius: 10, border: '1px solid #f0f0f0', overflow: 'hidden' }}>
+        <style>{`
+          .invoice2-table .ant-table-thead > tr > th {
+            position: relative;
+          }
+          .invoice2-table .ant-table-thead > tr > th:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 1px;
+            height: 18px;
+            background: #e8eaed;
+          }
+        `}</style>
         <Table<Invoice>
           columns={columns}
           dataSource={paged}
