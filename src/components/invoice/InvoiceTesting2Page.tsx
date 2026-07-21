@@ -500,13 +500,13 @@ export default function InvoiceTesting2Page({ onNavigate }: Props) {
               {/* Source Contracts */}
               <Text style={{ fontSize: 15, fontWeight: 700, display: 'block', marginBottom: 12 }}>Source Contracts</Text>
               <div style={{ border: '1px solid #f0f0f0', borderRadius: 8, overflow: 'hidden', marginBottom: 20 }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '160px 1fr 100px 40px', padding: '8px 12px', background: '#fafafa', borderBottom: '1px solid #f0f0f0' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '116px 1fr 88px 28px', gap: 8, padding: '8px 12px', background: '#fafafa', borderBottom: '1px solid #f0f0f0' }}>
                   {['Contract No', 'Contract Title', 'Price', ''].map((h) => (
                     <Text key={h} style={{ fontSize: 12, color: '#8c8c8c', fontWeight: 600 }}>{h}</Text>
                   ))}
                 </div>
                 {drawerInvoice.sourceContracts.map((sc) => (
-                  <div key={sc.no} style={{ display: 'grid', gridTemplateColumns: '160px 1fr 100px 40px', padding: '10px 12px', borderBottom: '1px solid #f0f0f0', alignItems: 'center' }}>
+                  <div key={sc.no} style={{ display: 'grid', gridTemplateColumns: '116px 1fr 88px 28px', gap: 8, padding: '10px 12px', borderBottom: '1px solid #f0f0f0', alignItems: 'center' }}>
                     <Text style={{ fontSize: 13 }}>{sc.no}</Text>
                     <Text style={{ fontSize: 13 }}>{sc.title}</Text>
                     <Text style={{ fontSize: 13 }}>{fmt(sc.price)}</Text>

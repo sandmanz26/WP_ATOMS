@@ -1,5 +1,6 @@
-import { useState } from 'react'
-import { Modal, Typography, Input, Select, DatePicker, Button } from 'antd'
+import { useState, useEffect } from 'react'
+import { Modal, Typography, Input, Select, DatePicker, Button, message } from 'antd'
+import dayjs, { type Dayjs } from 'dayjs'
 
 const { Text } = Typography
 
@@ -7,26 +8,73 @@ function fmt(n: number) {
   return `$ ${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
+export interface LogPaymentPayload {
+  amount: number
+  method: string
+  bank: string
+  date: Dayjs
+  transRef: string
+}
+
 interface Props {
   open: boolean
   onClose: () => void
   grandTotal: number
   outstandingBalance: number
+  onSave?: (payload: LogPaymentPayload) => void
 }
 
 const PAYMENT_METHODS = ['Bank Transfer', 'Cash', 'Cheque', 'Online Transfer', 'GIRO'].map((m) => ({ value: m, label: m }))
 const BANK_ACCOUNTS   = ['DBS Main Account', 'HSBC Business', 'UOB Current', 'OCBC Business', 'Citibank Corporate'].map((b) => ({ value: b, label: b }))
 
-export default function LogPaymentModal({ open, onClose, grandTotal, outstandingBalance }: Props) {
+export default function LogPaymentModal({ open, onClose, grandTotal, outstandingBalance, onSave }: Props) {
   const [amount,   setAmount]   = useState('')
   const [method,   setMethod]   = useState<string | null>(null)
   const [bank,     setBank]     = useState<string | null>(null)
-  const [date,     setDate]     = useState<null>(null)
+  const [date,     setDate]     = useState<Dayjs | null>(null)
   const [transRef, setTransRef] = useState('')
+
+  // Default Amount Received to outstanding balance each time the modal opens (PRD §9.2)
+  useEffect(() => {
+    if (open) {
+      setAmount(outstandingBalance > 0 ? outstandingBalance.toFixed(2) : '')
+      setMethod(null)
+      setBank(null)
+      setDate(null)
+      setTransRef('')
+    }
+  }, [open, outstandingBalance])
 
   const handleClose = () => {
     setAmount(''); setMethod(null); setBank(null); setDate(null); setTransRef('')
     onClose()
+  }
+
+  const handleSave = () => {
+    const amountNum = parseFloat(amount)
+    if (!amount || Number.isNaN(amountNum) || amountNum <= 0) {
+      message.error('Amount received is required and cannot be $0')
+      return
+    }
+    if (amountNum > outstandingBalance) {
+      message.error('Amount received cannot exceed outstanding balance')
+      return
+    }
+    if (!method) {
+      message.error('Payment method is required')
+      return
+    }
+    if (!bank) {
+      message.error('Bank account is required')
+      return
+    }
+    if (!date) {
+      message.error('Payment date is required')
+      return
+    }
+
+    onSave?.({ amount: amountNum, method, bank, date, transRef: transRef.trim() })
+    handleClose()
   }
 
   const required = (label: string) => (
@@ -99,7 +147,12 @@ export default function LogPaymentModal({ open, onClose, grandTotal, outstanding
       {/* Payment Date */}
       <div style={{ marginBottom: 16 }}>
         {required('Payment Date')}
-        <DatePicker style={{ width: '100%', borderRadius: 6 }} value={date} onChange={(d) => setDate(d as null)} />
+        <DatePicker
+          style={{ width: '100%', borderRadius: 6 }}
+          value={date}
+          onChange={setDate}
+          disabledDate={(d) => d.isAfter(dayjs().endOf('day'))}
+        />
       </div>
 
       {/* Transaction Reference */}
@@ -119,7 +172,7 @@ export default function LogPaymentModal({ open, onClose, grandTotal, outstanding
       {/* Footer */}
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
         <Button onClick={handleClose} style={{ borderRadius: 6 }}>Cancel</Button>
-        <Button type="primary" style={{ borderRadius: 6 }}>Save</Button>
+        <Button type="primary" style={{ borderRadius: 6 }} onClick={handleSave}>Save</Button>
       </div>
     </Modal>
   )

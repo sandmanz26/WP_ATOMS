@@ -1,11 +1,11 @@
 import { useState, useRef, useEffect } from 'react'
-import { Typography, Button, Select, Table, Dropdown, Divider } from 'antd'
+import { Typography, Button, Select, Table, Dropdown, Divider, Tooltip } from 'antd'
 import {
   DownOutlined, LinkOutlined, EyeOutlined, ExclamationCircleOutlined, CheckCircleFilled,
   FileTextOutlined, PlusOutlined, PaperClipOutlined, DownloadOutlined, HistoryOutlined,
 } from '@ant-design/icons'
 import { INVOICES, type InvoiceStatus, type TripRecord, type OtherChargeRecord, type AdjustmentRecord, type PaymentRecord } from './invoiceData'
-import LogPaymentModal from './LogPaymentModal'
+import LogPaymentModal, { type LogPaymentPayload } from './LogPaymentModal'
 
 const { Text, Title } = Typography
 
@@ -92,11 +92,18 @@ export default function InvoiceDetailTesting2Page({ invoiceId }: Props) {
   const [logPaymentOpen,   setLogPaymentOpen]   = useState(false)
 
   // Local, session-only status + change history — this "2.0" page has no
-  // backend, so Mark as Sent updates state here rather than persisting.
+  // backend, so Mark as Sent / Log Payment update state here rather than persisting.
   const [status, setStatus] = useState<InvoiceStatus>(invoice.status)
+  const [amountReceived, setAmountReceived] = useState(invoice.amountReceived)
+  const [outstandingBalance, setOutstandingBalance] = useState(invoice.outstandingBalance)
+  const [payments, setPayments] = useState<PaymentRecord[]>(invoice.payments)
   const [history, setHistory] = useState<HistoryEntry[]>([])
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
+
+  const addHistoryEntry = (text: string, stamp: string) => {
+    setHistory((prev) => [{ text, time: stamp }, ...prev])
+  }
 
   useEffect(() => {
     if (!toast) return
@@ -104,13 +111,17 @@ export default function InvoiceDetailTesting2Page({ invoiceId }: Props) {
     return () => clearTimeout(t)
   }, [toast])
 
+  // PRD §8.1 — Mark as Sent only enabled when status = draft
   const ACTIONS_ITEMS = [
-    { key: 'sent',   label: 'Mark as Sent',          icon: <FileTextOutlined />, onClick: () => setConfirmOpen(true) },
+    { key: 'sent',   label: 'Mark as Sent',          icon: <FileTextOutlined />, disabled: status !== 'Draft', onClick: () => setConfirmOpen(true) },
     { key: 'adj',    label: 'Add Adjustment',         icon: <PlusOutlined /> },
     { key: 'po',     label: 'Attach Purchase Order',  icon: <PaperClipOutlined /> },
     { key: 'dl',     label: 'Download',               icon: <DownloadOutlined /> },
     { key: 'hist',   label: 'View Change History',    icon: <HistoryOutlined />, onClick: () => scrollTo('history') },
   ]
+
+  // PRD §9.1 — Log Payment only enabled when status = open / partially paid / overdue
+  const logPaymentEnabled = status === 'Open' || status === 'Partially Paid' || status === 'Overdue'
 
   const sectionRefs: Record<string, React.RefObject<HTMLDivElement>> = {
     basic:      useRef<HTMLDivElement>(null),
@@ -141,17 +152,47 @@ export default function InvoiceDetailTesting2Page({ invoiceId }: Props) {
     // 3. Status update — dependent on outstanding balance and due date
     // (PRD MOVE-2901 §8.3 status matrix)
     const dueDate = new Date(invoice.dueDate)
-    const nextStatus = computeStatusFromBalance(invoice.grandTotal, invoice.outstandingBalance, dueDate, now)
+    const nextStatus = computeStatusFromBalance(invoice.grandTotal, outstandingBalance, dueDate, now)
     setStatus(nextStatus)
 
     // 4. Capture the action + status change in change history
-    setHistory((prev) => {
-      const entries: HistoryEntry[] = [{ text: 'Invoice marked as Sent', time: stamp }]
-      if (nextStatus !== previousStatus) {
-        entries.push({ text: `Status changed from ${previousStatus} to ${nextStatus}`, time: stamp })
-      }
-      return [...entries, ...prev]
-    })
+    addHistoryEntry('Invoice marked as Sent', stamp)
+    if (nextStatus !== previousStatus) {
+      addHistoryEntry(`Status changed from ${previousStatus} to ${nextStatus}`, stamp)
+    }
+  }
+
+  const handleLogPayment = (payload: LogPaymentPayload) => {
+    const now = new Date()
+    const stamp = now.toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).replace(',', ' ·')
+    const previousStatus = status
+
+    const newOutstanding = Math.max(0, outstandingBalance - payload.amount)
+    const newReceived = amountReceived + payload.amount
+
+    setOutstandingBalance(newOutstanding)
+    setAmountReceived(newReceived)
+    setPayments((prev) => [
+      ...prev,
+      {
+        date: payload.date.format('D MMM YYYY'),
+        transactionRef: payload.transRef || '-',
+        method: payload.method,
+        bankAccount: payload.bank,
+        amount: payload.amount,
+      },
+    ])
+
+    // Status update per PRD MOVE-2902 §9.3
+    const dueDate = new Date(invoice.dueDate)
+    const nextStatus = computeStatusFromBalance(invoice.grandTotal, newOutstanding, dueDate, now)
+    setStatus(nextStatus)
+
+    setToast('Payment logged successfully')
+    addHistoryEntry(`Payment of ${fmt(payload.amount)} logged`, stamp)
+    if (nextStatus !== previousStatus) {
+      addHistoryEntry(`Status changed from ${previousStatus} to ${nextStatus}`, stamp)
+    }
   }
 
   const contractDetail = invoice.contractDetails.find((c) => c.contractNo === selectedContract) ?? invoice.contractDetails[0]
@@ -246,7 +287,7 @@ export default function InvoiceDetailTesting2Page({ invoiceId }: Props) {
   ]
 
   const adjTotal  = invoice.adjustments.reduce((s, a) => a.type === 'Additional Payment' ? s + a.amount : s - a.amount, 0)
-  const payTotal  = invoice.payments.reduce((s, p) => s + p.amount, 0)
+  const payTotal  = payments.reduce((s, p) => s + p.amount, 0)
 
   const sectionPad: React.CSSProperties = { padding: 24 }
   const sectionTitle = (label: string) => (
@@ -268,9 +309,16 @@ export default function InvoiceDetailTesting2Page({ invoiceId }: Props) {
                 Actions <DownOutlined style={{ fontSize: 10 }} />
               </Button>
             </Dropdown>
-            <Button type="primary" style={{ borderRadius: 6 }} onClick={() => setLogPaymentOpen(true)}>
-              Log Payment
-            </Button>
+            <Tooltip title={logPaymentEnabled ? '' : 'Log Payment is only available once the invoice has been marked as sent'}>
+              <Button
+                type="primary"
+                style={{ borderRadius: 6 }}
+                disabled={!logPaymentEnabled}
+                onClick={() => setLogPaymentOpen(true)}
+              >
+                Log Payment
+              </Button>
+            </Tooltip>
           </div>
         </div>
 
@@ -337,11 +385,11 @@ export default function InvoiceDetailTesting2Page({ invoiceId }: Props) {
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
                 <Text style={{ fontSize: 13, color: '#595959' }}>Amount Received</Text>
-                <Text style={{ fontSize: 13, fontWeight: 500 }}>{fmt(invoice.amountReceived)}</Text>
+                <Text style={{ fontSize: 13, fontWeight: 500 }}>{fmt(amountReceived)}</Text>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <Text style={{ fontSize: 13, color: '#595959' }}>Outstanding Balance</Text>
-                <Text style={{ fontSize: 13, fontWeight: 500 }}>{fmt(invoice.outstandingBalance)}</Text>
+                <Text style={{ fontSize: 13, fontWeight: 500 }}>{fmt(outstandingBalance)}</Text>
               </div>
             </div>
           </div>
@@ -459,7 +507,7 @@ export default function InvoiceDetailTesting2Page({ invoiceId }: Props) {
           </div>
           <Table<PaymentRecord>
             columns={paymentColumns}
-            dataSource={invoice.payments}
+            dataSource={payments}
             rowKey={(_, i) => String(i)}
             pagination={false}
             size="middle"
@@ -515,7 +563,8 @@ export default function InvoiceDetailTesting2Page({ invoiceId }: Props) {
         open={logPaymentOpen}
         onClose={() => setLogPaymentOpen(false)}
         grandTotal={invoice.grandTotal}
-        outstandingBalance={invoice.outstandingBalance}
+        outstandingBalance={outstandingBalance}
+        onSave={handleLogPayment}
       />
 
       {/* ── Mark as Sent confirm modal ── */}
