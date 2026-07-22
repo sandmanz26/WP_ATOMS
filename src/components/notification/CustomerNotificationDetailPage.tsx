@@ -1,7 +1,9 @@
+import { useState, useEffect } from 'react'
 import { Typography, Button, Table, Dropdown } from 'antd'
-import { DownOutlined, PlusOutlined, MoreOutlined } from '@ant-design/icons'
+import { DownOutlined, PlusOutlined, MoreOutlined, CheckCircleFilled } from '@ant-design/icons'
 import { NOTIFICATIONS, type TripNotification } from './notificationData'
 import { NotificationStatusBadge, TripStatusBadge } from './notificationStatusLogic'
+import EditRecipientsModal from './EditRecipientsModal'
 
 const { Text, Title } = Typography
 
@@ -35,6 +37,25 @@ export default function CustomerNotificationDetailPage({ notificationId }: Props
   const notification = NOTIFICATIONS.find((n) => n.id === notificationId) ?? NOTIFICATIONS[0]
 
   const sentCount = notification.trips.filter((t) => t.notificationStatus === 'Sent').length
+
+  // Local, session-only recipients override + toast — this page has no
+  // backend, so Edit Recipients updates state here rather than persisting.
+  const [phoneNumbers, setPhoneNumbers] = useState(notification.phoneNumbers)
+  const [emails, setEmails] = useState(notification.emails)
+  const [emailCc, setEmailCc] = useState(notification.emailCc)
+  const [editRecipientsOpen, setEditRecipientsOpen] = useState(false)
+  const [toast, setToast] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!toast) return
+    const t = setTimeout(() => setToast(null), 3200)
+    return () => clearTimeout(t)
+  }, [toast])
+
+  const ACTIONS_ITEMS = [
+    { key: 'edit-recipients', label: 'Edit Recipients', onClick: () => setEditRecipientsOpen(true) },
+    { key: 'mark-required', label: 'Mark as Required', onClick: () => setToast('Marked as required') },
+  ]
 
   const tripColumns = [
     {
@@ -81,7 +102,7 @@ export default function CustomerNotificationDetailPage({ notificationId }: Props
           <NotificationStatusBadge status={notification.notificationStatus} />
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <Dropdown menu={{ items: [{ key: 'edit', label: 'Edit Notification Settings' }] }} trigger={['click']}>
+          <Dropdown menu={{ items: ACTIONS_ITEMS }} trigger={['click']}>
             <Button style={{ borderRadius: 6 }}>
               Actions <DownOutlined style={{ fontSize: 10 }} />
             </Button>
@@ -106,9 +127,9 @@ export default function CustomerNotificationDetailPage({ notificationId }: Props
             <LabelValue label="Contract Title"  value={notification.contractTitle} />
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px 24px' }}>
-            <LabelValue label="Phone Number" value={notification.phoneNumber} />
-            <LabelValue label="Email"        value={notification.email} />
-            <LabelValue label="Email CC"     value={notification.emailCc} />
+            <LabelValue label="Phone Number" value={phoneNumbers.join(', ')} />
+            <LabelValue label="Email"        value={emails.join(', ')} />
+            <LabelValue label="Email CC"     value={emailCc.join(', ')} />
           </div>
         </div>
       </div>
@@ -159,6 +180,30 @@ export default function CustomerNotificationDetailPage({ notificationId }: Props
           </div>
         </div>
       </div>
+
+      <EditRecipientsModal
+        open={editRecipientsOpen}
+        onClose={() => setEditRecipientsOpen(false)}
+        initial={{ phoneNumbers, emails, emailCc }}
+        onSave={(payload) => {
+          setPhoneNumbers(payload.phoneNumbers)
+          setEmails(payload.emails)
+          setEmailCc(payload.emailCc)
+          setToast('Recipients updated')
+        }}
+      />
+
+      {toast && (
+        <div style={{
+          position: 'fixed', top: 20, right: 20, zIndex: 1100,
+          display: 'flex', alignItems: 'center', gap: 10,
+          background: '#fff', border: '1px solid #f0f0f0', borderLeft: '3px solid #52c41a', borderRadius: 8,
+          padding: '13px 16px', minWidth: 260, boxShadow: '0 10px 28px rgba(15,23,42,.14)',
+        }}>
+          <CheckCircleFilled style={{ color: '#52c41a', fontSize: 16 }} />
+          <Text style={{ fontSize: 13.5, color: '#1a1a1a' }}>{toast}</Text>
+        </div>
+      )}
     </div>
   )
 }

@@ -35,6 +35,7 @@ const TRIP_STATUS_CONFIG: Record<TripNotificationStatus, { color: string; bg: st
   'Ready to Sent':       { color: '#1677ff', bg: '#e6f4ff', border: '#91caff' },
   'Resend Required':    { color: '#ff4d4f', bg: '#fff1f0', border: '#ffccc7' },
   Sent:                  { color: '#52c41a', bg: '#f6ffed', border: '#b7eb8f' },
+  'Not Required':        { color: '#8c8c8c', bg: '#fafafa', border: '#d9d9d9' },
 }
 
 export function TripStatusBadge({ status }: { status: TripNotificationStatus }) {
