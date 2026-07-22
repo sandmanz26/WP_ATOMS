@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Typography, Button, Table, Dropdown, Tooltip, message } from 'antd'
-import { DownOutlined, PlusOutlined, MoreOutlined, CheckCircleFilled } from '@ant-design/icons'
+import { DownOutlined, PlusOutlined, MoreOutlined, CheckCircleFilled, ExclamationCircleOutlined } from '@ant-design/icons'
 import { NOTIFICATIONS, type TripNotification } from './notificationData'
 import {
   NotificationStatusBadge, TripStatusBadge, computeContractNotificationStatus,
@@ -84,7 +84,7 @@ export default function CustomerNotificationDetailPage({ notificationId }: Props
       label: markAsNotRequiredTooltip(contractStatus)
         ? <Tooltip title={markAsNotRequiredTooltip(contractStatus)} placement="left">Mark as Not Required</Tooltip>
         : 'Mark as Not Required',
-      onClick: () => setToast('Entering "Mark as Not Required" selection mode is not yet built — coming soon'),
+      onClick: () => { setSendMode('notRequired'); setSelectedRowKeys([]) },
     },
   ]
 
@@ -94,12 +94,13 @@ export default function CustomerNotificationDetailPage({ notificationId }: Props
     { key: 'sms',   label: 'SMS',   disabled: sendDisabled, onClick: () => setToast('Send SMS flow is not yet built — coming soon') },
   ]
 
-  // ── Email multi-select mode (PRD §8.2/§8.3) ──
-  const [sendMode, setSendMode] = useState<'none' | 'email'>('none')
+  // ── Multi-select modes (PRD §8.2/§8.3 for Email, §10.2 for Mark as Not Required) ──
+  const [sendMode, setSendMode] = useState<'none' | 'email' | 'notRequired'>('none')
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([])
   const [sendEmailOpen, setSendEmailOpen] = useState(false)
   const [feedbackOpen, setFeedbackOpen] = useState(false)
   const [feedbackLoading, setFeedbackLoading] = useState(false)
+  const [notRequiredConfirmOpen, setNotRequiredConfirmOpen] = useState(false)
 
   const selectedTrips = selectedRowKeys.map((k) => trips[Number(k)]).filter(Boolean) as TripNotification[]
 
@@ -137,6 +138,16 @@ export default function CustomerNotificationDetailPage({ notificationId }: Props
 
   const handleReturnFromFeedback = () => {
     setFeedbackOpen(false)
+    cancelSendMode()
+  }
+
+  const handleConfirmNotRequired = () => {
+    // PRD §10.4 — update trips, recalculate contract status (computed
+    // automatically from trips), capture in send history, then close.
+    const selectedSet = new Set(selectedRowKeys.map(String))
+    setTrips((prev) => prev.map((t, i) => (selectedSet.has(String(i)) ? { ...t, notificationStatus: 'Not Required' } : t)))
+    setNotRequiredConfirmOpen(false)
+    setToast('Notification marked as not required')
     cancelSendMode()
   }
 
@@ -192,6 +203,19 @@ export default function CustomerNotificationDetailPage({ notificationId }: Props
               <Text style={{ fontSize: 13, color: '#595959' }}>{selectedTrips.length} schedule(s) selected</Text>
               <Button onClick={cancelSendMode} style={{ borderRadius: 6 }}>Cancel</Button>
               <Button type="primary" style={{ borderRadius: 6 }} onClick={handlePreviewEmail}>Preview Email</Button>
+            </div>
+          ) : sendMode === 'notRequired' ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+              <Text style={{ fontSize: 13, color: '#595959' }}>{selectedTrips.length} schedule(s) selected</Text>
+              <Button onClick={cancelSendMode} style={{ borderRadius: 6 }}>Cancel</Button>
+              <Button
+                type="primary"
+                style={{ borderRadius: 6 }}
+                disabled={selectedTrips.length === 0}
+                onClick={() => setNotRequiredConfirmOpen(true)}
+              >
+                Notification Not Required
+              </Button>
             </div>
           ) : (
             <div style={{ display: 'flex', gap: 8 }}>
@@ -263,14 +287,25 @@ export default function CustomerNotificationDetailPage({ notificationId }: Props
           rowKey={(_, i) => String(i)}
           pagination={false}
           size="middle"
-          rowSelection={sendMode === 'email' ? {
-            type: 'checkbox',
-            selectedRowKeys,
-            onChange: setSelectedRowKeys,
-            // Pending Assignment trips can't be sent an email — hide their checkbox entirely (PRD §8.2)
-            renderCell: (_checked, record, _index, originNode) =>
-              record.notificationStatus === 'Pending Assignment' ? null : originNode,
-          } : undefined}
+          rowSelection={
+            sendMode === 'email' ? {
+              type: 'checkbox',
+              selectedRowKeys,
+              onChange: setSelectedRowKeys,
+              // Pending Assignment trips can't be sent an email — hide their checkbox entirely (PRD §8.2)
+              renderCell: (_checked, record, _index, originNode) =>
+                record.notificationStatus === 'Pending Assignment' ? null : originNode,
+            } : sendMode === 'notRequired' ? {
+              type: 'checkbox',
+              selectedRowKeys,
+              onChange: setSelectedRowKeys,
+              // Only Pending Assignment / Ready to Sent trips can be marked not required (PRD §10.2)
+              renderCell: (_checked, record, _index, originNode) =>
+                record.notificationStatus === 'Pending Assignment' || record.notificationStatus === 'Ready to Sent'
+                  ? originNode
+                  : null,
+            } : undefined
+          }
         />
         <button
           style={{
@@ -332,6 +367,34 @@ export default function CustomerNotificationDetailPage({ notificationId }: Props
         failedRecipients={[]}
         onReturn={handleReturnFromFeedback}
       />
+
+      {/* ── Mark as Not Required confirm modal (PRD §10.3) ── */}
+      {notRequiredConfirmOpen && (
+        <div
+          onClick={() => setNotRequiredConfirmOpen(false)}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(15,23,42,.45)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ width: 480, maxWidth: '100%', background: '#fff', borderRadius: 16, padding: '32px 32px 28px', boxShadow: '0 24px 60px rgba(15,23,42,.25)' }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+              <ExclamationCircleOutlined style={{ fontSize: 22, color: '#faad14' }} />
+              <Text style={{ fontSize: 17, fontWeight: 700, color: '#1a1a1a' }}>{'{{refer to copy master list}}'}</Text>
+            </div>
+            <Text style={{ fontSize: 13.5, color: '#595959', display: 'block', marginLeft: 34, marginBottom: 26, lineHeight: 1.6 }}>
+              {'{{refer to copy master list}}'}
+            </Text>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <Button size="large" style={{ borderRadius: 8 }} onClick={() => setNotRequiredConfirmOpen(false)}>Cancel</Button>
+              <Button size="large" type="primary" style={{ borderRadius: 8 }} onClick={handleConfirmNotRequired}>Confirm</Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {toast && (
         <div style={{
