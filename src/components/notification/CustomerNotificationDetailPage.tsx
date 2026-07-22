@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Typography, Button, Table, Dropdown, Tooltip } from 'antd'
+import { Typography, Button, Table, Dropdown, Tooltip, message } from 'antd'
 import { DownOutlined, PlusOutlined, MoreOutlined, CheckCircleFilled } from '@ant-design/icons'
 import { NOTIFICATIONS, type TripNotification } from './notificationData'
 import {
@@ -7,6 +7,8 @@ import {
   canMarkAsNotRequired, canSendNotification, markAsNotRequiredTooltip, sendNotificationTooltip,
 } from './notificationStatusLogic'
 import EditRecipientsModal from './EditRecipientsModal'
+import SendEmailModal from './SendEmailModal'
+import SendFeedbackModal from './SendFeedbackModal'
 
 const { Text, Title } = Typography
 
@@ -39,10 +41,14 @@ interface Props {
 export default function CustomerNotificationDetailPage({ notificationId }: Props) {
   const notification = NOTIFICATIONS.find((n) => n.id === notificationId) ?? NOTIFICATIONS[0]
 
+  // Local, session-only trips override — this page has no backend, so
+  // Send Email/SMS and Mark as Not Required update state here.
+  const [trips, setTrips] = useState<TripNotification[]>(notification.trips)
+
   // Contract-level status is always computed from trips, never stored —
   // see notificationStatusLogic.tsx / PRD §2.2.
-  const contractStatus = computeContractNotificationStatus(notification.trips)
-  const sentCount = notification.trips.filter((t) => t.notificationStatus === 'Sent').length
+  const contractStatus = computeContractNotificationStatus(trips)
+  const sentCount = trips.filter((t) => t.notificationStatus === 'Sent').length
 
   const [activeTab, setActiveTab] = useState('basic')
   const sectionRefs = {
@@ -84,9 +90,55 @@ export default function CustomerNotificationDetailPage({ notificationId }: Props
 
   const sendDisabled = !canSendNotification(contractStatus)
   const SEND_MENU_ITEMS = [
-    { key: 'email', label: 'Email', disabled: sendDisabled, onClick: () => setToast('Send Email flow is not yet built — coming soon') },
+    { key: 'email', label: 'Email', disabled: sendDisabled, onClick: () => { setSendMode('email'); setSelectedRowKeys([]) } },
     { key: 'sms',   label: 'SMS',   disabled: sendDisabled, onClick: () => setToast('Send SMS flow is not yet built — coming soon') },
   ]
+
+  // ── Email multi-select mode (PRD §8.2/§8.3) ──
+  const [sendMode, setSendMode] = useState<'none' | 'email'>('none')
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([])
+  const [sendEmailOpen, setSendEmailOpen] = useState(false)
+  const [feedbackOpen, setFeedbackOpen] = useState(false)
+  const [feedbackLoading, setFeedbackLoading] = useState(false)
+
+  const selectedTrips = selectedRowKeys.map((k) => trips[Number(k)]).filter(Boolean) as TripNotification[]
+
+  const cancelSendMode = () => {
+    setSendMode('none')
+    setSelectedRowKeys([])
+  }
+
+  const handlePreviewEmail = () => {
+    if (selectedTrips.length === 0) {
+      message.error('Select at least one schedule to preview the email')
+      return
+    }
+    const hasResendRequired = selectedTrips.some((t) => t.notificationStatus === 'Resend Required')
+    const allResendRequired = selectedTrips.every((t) => t.notificationStatus === 'Resend Required')
+    if (hasResendRequired && !allResendRequired) {
+      message.error('"Resend Required" schedules cannot be sent together with other statuses — select only one group')
+      return
+    }
+    setSendEmailOpen(true)
+  }
+
+  const handleSendEmail = () => {
+    setSendEmailOpen(false)
+    setFeedbackOpen(true)
+    setFeedbackLoading(true)
+    setTimeout(() => {
+      // Sending an email always moves the trip to Sent, even if it was
+      // Not Required — PRD §8.8 step 5.
+      const selectedSet = new Set(selectedRowKeys.map(String))
+      setTrips((prev) => prev.map((t, i) => (selectedSet.has(String(i)) ? { ...t, notificationStatus: 'Sent' } : t)))
+      setFeedbackLoading(false)
+    }, 700)
+  }
+
+  const handleReturnFromFeedback = () => {
+    setFeedbackOpen(false)
+    cancelSendMode()
+  }
 
   const tripColumns = [
     {
@@ -135,20 +187,28 @@ export default function CustomerNotificationDetailPage({ notificationId }: Props
             <Title level={3} style={{ margin: 0, fontWeight: 700 }}>{notification.contractNo}</Title>
             <NotificationStatusBadge status={contractStatus} />
           </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <Dropdown menu={{ items: ACTIONS_ITEMS }} trigger={['click']}>
-              <Button style={{ borderRadius: 6 }}>
-                Actions <DownOutlined style={{ fontSize: 10 }} />
-              </Button>
-            </Dropdown>
-            <Dropdown menu={{ items: SEND_MENU_ITEMS }} trigger={['click']}>
-              <Tooltip title={sendNotificationTooltip(contractStatus) ?? ''}>
-                <Button type="primary" style={{ borderRadius: 6 }}>
-                  Send <DownOutlined style={{ fontSize: 10 }} />
+          {sendMode === 'email' ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+              <Text style={{ fontSize: 13, color: '#595959' }}>{selectedTrips.length} schedule(s) selected</Text>
+              <Button onClick={cancelSendMode} style={{ borderRadius: 6 }}>Cancel</Button>
+              <Button type="primary" style={{ borderRadius: 6 }} onClick={handlePreviewEmail}>Preview Email</Button>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Dropdown menu={{ items: ACTIONS_ITEMS }} trigger={['click']}>
+                <Button style={{ borderRadius: 6 }}>
+                  Actions <DownOutlined style={{ fontSize: 10 }} />
                 </Button>
-              </Tooltip>
-            </Dropdown>
-          </div>
+              </Dropdown>
+              <Dropdown menu={{ items: SEND_MENU_ITEMS }} trigger={['click']}>
+                <Tooltip title={sendNotificationTooltip(contractStatus) ?? ''}>
+                  <Button type="primary" style={{ borderRadius: 6 }}>
+                    Send <DownOutlined style={{ fontSize: 10 }} />
+                  </Button>
+                </Tooltip>
+              </Dropdown>
+            </div>
+          )}
         </div>
 
         {/* ── Tab nav ── */}
@@ -194,15 +254,23 @@ export default function CustomerNotificationDetailPage({ notificationId }: Props
         <div style={{ padding: '20px 24px 0' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 16 }}>
             <Text style={{ fontSize: 15, fontWeight: 700 }}>Trips in Daily Schedule</Text>
-            <Text style={{ fontSize: 13, color: '#595959' }}>{sentCount}/{notification.trips.length} Sent</Text>
+            <Text style={{ fontSize: 13, color: '#595959' }}>{sentCount}/{trips.length} Sent</Text>
           </div>
         </div>
         <Table<TripNotification>
           columns={tripColumns}
-          dataSource={notification.trips}
+          dataSource={trips}
           rowKey={(_, i) => String(i)}
           pagination={false}
           size="middle"
+          rowSelection={sendMode === 'email' ? {
+            type: 'checkbox',
+            selectedRowKeys,
+            onChange: setSelectedRowKeys,
+            // Pending Assignment trips can't be sent an email — hide their checkbox entirely (PRD §8.2)
+            renderCell: (_checked, record, _index, originNode) =>
+              record.notificationStatus === 'Pending Assignment' ? null : originNode,
+          } : undefined}
         />
         <button
           style={{
@@ -246,6 +314,23 @@ export default function CustomerNotificationDetailPage({ notificationId }: Props
           setEmailCc(payload.emailCc)
           setToast('Recipients updated')
         }}
+      />
+
+      <SendEmailModal
+        open={sendEmailOpen}
+        onClose={() => setSendEmailOpen(false)}
+        contractNo={notification.contractNo}
+        selectedTrips={selectedTrips}
+        defaultEmails={emails}
+        defaultEmailCc={emailCc}
+        onSend={handleSendEmail}
+      />
+
+      <SendFeedbackModal
+        open={feedbackOpen}
+        loading={feedbackLoading}
+        failedRecipients={[]}
+        onReturn={handleReturnFromFeedback}
       />
 
       {toast && (

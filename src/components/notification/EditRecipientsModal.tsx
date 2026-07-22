@@ -10,6 +10,19 @@ export interface EditRecipientsPayload {
   emailCc: string[]
 }
 
+// Mock "PIC contact numbers / emails from customers module" suggestion pool
+// (PRD §11.2 — dropdown options should come from the customers module).
+const SUGGESTED_PHONE_NUMBERS = [
+  '+65 7211 1122', '+65 8881 1234', '+65 3321 1112', '+65 7211 1988',
+  '+65 9123 4501', '+65 9123 4510', '+65 8123 7766',
+].map((v) => ({ value: v, label: v }))
+
+const SUGGESTED_EMAILS = [
+  'daniel.tan@infra.com.sg', 'sales.tan@infra.com.sg', 'marco.antoni@infra.com.sg', 'romadio.tonio@infra.id',
+  'rifaldo@gmail.com', 'rifaldo66@gmail.com', 'rifaldo991@gmail.com',
+  'ops@sembawanglogistics.com.sg', 'admin@glp.com.sg',
+].map((v) => ({ value: v, label: v }))
+
 interface Props {
   open: boolean
   onClose: () => void
@@ -67,7 +80,7 @@ export default function EditRecipientsModal({ open, onClose, initial, onSave }: 
           style={{ width: '100%' }}
           value={phoneNumbers}
           onChange={setPhoneNumbers}
-          open={false}
+          options={SUGGESTED_PHONE_NUMBERS}
           tokenSeparators={[',']}
           suffixIcon={<span style={{ fontSize: 10, color: '#8c8c8c' }}>▾</span>}
         />
@@ -80,7 +93,7 @@ export default function EditRecipientsModal({ open, onClose, initial, onSave }: 
           style={{ width: '100%' }}
           value={emails}
           onChange={setEmails}
-          open={false}
+          options={SUGGESTED_EMAILS}
           tokenSeparators={[',']}
           suffixIcon={<span style={{ fontSize: 10, color: '#8c8c8c' }}>▾</span>}
         />
@@ -93,7 +106,7 @@ export default function EditRecipientsModal({ open, onClose, initial, onSave }: 
           style={{ width: '100%' }}
           value={emailCc}
           onChange={setEmailCc}
-          open={false}
+          options={SUGGESTED_EMAILS}
           tokenSeparators={[',']}
           suffixIcon={<span style={{ fontSize: 10, color: '#8c8c8c' }}>▾</span>}
         />
