@@ -1,44 +1,21 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import {
-  Typography, Table, Tag, Button, Input, Select, DatePicker, Drawer, Dropdown, Divider, Popover,
+  Typography, Table, Tag, Button, Input, Select, DatePicker, Drawer, Dropdown, Divider, Popover, Tooltip,
 } from 'antd'
 import type { Dayjs } from 'dayjs'
 import {
   FilterOutlined, EyeOutlined, DownOutlined, FileTextOutlined,
   PlusOutlined, PaperClipOutlined, DownloadOutlined, HistoryOutlined,
-  LeftOutlined, RightOutlined,
+  LeftOutlined, RightOutlined, ExclamationCircleOutlined, CheckCircleFilled,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { INVOICES, type Invoice, type InvoiceStatus } from './invoiceData'
+import { StatusBadge, computeStatusFromBalance, canMarkAsSent, canLogPayment } from './invoiceStatusLogic'
+import LogPaymentModal, { type LogPaymentPayload } from './LogPaymentModal'
 import type { AppPage } from '@/App'
 
 const { Text, Title } = Typography
 const { RangePicker } = DatePicker
-
-/* Pill/outline badge palette — every status uses a soft fill + matching
-   border + matching text color, so severity reads through color alone
-   without any status looking "louder" than the others. */
-const STATUS_CONFIG: Record<InvoiceStatus, { color: string; bg: string; border: string }> = {
-  Draft:            { color: '#595959', bg: '#ffffff', border: '#d9d9d9' },
-  Open:             { color: '#1677ff', bg: '#e6f4ff', border: '#91caff' },
-  Overdue:          { color: '#ff4d4f', bg: '#fff1f0', border: '#ffccc7' },
-  Paid:             { color: '#52c41a', bg: '#f6ffed', border: '#b7eb8f' },
-  'Partially Paid': { color: '#faad14', bg: '#fff7e6', border: '#ffd591' },
-}
-
-function StatusBadge({ status }: { status: InvoiceStatus }) {
-  const cfg = STATUS_CONFIG[status]
-  return (
-    <span style={{
-      display: 'inline-flex', alignItems: 'center',
-      padding: '4px 16px', borderRadius: 8, fontSize: 14, fontWeight: 400,
-      color: cfg.color, background: cfg.bg, border: `1px solid ${cfg.border}`,
-      whiteSpace: 'nowrap',
-    }}>
-      {status}
-    </span>
-  )
-}
 
 function fmt(n: number) {
   return `$ ${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -52,14 +29,6 @@ function InfoRow({ label, value, bold }: { label: string; value: string; bold?: 
     </div>
   )
 }
-
-const ACTIONS_ITEMS = [
-  { key: 'sent',    label: 'Mark as Sent',           icon: <FileTextOutlined /> },
-  { key: 'adjust', label: 'Add Adjustment',          icon: <PlusOutlined /> },
-  { key: 'po',     label: 'Attach Purchase Order',   icon: <PaperClipOutlined /> },
-  { key: 'dl',     label: 'Download',                icon: <DownloadOutlined /> },
-  { key: 'hist',   label: 'View Change History',     icon: <HistoryOutlined /> },
-]
 
 interface Props {
   onNavigate: (page: AppPage) => void
@@ -149,9 +118,40 @@ export default function InvoiceTesting2Page({ onNavigate }: Props) {
   const [filterStatus, setFilterStatus] = useState<InvoiceStatus | null>(null)
   const [filterDueDate, setFilterDueDate] = useState<[Dayjs, Dayjs] | null>(null)
   const [lastUpdatedRange, setLastUpdatedRange] = useState<[Dayjs, Dayjs] | null>(null)
-  const [drawerInvoice, setDrawerInvoice] = useState<Invoice | null>(null)
+  const [drawerInvoiceId, setDrawerInvoiceId] = useState<string | null>(null)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
+
+  // Local, session-only overrides — this "2.0" page has no backend, so
+  // Mark as Sent / Log Payment update state here rather than persisting.
+  // Keyed by invoice id so the table, KPI counts, and drawer all stay
+  // in sync no matter which row triggered the change.
+  interface InvoiceOverride {
+    status: InvoiceStatus
+    amountReceived: number
+    outstandingBalance: number
+  }
+  const [overrides, setOverrides] = useState<Record<string, InvoiceOverride>>({})
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [logPaymentOpen, setLogPaymentOpen] = useState(false)
+  const [toast, setToast] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!toast) return
+    const t = setTimeout(() => setToast(null), 3200)
+    return () => clearTimeout(t)
+  }, [toast])
+
+  const effective = (inv: Invoice): Invoice => {
+    const o = overrides[inv.id]
+    return o ? { ...inv, status: o.status, amountReceived: o.amountReceived, outstandingBalance: o.outstandingBalance } : inv
+  }
+
+  const drawerInvoice = useMemo(() => {
+    if (!drawerInvoiceId) return null
+    const base = INVOICES.find((i) => i.id === drawerInvoiceId)
+    return base ? effective(base) : null
+  }, [drawerInvoiceId, overrides])
 
   const customerOptions = useMemo(() => {
     const codes = [...new Set(INVOICES.map((i) => i.customerCode))]
@@ -159,7 +159,7 @@ export default function InvoiceTesting2Page({ onNavigate }: Props) {
   }, [])
 
   const filtered = useMemo(() => {
-    return INVOICES.filter((inv) => {
+    return INVOICES.map(effective).filter((inv) => {
       if (search) {
         const q = search.toLowerCase()
         if (!inv.invoiceNo.toLowerCase().includes(q) &&
@@ -180,16 +180,62 @@ export default function InvoiceTesting2Page({ onNavigate }: Props) {
       }
       return true
     })
-  }, [search, filterCustomer, filterStatus, filterDueDate, lastUpdatedRange])
+  }, [search, filterCustomer, filterStatus, filterDueDate, lastUpdatedRange, overrides])
 
   const paged = useMemo(() => {
     const start = (page - 1) * pageSize
     return filtered.slice(start, start + pageSize)
   }, [filtered, page, pageSize])
 
-  const toSendCount   = INVOICES.filter((i) => i.status === 'Draft').length
-  const pendingCount  = INVOICES.filter((i) => i.status === 'Open' || i.status === 'Partially Paid').length
-  const overdueCount  = INVOICES.filter((i) => i.status === 'Overdue').length
+  const effectiveInvoices = useMemo(() => INVOICES.map(effective), [overrides])
+  const toSendCount   = effectiveInvoices.filter((i) => i.status === 'Draft').length
+  const pendingCount  = effectiveInvoices.filter((i) => i.status === 'Open' || i.status === 'Partially Paid').length
+  const overdueCount  = effectiveInvoices.filter((i) => i.status === 'Overdue').length
+
+  const handleConfirmMarkAsSent = () => {
+    if (!drawerInvoice) return
+    const now = new Date()
+    const dueDate = new Date(drawerInvoice.dueDate)
+    const nextStatus = computeStatusFromBalance(drawerInvoice.grandTotal, drawerInvoice.outstandingBalance, dueDate, now)
+    setOverrides((prev) => ({
+      ...prev,
+      [drawerInvoice.id]: {
+        status: nextStatus,
+        amountReceived: drawerInvoice.amountReceived,
+        outstandingBalance: drawerInvoice.outstandingBalance,
+      },
+    }))
+    setConfirmOpen(false)
+    setToast('Invoice marked as sent')
+  }
+
+  const handleLogPayment = (payload: LogPaymentPayload) => {
+    if (!drawerInvoice) return
+    const now = new Date()
+    const newOutstanding = Math.max(0, drawerInvoice.outstandingBalance - payload.amount)
+    const newReceived = drawerInvoice.amountReceived + payload.amount
+    const dueDate = new Date(drawerInvoice.dueDate)
+    const nextStatus = computeStatusFromBalance(drawerInvoice.grandTotal, newOutstanding, dueDate, now)
+    setOverrides((prev) => ({
+      ...prev,
+      [drawerInvoice.id]: {
+        status: nextStatus,
+        amountReceived: newReceived,
+        outstandingBalance: newOutstanding,
+      },
+    }))
+    setToast('Payment logged successfully')
+  }
+
+  const ACTIONS_ITEMS = [
+    { key: 'sent',   label: 'Mark as Sent',          icon: <FileTextOutlined />, disabled: !drawerInvoice || !canMarkAsSent(drawerInvoice.status), onClick: () => setConfirmOpen(true) },
+    { key: 'adjust', label: 'Add Adjustment',        icon: <PlusOutlined /> },
+    { key: 'po',     label: 'Attach Purchase Order', icon: <PaperClipOutlined /> },
+    { key: 'dl',     label: 'Download',              icon: <DownloadOutlined /> },
+    { key: 'hist',   label: 'View Change History',   icon: <HistoryOutlined /> },
+  ]
+
+  const logPaymentEnabled = !!drawerInvoice && canLogPayment(drawerInvoice.status)
 
   const columns: ColumnsType<Invoice> = [
     {
@@ -395,10 +441,10 @@ export default function InvoiceTesting2Page({ onNavigate }: Props) {
           size="middle"
           pagination={false}
           onRow={(rec) => ({
-            onClick: () => setDrawerInvoice(rec),
+            onClick: () => setDrawerInvoiceId(rec.id),
             style: { cursor: 'pointer' },
           })}
-          rowClassName={(rec) => rec.id === drawerInvoice?.id ? 'ant-table-row-selected' : ''}
+          rowClassName={(rec) => rec.id === drawerInvoiceId ? 'ant-table-row-selected' : ''}
           style={{ borderRadius: 0 }}
         />
       </div>
@@ -415,7 +461,7 @@ export default function InvoiceTesting2Page({ onNavigate }: Props) {
       {/* Quick-view Drawer */}
       <Drawer
         open={!!drawerInvoice}
-        onClose={() => setDrawerInvoice(null)}
+        onClose={() => setDrawerInvoiceId(null)}
         width={560}
         styles={{ body: { padding: 0 }, header: { display: 'none' } }}
       >
@@ -430,7 +476,7 @@ export default function InvoiceTesting2Page({ onNavigate }: Props) {
                   icon={<EyeOutlined />}
                   style={{ padding: 0, fontSize: 13 }}
                   onClick={() => {
-                    setDrawerInvoice(null)
+                    setDrawerInvoiceId(null)
                     onNavigate({ type: 'invoice-detail-testing-2', invoiceId: drawerInvoice.id })
                   }}
                 >
@@ -448,7 +494,17 @@ export default function InvoiceTesting2Page({ onNavigate }: Props) {
                       Actions <DownOutlined style={{ fontSize: 10 }} />
                     </Button>
                   </Dropdown>
-                  <Button size="small" type="primary" style={{ borderRadius: 6 }}>Log Payment</Button>
+                  <Tooltip title={logPaymentEnabled ? '' : 'Log Payment is only available once the invoice has been marked as sent'}>
+                    <Button
+                      size="small"
+                      type="primary"
+                      style={{ borderRadius: 6 }}
+                      disabled={!logPaymentEnabled}
+                      onClick={() => setLogPaymentOpen(true)}
+                    >
+                      Log Payment
+                    </Button>
+                  </Tooltip>
                 </div>
               </div>
             </div>
@@ -537,6 +593,57 @@ export default function InvoiceTesting2Page({ onNavigate }: Props) {
           </div>
         )}
       </Drawer>
+
+      {drawerInvoice && (
+        <LogPaymentModal
+          open={logPaymentOpen}
+          onClose={() => setLogPaymentOpen(false)}
+          grandTotal={drawerInvoice.grandTotal}
+          outstandingBalance={drawerInvoice.outstandingBalance}
+          onSave={handleLogPayment}
+        />
+      )}
+
+      {/* Mark as Sent confirm modal */}
+      {confirmOpen && (
+        <div
+          onClick={() => setConfirmOpen(false)}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(15,23,42,.45)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: 20,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ width: 480, maxWidth: '100%', background: '#fff', borderRadius: 16, padding: '32px 32px 28px', boxShadow: '0 24px 60px rgba(15,23,42,.25)' }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+              <ExclamationCircleOutlined style={{ fontSize: 22, color: '#faad14' }} />
+              <Text style={{ fontSize: 17, fontWeight: 700, color: '#1a1a1a' }}>{'{{refer to copy master list}}'}</Text>
+            </div>
+            <Text style={{ fontSize: 13.5, color: '#595959', display: 'block', marginLeft: 34, marginBottom: 26, lineHeight: 1.6 }}>
+              {'{{refer to copy master list}}'}
+            </Text>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <Button size="large" style={{ borderRadius: 8 }} onClick={() => setConfirmOpen(false)}>Cancel</Button>
+              <Button size="large" type="primary" style={{ borderRadius: 8 }} onClick={handleConfirmMarkAsSent}>Confirm</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast */}
+      {toast && (
+        <div style={{
+          position: 'fixed', top: 20, right: 20, zIndex: 2100,
+          display: 'flex', alignItems: 'center', gap: 10,
+          background: '#fff', border: '1px solid #f0f0f0', borderLeft: '3px solid #52c41a', borderRadius: 8,
+          padding: '13px 16px', minWidth: 300, boxShadow: '0 10px 28px rgba(15,23,42,.14)',
+        }}>
+          <CheckCircleFilled style={{ color: '#52c41a', fontSize: 16 }} />
+          <Text style={{ fontSize: 13.5, color: '#1a1a1a' }}>{toast}</Text>
+        </div>
+      )}
     </div>
   )
 }
