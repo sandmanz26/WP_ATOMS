@@ -1,8 +1,11 @@
-import { useState, useEffect } from 'react'
-import { Typography, Button, Table, Dropdown } from 'antd'
+import { useState, useEffect, useRef } from 'react'
+import { Typography, Button, Table, Dropdown, Tooltip } from 'antd'
 import { DownOutlined, PlusOutlined, MoreOutlined, CheckCircleFilled } from '@ant-design/icons'
 import { NOTIFICATIONS, type TripNotification } from './notificationData'
-import { NotificationStatusBadge, TripStatusBadge } from './notificationStatusLogic'
+import {
+  NotificationStatusBadge, TripStatusBadge, computeContractNotificationStatus,
+  canMarkAsNotRequired, canSendNotification, markAsNotRequiredTooltip, sendNotificationTooltip,
+} from './notificationStatusLogic'
 import EditRecipientsModal from './EditRecipientsModal'
 
 const { Text, Title } = Typography
@@ -16,16 +19,16 @@ function LabelValue({ label, value }: { label: string; value: string }) {
   )
 }
 
-const SENT_MENU_ITEMS = [
-  { key: 'send-now', label: 'Send Now' },
-  { key: 'resend-all', label: 'Resend All' },
-  { key: 'cancel-send', label: 'Cancel Send' },
-]
-
 const ROW_ACTION_ITEMS = [
   { key: 'view', label: 'View trip details' },
   { key: 'track', label: 'Track trip' },
   { key: 'history', label: 'View send history' },
+]
+
+const TAB_ITEMS = [
+  { key: 'basic', label: 'Basic Information' },
+  { key: 'trips', label: 'Trips in Daily Schedule' },
+  { key: 'additional', label: 'Additional Information' },
 ]
 
 interface Props {
@@ -36,7 +39,21 @@ interface Props {
 export default function CustomerNotificationDetailPage({ notificationId }: Props) {
   const notification = NOTIFICATIONS.find((n) => n.id === notificationId) ?? NOTIFICATIONS[0]
 
+  // Contract-level status is always computed from trips, never stored —
+  // see notificationStatusLogic.tsx / PRD §2.2.
+  const contractStatus = computeContractNotificationStatus(notification.trips)
   const sentCount = notification.trips.filter((t) => t.notificationStatus === 'Sent').length
+
+  const [activeTab, setActiveTab] = useState('basic')
+  const sectionRefs = {
+    basic: useRef<HTMLDivElement>(null),
+    trips: useRef<HTMLDivElement>(null),
+    additional: useRef<HTMLDivElement>(null),
+  }
+  const scrollTo = (key: string) => {
+    sectionRefs[key as keyof typeof sectionRefs]?.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    setActiveTab(key)
+  }
 
   // Local, session-only recipients override + toast — this page has no
   // backend, so Edit Recipients updates state here rather than persisting.
@@ -52,14 +69,29 @@ export default function CustomerNotificationDetailPage({ notificationId }: Props
     return () => clearTimeout(t)
   }, [toast])
 
+  // PRD §7.6 / Appendix B — enable/disable rules
   const ACTIONS_ITEMS = [
     { key: 'edit-recipients', label: 'Edit Recipients', onClick: () => setEditRecipientsOpen(true) },
-    { key: 'mark-required', label: 'Mark as Required', onClick: () => setToast('Marked as required') },
+    {
+      key: 'mark-not-required',
+      disabled: !canMarkAsNotRequired(contractStatus),
+      label: markAsNotRequiredTooltip(contractStatus)
+        ? <Tooltip title={markAsNotRequiredTooltip(contractStatus)} placement="left">Mark as Not Required</Tooltip>
+        : 'Mark as Not Required',
+      onClick: () => setToast('Entering "Mark as Not Required" selection mode is not yet built — coming soon'),
+    },
+  ]
+
+  const sendDisabled = !canSendNotification(contractStatus)
+  const SEND_MENU_ITEMS = [
+    { key: 'email', label: 'Email', disabled: sendDisabled, onClick: () => setToast('Send Email flow is not yet built — coming soon') },
+    { key: 'sms',   label: 'SMS',   disabled: sendDisabled, onClick: () => setToast('Send SMS flow is not yet built — coming soon') },
   ]
 
   const tripColumns = [
     {
       title: 'Trip Date', dataIndex: 'date', key: 'date', width: 130,
+      sorter: (a: TripNotification, b: TripNotification) => a.date.localeCompare(b.date),
       render: (v: string) => <Text style={{ fontSize: 13 }}>{v}</Text>,
     },
     {
@@ -76,6 +108,7 @@ export default function CustomerNotificationDetailPage({ notificationId }: Props
     },
     {
       title: 'Notification Status', dataIndex: 'notificationStatus', key: 'notificationStatus', width: 170,
+      sorter: (a: TripNotification, b: TripNotification) => a.notificationStatus.localeCompare(b.notificationStatus),
       render: (v: TripNotification['notificationStatus']) => <TripStatusBadge status={v} />,
     },
     {
@@ -94,31 +127,53 @@ export default function CustomerNotificationDetailPage({ notificationId }: Props
   )
 
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: 24, position: 'relative' }}>
       {/* ── Header ── */}
-      <div style={{ background: '#fff', border: '1px solid #f0f0f0', borderRadius: 10, marginBottom: 12, padding: '20px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <Title level={3} style={{ margin: 0, fontWeight: 700 }}>{notification.contractNo}</Title>
-          <NotificationStatusBadge status={notification.notificationStatus} />
+      <div style={{ background: '#fff', border: '1px solid #f0f0f0', borderRadius: 10, marginBottom: 12, overflow: 'hidden' }}>
+        <div style={{ padding: '20px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <Title level={3} style={{ margin: 0, fontWeight: 700 }}>{notification.contractNo}</Title>
+            <NotificationStatusBadge status={contractStatus} />
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Dropdown menu={{ items: ACTIONS_ITEMS }} trigger={['click']}>
+              <Button style={{ borderRadius: 6 }}>
+                Actions <DownOutlined style={{ fontSize: 10 }} />
+              </Button>
+            </Dropdown>
+            <Dropdown menu={{ items: SEND_MENU_ITEMS }} trigger={['click']}>
+              <Tooltip title={sendNotificationTooltip(contractStatus) ?? ''}>
+                <Button type="primary" style={{ borderRadius: 6 }}>
+                  Send <DownOutlined style={{ fontSize: 10 }} />
+                </Button>
+              </Tooltip>
+            </Dropdown>
+          </div>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <Dropdown menu={{ items: ACTIONS_ITEMS }} trigger={['click']}>
-            <Button style={{ borderRadius: 6 }}>
-              Actions <DownOutlined style={{ fontSize: 10 }} />
-            </Button>
-          </Dropdown>
-          <Dropdown menu={{ items: SENT_MENU_ITEMS }} trigger={['click']}>
-            <Button type="primary" style={{ borderRadius: 6 }}>
-              Sent <DownOutlined style={{ fontSize: 10 }} />
-            </Button>
-          </Dropdown>
+
+        {/* ── Tab nav ── */}
+        <div style={{ display: 'flex', borderTop: '1px solid #f0f0f0' }}>
+          {TAB_ITEMS.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => scrollTo(tab.key)}
+              style={{
+                padding: '11px 18px', border: 'none', cursor: 'pointer', fontSize: 14,
+                fontWeight: activeTab === tab.key ? 600 : 400, whiteSpace: 'nowrap',
+                background: 'none',
+                borderBottom: `2px solid ${activeTab === tab.key ? '#1677ff' : 'transparent'}`,
+                color: activeTab === tab.key ? '#1677ff' : '#595959',
+                transition: 'all .15s',
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* ── All sections in one card ── */}
-      <div style={{ background: '#fff', border: '1px solid #f0f0f0', borderRadius: 10, overflow: 'hidden' }}>
-
-        {/* ── Basic Information ── */}
+      {/* ── Basic Information ── */}
+      <div ref={sectionRefs.basic} style={{ background: '#fff', border: '1px solid #f0f0f0', borderRadius: 10, overflow: 'hidden' }}>
         <div style={sectionPad}>
           {sectionTitle('Basic Information')}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px 24px', marginBottom: 20 }}>
@@ -127,15 +182,15 @@ export default function CustomerNotificationDetailPage({ notificationId }: Props
             <LabelValue label="Contract Title"  value={notification.contractTitle} />
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px 24px' }}>
-            <LabelValue label="Phone Number" value={phoneNumbers.join(', ')} />
-            <LabelValue label="Email"        value={emails.join(', ')} />
-            <LabelValue label="Email CC"     value={emailCc.join(', ')} />
+            <LabelValue label="Mobile Number" value={phoneNumbers.length ? phoneNumbers.join(', ') : '-'} />
+            <LabelValue label="Email"         value={emails.length ? emails.join(', ') : '-'} />
+            <LabelValue label="Email Cc"      value={emailCc.length ? emailCc.join(', ') : '-'} />
           </div>
         </div>
       </div>
 
       {/* ── Trips in Daily Schedule ── */}
-      <div style={{ background: '#fff', border: '1px solid #f0f0f0', borderRadius: 10, overflow: 'hidden', marginTop: 16 }}>
+      <div ref={sectionRefs.trips} style={{ background: '#fff', border: '1px solid #f0f0f0', borderRadius: 10, overflow: 'hidden', marginTop: 16 }}>
         <div style={{ padding: '20px 24px 0' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 16 }}>
             <Text style={{ fontSize: 15, fontWeight: 700 }}>Trips in Daily Schedule</Text>
@@ -161,7 +216,7 @@ export default function CustomerNotificationDetailPage({ notificationId }: Props
       </div>
 
       {/* ── Additional Information ── */}
-      <div style={{ background: '#fff', border: '1px solid #f0f0f0', borderRadius: 10, overflow: 'hidden', marginTop: 16 }}>
+      <div ref={sectionRefs.additional} style={{ background: '#fff', border: '1px solid #f0f0f0', borderRadius: 10, overflow: 'hidden', marginTop: 16 }}>
         <div style={sectionPad}>
           {sectionTitle('Additional Information')}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '16px 24px' }}>
@@ -198,9 +253,9 @@ export default function CustomerNotificationDetailPage({ notificationId }: Props
           position: 'fixed', top: 20, right: 20, zIndex: 1100,
           display: 'flex', alignItems: 'center', gap: 10,
           background: '#fff', border: '1px solid #f0f0f0', borderLeft: '3px solid #52c41a', borderRadius: 8,
-          padding: '13px 16px', minWidth: 260, boxShadow: '0 10px 28px rgba(15,23,42,.14)',
+          padding: '13px 16px', minWidth: 260, maxWidth: 360, boxShadow: '0 10px 28px rgba(15,23,42,.14)',
         }}>
-          <CheckCircleFilled style={{ color: '#52c41a', fontSize: 16 }} />
+          <CheckCircleFilled style={{ color: '#52c41a', fontSize: 16, flexShrink: 0, marginTop: 1 }} />
           <Text style={{ fontSize: 13.5, color: '#1a1a1a' }}>{toast}</Text>
         </div>
       )}

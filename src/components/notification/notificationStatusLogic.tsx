@@ -45,3 +45,37 @@ export function TripStatusBadge({ status }: { status: TripNotificationStatus }) 
     </span>
   )
 }
+
+/* Contract-level status is always derived from its trips' statuses, per
+   the aggregation rule (customernotificationvibecoding.md §2.2) — never
+   stored/edited directly, so it can't drift out of sync as trips change. */
+export function computeContractNotificationStatus(trips: { notificationStatus: TripNotificationStatus }[]): NotificationStatus {
+  const total = trips.length
+  if (total === 0) return 'Pending Assignment'
+
+  const allPending = trips.every((t) => t.notificationStatus === 'Pending Assignment')
+  if (allPending) return 'Pending Assignment'
+
+  const progressCount = trips.filter((t) => t.notificationStatus === 'Sent' || t.notificationStatus === 'Not Required').length
+  if (progressCount === total) return 'Completed'
+  if (progressCount >= 1) return 'Partially Sent'
+
+  // No trip sent or marked not required yet, but not all pending either
+  // (i.e. at least one is ready to send / resend required).
+  return 'Ready to Send'
+}
+
+// Enable/disable rules from Appendix B
+export function canMarkAsNotRequired(contractStatus: NotificationStatus) {
+  return contractStatus !== 'Completed'
+}
+
+export function canSendNotification(contractStatus: NotificationStatus) {
+  return contractStatus !== 'Pending Assignment'
+}
+
+export const markAsNotRequiredTooltip = (contractStatus: NotificationStatus): string | null =>
+  canMarkAsNotRequired(contractStatus) ? null : 'All trips have already been sent or marked as not required'
+
+export const sendNotificationTooltip = (contractStatus: NotificationStatus): string | null =>
+  canSendNotification(contractStatus) ? null : 'Assign a driver and vehicle before sending notifications'

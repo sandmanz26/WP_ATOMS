@@ -4,7 +4,7 @@ import type { Dayjs } from 'dayjs'
 import { FilterOutlined, LeftOutlined, RightOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { NOTIFICATIONS, type CustomerNotification, type ContractStatus, type NotificationStatus } from './notificationData'
-import { ContractStatusBadge, NotificationStatusBadge } from './notificationStatusLogic'
+import { ContractStatusBadge, NotificationStatusBadge, computeContractNotificationStatus } from './notificationStatusLogic'
 import type { AppPage } from '@/App'
 
 const { Text, Title } = Typography
@@ -34,6 +34,11 @@ const PAGE_SIZE_OPTIONS = [
   { value: 20, label: '20 / page' },
   { value: 50, label: '50 / page' },
 ]
+
+// A notification row + its computed (never stored) contract-level status
+interface NotificationRow extends CustomerNotification {
+  computedStatus: NotificationStatus
+}
 
 /* Pagination lives in its own card, detached from the table — same
    pattern as InvoiceTesting2Page.tsx's PaginationBar. */
@@ -100,10 +105,10 @@ function PaginationBar({
 export default function CustomerNotificationPage({ onNavigate }: Props) {
   const [search, setSearch] = useState('')
   const [filterOpen, setFilterOpen] = useState(false)
-  const [filterCustomer, setFilterCustomer] = useState<string | null>(null)
+  const [filterCustomer, setFilterCustomer] = useState<string[]>([])
   const [filterContractPeriod, setFilterContractPeriod] = useState<[Dayjs, Dayjs] | null>(null)
-  const [filterContractStatus, setFilterContractStatus] = useState<ContractStatus | null>(null)
-  const [filterNotificationStatus, setFilterNotificationStatus] = useState<NotificationStatus | null>(null)
+  const [filterContractStatus, setFilterContractStatus] = useState<ContractStatus[]>([])
+  const [filterNotificationStatus, setFilterNotificationStatus] = useState<NotificationStatus[]>([])
   const [lastUpdatedRange, setLastUpdatedRange] = useState<[Dayjs, Dayjs] | null>(null)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
@@ -113,17 +118,23 @@ export default function CustomerNotificationPage({ onNavigate }: Props) {
     return codes.map((c) => ({ value: c, label: c }))
   }, [])
 
+  // Contract-level status is always computed from trips (never read from a
+  // stored field), per the aggregation rule in the notification PRD §2.2.
+  const rows: NotificationRow[] = useMemo(
+    () => NOTIFICATIONS.map((n) => ({ ...n, computedStatus: computeContractNotificationStatus(n.trips) })),
+    [],
+  )
+
   const filtered = useMemo(() => {
-    return NOTIFICATIONS.filter((n) => {
+    return rows.filter((n) => {
       if (search) {
         const q = search.toLowerCase()
         if (!n.contractNo.toLowerCase().includes(q) &&
-            !n.customerCode.toLowerCase().includes(q) &&
             !n.contractTitle.toLowerCase().includes(q)) return false
       }
-      if (filterCustomer && n.customerCode !== filterCustomer) return false
-      if (filterContractStatus && n.contractStatus !== filterContractStatus) return false
-      if (filterNotificationStatus && n.notificationStatus !== filterNotificationStatus) return false
+      if (filterCustomer.length && !filterCustomer.includes(n.customerCode)) return false
+      if (filterContractStatus.length && !filterContractStatus.includes(n.contractStatus)) return false
+      if (filterNotificationStatus.length && !filterNotificationStatus.includes(n.computedStatus)) return false
       if (lastUpdatedRange) {
         const [from, to] = lastUpdatedRange
         const d = new Date(n.lastUpdatedOn).getTime()
@@ -131,17 +142,29 @@ export default function CustomerNotificationPage({ onNavigate }: Props) {
       }
       return true
     })
-  }, [search, filterCustomer, filterContractStatus, filterNotificationStatus, lastUpdatedRange])
+  }, [rows, search, filterCustomer, filterContractStatus, filterNotificationStatus, lastUpdatedRange])
 
   const paged = useMemo(() => {
     const start = (page - 1) * pageSize
     return filtered.slice(start, start + pageSize)
   }, [filtered, page, pageSize])
 
-  const pendingAssignmentCount = NOTIFICATIONS.filter((n) => n.notificationStatus === 'Pending Assignment').length
-  const toSendCount = NOTIFICATIONS.filter((n) => n.notificationStatus === 'Ready to Send').length
+  // Highlights only count ad-hoc contracts that are still upcoming/active
+  // (voided/ended contracts don't need further notification action) — PRD §6.1
+  const activeRows = rows.filter((n) => n.contractStatus === 'Upcoming' || n.contractStatus === 'Active')
+  const pendingAssignmentCount = activeRows.filter((n) => n.computedStatus === 'Pending Assignment').length
+  const toSendCount = activeRows.filter((n) => n.computedStatus === 'Ready to Send').length
 
-  const columns: ColumnsType<CustomerNotification> = [
+  const applyHighlightFilter = (status: NotificationStatus) => {
+    setFilterCustomer([])
+    setFilterContractPeriod(null)
+    setFilterContractStatus(['Upcoming', 'Active'])
+    setFilterNotificationStatus([status])
+    setLastUpdatedRange(null)
+    setPage(1)
+  }
+
+  const columns: ColumnsType<NotificationRow> = [
     {
       title: 'Contract No.',
       dataIndex: 'contractNo',
@@ -178,16 +201,20 @@ export default function CustomerNotificationPage({ onNavigate }: Props) {
     },
     {
       title: 'Notification Status',
-      dataIndex: 'notificationStatus',
-      sorter: (a, b) => a.notificationStatus.localeCompare(b.notificationStatus),
+      dataIndex: 'computedStatus',
+      sorter: (a, b) => a.computedStatus.localeCompare(b.computedStatus),
       render: (v: NotificationStatus) => <NotificationStatusBadge status={v} />,
       width: 170,
     },
     {
       title: 'Progress',
       key: 'progress',
-      sorter: (a, b) => (a.sentCount / a.totalCount) - (b.sentCount / b.totalCount),
-      render: (_, rec) => <Text style={{ fontSize: 13, fontVariantNumeric: 'tabular-nums' }}>{rec.sentCount}/{rec.totalCount}</Text>,
+      sorter: (a, b) => (a.trips.filter((t) => t.notificationStatus === 'Sent').length / a.trips.length) -
+                         (b.trips.filter((t) => t.notificationStatus === 'Sent').length / b.trips.length),
+      render: (_, rec) => {
+        const sent = rec.trips.filter((t) => t.notificationStatus === 'Sent').length
+        return <Text style={{ fontSize: 13, fontVariantNumeric: 'tabular-nums' }}>{sent}/{rec.trips.length}</Text>
+      },
       width: 90,
     },
     {
@@ -205,10 +232,10 @@ export default function CustomerNotificationPage({ onNavigate }: Props) {
   ]
 
   const clearAllFilters = () => {
-    setFilterCustomer(null)
+    setFilterCustomer([])
     setFilterContractPeriod(null)
-    setFilterContractStatus(null)
-    setFilterNotificationStatus(null)
+    setFilterContractStatus([])
+    setFilterNotificationStatus([])
   }
 
   const filterContent = (
@@ -218,12 +245,14 @@ export default function CustomerNotificationPage({ onNavigate }: Props) {
         <div>
           <Text style={{ fontSize: 12, color: '#8c8c8c', display: 'block', marginBottom: 6 }}>Customer Code</Text>
           <Select
+            mode="multiple"
             placeholder="Select customer"
             allowClear
             style={{ width: '100%' }}
             options={customerOptions}
             value={filterCustomer}
-            onChange={(v) => { setFilterCustomer(v ?? null); setPage(1) }}
+            onChange={(v) => { setFilterCustomer(v); setPage(1) }}
+            maxTagCount="responsive"
           />
         </div>
         <div>
@@ -240,23 +269,27 @@ export default function CustomerNotificationPage({ onNavigate }: Props) {
         <div>
           <Text style={{ fontSize: 12, color: '#8c8c8c', display: 'block', marginBottom: 6 }}>Contract Status</Text>
           <Select
+            mode="multiple"
             placeholder="Select status"
             allowClear
             style={{ width: '100%' }}
             options={CONTRACT_STATUS_OPTIONS}
             value={filterContractStatus}
-            onChange={(v) => { setFilterContractStatus(v ?? null); setPage(1) }}
+            onChange={(v) => { setFilterContractStatus(v); setPage(1) }}
+            maxTagCount="responsive"
           />
         </div>
         <div>
           <Text style={{ fontSize: 12, color: '#8c8c8c', display: 'block', marginBottom: 6 }}>Notification Status</Text>
           <Select
+            mode="multiple"
             placeholder="Select status"
             allowClear
             style={{ width: '100%' }}
             options={NOTIFICATION_STATUS_OPTIONS}
             value={filterNotificationStatus}
-            onChange={(v) => { setFilterNotificationStatus(v ?? null); setPage(1) }}
+            onChange={(v) => { setFilterNotificationStatus(v); setPage(1) }}
+            maxTagCount="responsive"
           />
         </div>
       </div>
@@ -266,23 +299,28 @@ export default function CustomerNotificationPage({ onNavigate }: Props) {
     </div>
   )
 
-  const hasFilter = !!filterCustomer || !!filterContractPeriod || !!filterContractStatus || !!filterNotificationStatus || !!lastUpdatedRange
+  const hasFilter = filterCustomer.length > 0 || !!filterContractPeriod || filterContractStatus.length > 0 || filterNotificationStatus.length > 0 || !!lastUpdatedRange
 
   return (
     <div style={{ padding: 24 }}>
       {/* Title */}
       <Title level={2} style={{ marginBottom: 20, fontWeight: 700 }}>Customer Notifications</Title>
 
-      {/* KPI stat cards */}
+      {/* KPI stat cards — also act as quick filters that override any
+          existing search/filter (PRD §6.2) */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16, marginBottom: 20, maxWidth: 720 }}>
-        {[
-          { label: 'Pending Assignment', count: pendingAssignmentCount },
-          { label: 'To Send',            count: toSendCount },
-        ].map((kpi) => (
-          <div key={kpi.label} style={{
-            background: '#fff', borderRadius: 10, border: '1px solid #f0f0f0',
-            padding: '20px 24px',
-          }}>
+        {([
+          { label: 'Pending Assignment', count: pendingAssignmentCount, status: 'Pending Assignment' as NotificationStatus },
+          { label: 'To Send',            count: toSendCount,            status: 'Ready to Send' as NotificationStatus },
+        ]).map((kpi) => (
+          <div
+            key={kpi.label}
+            onClick={() => applyHighlightFilter(kpi.status)}
+            style={{
+              background: '#fff', borderRadius: 10, border: '1px solid #f0f0f0',
+              padding: '20px 24px', cursor: 'pointer',
+            }}
+          >
             <Text style={{ fontSize: 32, fontWeight: 700, color: '#1a1a1a', display: 'block', lineHeight: 1 }}>
               {kpi.count}
             </Text>
@@ -307,7 +345,7 @@ export default function CustomerNotificationPage({ onNavigate }: Props) {
         />
         <Input
           size="small"
-          placeholder="Search Customer Notification"
+          placeholder="Search customer notifications"
           style={{ width: 230, borderRadius: 6 }}
           value={search}
           onChange={(e) => { setSearch(e.target.value); setPage(1) }}
@@ -350,7 +388,7 @@ export default function CustomerNotificationPage({ onNavigate }: Props) {
             background: #e8eaed;
           }
         `}</style>
-        <Table<CustomerNotification>
+        <Table<NotificationRow>
           columns={columns}
           dataSource={paged}
           rowKey="id"
