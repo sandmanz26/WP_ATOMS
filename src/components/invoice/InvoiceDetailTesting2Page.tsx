@@ -5,7 +5,7 @@ import {
   FileTextOutlined, PlusOutlined, PaperClipOutlined, DownloadOutlined, HistoryOutlined,
 } from '@ant-design/icons'
 import { INVOICES, type InvoiceStatus, type TripRecord, type OtherChargeRecord, type AdjustmentRecord, type PaymentRecord } from './invoiceData'
-import { StatusBadge, computeStatusFromBalance, canMarkAsSent, canLogPayment } from './invoiceStatusLogic'
+import { StatusBadge, computeStatusFromBalance, canMarkAsSent, canLogPayment, markAsSentTooltip, logPaymentTooltip } from './invoiceStatusLogic'
 import LogPaymentModal, { type LogPaymentPayload } from './LogPaymentModal'
 
 const { Text, Title } = Typography
@@ -80,7 +80,12 @@ export default function InvoiceDetailTesting2Page({ invoiceId }: Props) {
   }, [toast])
 
   const ACTIONS_ITEMS = [
-    { key: 'sent',   label: 'Mark as Sent',          icon: <FileTextOutlined />, disabled: !canMarkAsSent(status), onClick: () => setConfirmOpen(true) },
+    {
+      key: 'sent', icon: <FileTextOutlined />, disabled: !canMarkAsSent(status), onClick: () => setConfirmOpen(true),
+      label: markAsSentTooltip(status)
+        ? <Tooltip title={markAsSentTooltip(status)} placement="left">Mark as Sent</Tooltip>
+        : 'Mark as Sent',
+    },
     { key: 'adj',    label: 'Add Adjustment',         icon: <PlusOutlined /> },
     { key: 'po',     label: 'Attach Purchase Order',  icon: <PaperClipOutlined /> },
     { key: 'dl',     label: 'Download',               icon: <DownloadOutlined /> },
@@ -275,7 +280,7 @@ export default function InvoiceDetailTesting2Page({ invoiceId }: Props) {
                 Actions <DownOutlined style={{ fontSize: 10 }} />
               </Button>
             </Dropdown>
-            <Tooltip title={logPaymentEnabled ? '' : 'Log Payment is only available once the invoice has been marked as sent'}>
+            <Tooltip title={logPaymentTooltip(status) ?? ''}>
               <Button
                 type="primary"
                 style={{ borderRadius: 6 }}

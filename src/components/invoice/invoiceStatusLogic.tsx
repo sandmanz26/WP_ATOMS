@@ -33,12 +33,41 @@ export function computeStatusFromBalance(grandTotal: number, outstandingBalance:
   return 'Open'
 }
 
-// PRD §8.1 — Mark as Sent only enabled when status = draft
+// Action-per-status matrix (PRD_WLA_Invoices_Actions_Status_Matrix §4).
+// "Void" isn't a modeled InvoiceStatus value yet — nothing in the UI can
+// produce it — so these checks only need to cover the 5 statuses in play.
+
+// Mark as Sent — enabled only when status = draft
 export function canMarkAsSent(status: InvoiceStatus) {
   return status === 'Draft'
 }
 
-// PRD §9.1 — Log Payment only enabled when status = open / partially paid / overdue
+// Add Adjustment — enabled for draft/open/partially paid/overdue, not paid
+export function canAddAdjustment(status: InvoiceStatus) {
+  return status !== 'Paid'
+}
+
+// Log Payment — enabled only when status = open / partially paid / overdue
 export function canLogPayment(status: InvoiceStatus) {
   return status === 'Open' || status === 'Partially Paid' || status === 'Overdue'
+}
+
+// Email Invoice — enabled only when status = open / partially paid / overdue
+export function canEmailInvoice(status: InvoiceStatus) {
+  return status === 'Open' || status === 'Partially Paid' || status === 'Overdue'
+}
+
+// Exact tooltip copy from the disabled-state table (§4)
+export function markAsSentTooltip(status: InvoiceStatus): string | null {
+  return canMarkAsSent(status) ? null : 'Invoice has already been marked as sent'
+}
+
+export function addAdjustmentTooltip(status: InvoiceStatus): string | null {
+  return status === 'Paid' ? 'Unable to add adjustment to a fully paid invoice' : null
+}
+
+export function logPaymentTooltip(status: InvoiceStatus): string | null {
+  if (status === 'Draft') return 'Invoice must be marked as sent before logging payment'
+  if (status === 'Paid') return 'Invoice has been fully paid'
+  return null
 }

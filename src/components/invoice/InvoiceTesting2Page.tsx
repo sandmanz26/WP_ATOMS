@@ -10,7 +10,7 @@ import {
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { INVOICES, type Invoice, type InvoiceStatus } from './invoiceData'
-import { StatusBadge, computeStatusFromBalance, canMarkAsSent, canLogPayment } from './invoiceStatusLogic'
+import { StatusBadge, computeStatusFromBalance, canMarkAsSent, canLogPayment, markAsSentTooltip, logPaymentTooltip } from './invoiceStatusLogic'
 import LogPaymentModal, { type LogPaymentPayload } from './LogPaymentModal'
 import type { AppPage } from '@/App'
 
@@ -227,8 +227,14 @@ export default function InvoiceTesting2Page({ onNavigate }: Props) {
     setToast('Payment logged successfully')
   }
 
+  const drawerSentTooltip = drawerInvoice ? markAsSentTooltip(drawerInvoice.status) : null
   const ACTIONS_ITEMS = [
-    { key: 'sent',   label: 'Mark as Sent',          icon: <FileTextOutlined />, disabled: !drawerInvoice || !canMarkAsSent(drawerInvoice.status), onClick: () => setConfirmOpen(true) },
+    {
+      key: 'sent', icon: <FileTextOutlined />, disabled: !drawerInvoice || !canMarkAsSent(drawerInvoice.status), onClick: () => setConfirmOpen(true),
+      label: drawerSentTooltip
+        ? <Tooltip title={drawerSentTooltip} placement="left">Mark as Sent</Tooltip>
+        : 'Mark as Sent',
+    },
     { key: 'adjust', label: 'Add Adjustment',        icon: <PlusOutlined /> },
     { key: 'po',     label: 'Attach Purchase Order', icon: <PaperClipOutlined /> },
     { key: 'dl',     label: 'Download',              icon: <DownloadOutlined /> },
@@ -494,7 +500,7 @@ export default function InvoiceTesting2Page({ onNavigate }: Props) {
                       Actions <DownOutlined style={{ fontSize: 10 }} />
                     </Button>
                   </Dropdown>
-                  <Tooltip title={logPaymentEnabled ? '' : 'Log Payment is only available once the invoice has been marked as sent'}>
+                  <Tooltip title={logPaymentTooltip(drawerInvoice.status) ?? ''}>
                     <Button
                       size="small"
                       type="primary"
