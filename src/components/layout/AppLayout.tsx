@@ -66,6 +66,13 @@ export default function AppLayout({
             ),
             onClick: () => onNavigate?.({ type: 'invoice-testing-2' }),
           },
+          {
+            key: 'customer-notification',
+            label: (
+              <Text style={{ fontSize: 13, paddingLeft: 8 }}>Customer Notification</Text>
+            ),
+            onClick: () => onNavigate?.({ type: 'customer-notification' }),
+          },
         ]
       : []),
   ]

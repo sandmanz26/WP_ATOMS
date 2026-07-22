@@ -16,6 +16,8 @@ import InvoiceDetailPage from '@/components/invoice/InvoiceDetailPage'
 import InvoiceTesting2Page from '@/components/invoice/InvoiceTesting2Page'
 import InvoiceDetailTesting2Page from '@/components/invoice/InvoiceDetailTesting2Page'
 import NotificationPage from '@/components/sales-module/NotificationPage'
+import CustomerNotificationPage from '@/components/notification/CustomerNotificationPage'
+import CustomerNotificationDetailPage from '@/components/notification/CustomerNotificationDetailPage'
 import { Button } from 'antd'
 import { ArrowLeftOutlined } from '@ant-design/icons'
 
@@ -36,6 +38,8 @@ export type AppPage =
   | { type: 'invoice-testing-2' }
   | { type: 'invoice-detail-testing-2'; invoiceId: string }
   | { type: 'notification' }
+  | { type: 'customer-notification' }
+  | { type: 'customer-notification-detail'; notificationId: string }
 
 export default function App() {
   const [page, setPage] = useState<AppPage>({ type: 'live-tracking-testing-2' })
@@ -159,6 +163,36 @@ export default function App() {
     return (
       <AppLayout activeKey="notification" breadcrumbLabel="Notifications" onNavigate={navigate}>
         <NotificationPage />
+      </AppLayout>
+    )
+  }
+
+  if (page.type === 'customer-notification') {
+    return (
+      <AppLayout activeKey="customer-notification" breadcrumbLabel="Customer Notification" onNavigate={navigate}>
+        <CustomerNotificationPage onNavigate={navigate} />
+      </AppLayout>
+    )
+  }
+
+  if (page.type === 'customer-notification-detail') {
+    return (
+      <AppLayout
+        activeKey="customer-notification"
+        breadcrumbItems={['Customer Notification', 'Notification Details']}
+        topBarRight={
+          <Button
+            size="small"
+            icon={<ArrowLeftOutlined />}
+            onClick={() => navigate({ type: 'customer-notification' })}
+            style={{ borderRadius: 6 }}
+          >
+            Return to Listing
+          </Button>
+        }
+        onNavigate={navigate}
+      >
+        <CustomerNotificationDetailPage notificationId={page.notificationId} onBack={() => navigate({ type: 'customer-notification' })} />
       </AppLayout>
     )
   }
