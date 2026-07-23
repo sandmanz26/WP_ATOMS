@@ -189,6 +189,7 @@ export default function InvoiceDetailPage({ invoiceId }: Props) {
   const adjTotal  = invoice.adjustments.reduce((s, a) => a.type === 'Additional Payment' ? s + a.amount : s - a.amount, 0)
   const payTotal  = invoice.payments.reduce((s, p) => s + p.amount, 0)
 
+  const cardStyle: React.CSSProperties = { background: '#fff', border: '1px solid #f0f0f0', borderRadius: 10, overflow: 'hidden' }
   const sectionPad: React.CSSProperties = { padding: 24 }
   const sectionTitle = (label: string) => (
     <Text style={{ fontSize: 15, fontWeight: 700, display: 'block', marginBottom: 20 }}>{label}</Text>
@@ -197,7 +198,7 @@ export default function InvoiceDetailPage({ invoiceId }: Props) {
   return (
     <div style={{ padding: 24 }}>
       {/* ── Invoice header ── */}
-      <div style={{ background: '#fff', border: '1px solid #f0f0f0', borderRadius: 10, marginBottom: 12, overflow: 'hidden' }}>
+      <div style={{ ...cardStyle, marginBottom: 16 }}>
         <div style={{ padding: '20px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <Title level={3} style={{ margin: 0, fontWeight: 700 }}>{invoice.invoiceNo}</Title>
@@ -240,72 +241,64 @@ export default function InvoiceDetailPage({ invoiceId }: Props) {
         </div>
       </div>
 
-      {/* ── All sections in one card ── */}
-      <div style={{ background: '#fff', border: '1px solid #f0f0f0', borderRadius: 10, overflow: 'hidden' }}>
-
-        {/* ── Basic Information ── */}
-        <div ref={sectionRefs.basic} id="basic" style={sectionPad}>
+      {/* ── Basic Information + Summary (two separate cards, side by side) ── */}
+      <div style={{ display: 'flex', gap: 16 }}>
+        <div ref={sectionRefs.basic} id="basic" style={{ ...cardStyle, ...sectionPad, flex: 1 }}>
           {sectionTitle('Basic Information')}
-          <div style={{ display: 'flex', gap: 24 }}>
-            <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px 24px' }}>
-              <LabelValue label="Customer Code"   value={invoice.customerCode} />
-              <LabelValue label="Contract Group"  value={invoice.contractGroup} />
-              <LabelValue label="Invoice Date"    value={invoice.invoiceDate} />
-              <LabelValue label="Payment Terms"   value={invoice.paymentTerms} />
-              <LabelValue label="Due Date"        value={invoice.dueDate} />
-              <LabelValue label="Purchase Order"  value={invoice.purchaseOrder} />
-              <LabelValue label="Billing Company" value={invoice.billingCompany} />
-              <LabelValue label="Account Payable" value={invoice.accountPayable} />
-            </div>
-
-            {/* Right summary */}
-            <div style={{ width: 256, flexShrink: 0 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                <Text style={{ fontSize: 13, color: '#595959' }}>Sub Total</Text>
-                <Text style={{ fontSize: 13, fontWeight: 500 }}>{fmt(invoice.subTotal)}</Text>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                <Text style={{ fontSize: 13, color: '#595959' }}>Adjustment</Text>
-                <Text style={{ fontSize: 13, fontWeight: 500 }}>{fmt(invoice.adjustment)}</Text>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                <Text style={{ fontSize: 13, color: '#595959' }}>GST</Text>
-                <Text style={{ fontSize: 13, fontWeight: 500 }}>{fmt(invoice.gst)}</Text>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderTop: '1.5px solid #1a1a1a', marginBottom: 12 }}>
-                <Text style={{ fontSize: 14, fontWeight: 700 }}>Grand Total</Text>
-                <Text style={{ fontSize: 14, fontWeight: 700 }}>{fmt(invoice.grandTotal)}</Text>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                <Text style={{ fontSize: 13, color: '#595959' }}>Amount Received</Text>
-                <Text style={{ fontSize: 13, fontWeight: 500 }}>{fmt(invoice.amountReceived)}</Text>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <Text style={{ fontSize: 13, color: '#595959' }}>Outstanding Balance</Text>
-                <Text style={{ fontSize: 13, fontWeight: 500 }}>{fmt(invoice.outstandingBalance)}</Text>
-              </div>
-            </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px 24px' }}>
+            <LabelValue label="Customer Code"   value={invoice.customerCode} />
+            <LabelValue label="Contract Group"  value={invoice.contractGroup} />
+            <LabelValue label="Invoice Date"    value={invoice.invoiceDate} />
+            <LabelValue label="Payment Terms"   value={invoice.paymentTerms} />
+            <LabelValue label="Due Date"        value={invoice.dueDate} />
+            <LabelValue label="Purchase Order"  value={invoice.purchaseOrder} />
+            <LabelValue label="Billing Company" value={invoice.billingCompany} />
+            <LabelValue label="Account Payable" value={invoice.accountPayable} />
           </div>
         </div>
 
-        <Divider style={{ margin: 0 }} />
-
-        {/* ── Billing Details ── */}
-        <div ref={sectionRefs.billing} id="billing" style={sectionPad}>
-          {sectionTitle('Billing Details')}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '16px 24px' }}>
-            <LabelValue label="Company Name" value={invoice.billingCompanyName} />
-            <LabelValue label="Attention"    value={invoice.attention} />
-            <LabelValue label="Email"        value={invoice.email} />
-            <LabelValue label="Email CC"     value={invoice.emailCc} />
+        <div style={{ ...cardStyle, ...sectionPad, width: 280, flexShrink: 0 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+            <Text style={{ fontSize: 13, color: '#595959' }}>Sub Total</Text>
+            <Text style={{ fontSize: 13, fontWeight: 500 }}>{fmt(invoice.subTotal)}</Text>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+            <Text style={{ fontSize: 13, color: '#595959' }}>Adjustment</Text>
+            <Text style={{ fontSize: 13, fontWeight: 500 }}>{fmt(invoice.adjustment)}</Text>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+            <Text style={{ fontSize: 13, color: '#595959' }}>GST</Text>
+            <Text style={{ fontSize: 13, fontWeight: 500 }}>{fmt(invoice.gst)}</Text>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderTop: '1.5px solid #1a1a1a', marginBottom: 12 }}>
+            <Text style={{ fontSize: 14, fontWeight: 700 }}>Grand Total</Text>
+            <Text style={{ fontSize: 14, fontWeight: 700 }}>{fmt(invoice.grandTotal)}</Text>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+            <Text style={{ fontSize: 13, color: '#595959' }}>Amount Received</Text>
+            <Text style={{ fontSize: 13, fontWeight: 500 }}>{fmt(invoice.amountReceived)}</Text>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <Text style={{ fontSize: 13, color: '#595959' }}>Outstanding Balance</Text>
+            <Text style={{ fontSize: 13, fontWeight: 500 }}>{fmt(invoice.outstandingBalance)}</Text>
           </div>
         </div>
+      </div>
 
-        <Divider style={{ margin: 0 }} />
+      {/* ── Billing Details ── */}
+      <div ref={sectionRefs.billing} id="billing" style={{ ...cardStyle, ...sectionPad, marginTop: 16 }}>
+        {sectionTitle('Billing Details')}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '16px 24px' }}>
+          <LabelValue label="Company Name" value={invoice.billingCompanyName} />
+          <LabelValue label="Attention"    value={invoice.attention} />
+          <LabelValue label="Email"        value={invoice.email} />
+          <LabelValue label="Email CC"     value={invoice.emailCc} />
+        </div>
+      </div>
 
-        {/* ── Invoice Details ── */}
-        <div ref={sectionRefs.details} id="details" style={sectionPad}>
-          {sectionTitle('Invoice Details')}
+      {/* ── Invoice Details ── */}
+      <div ref={sectionRefs.details} id="details" style={{ ...cardStyle, ...sectionPad, marginTop: 16 }}>
+        {sectionTitle('Invoice Details')}
 
           <div style={{ marginBottom: 20 }}>
             <Text style={{ fontSize: 12, color: '#8c8c8c', display: 'block', marginBottom: 6 }}>Contract No</Text>
@@ -370,63 +363,56 @@ export default function InvoiceDetailPage({ invoiceId }: Props) {
               </div>
             </div>
           )}
+      </div>
+
+      {/* ── Adjustment Details ── */}
+      <div ref={sectionRefs.adjustment} id="adjustment" style={{ ...cardStyle, ...sectionPad, marginTop: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 20 }}>
+          <Text style={{ fontSize: 15, fontWeight: 700 }}>Adjustment Details</Text>
+          <Text style={{ fontSize: 13, color: '#595959' }}>Sub-total: {fmt(Math.abs(adjTotal))}</Text>
         </div>
+        <Table<AdjustmentRecord>
+          columns={adjustmentColumns}
+          dataSource={invoice.adjustments}
+          rowKey={(_, i) => String(i)}
+          pagination={false}
+          size="middle"
+          locale={{ emptyText: 'No adjustments' }}
+        />
+      </div>
 
-        <Divider style={{ margin: 0 }} />
-
-        {/* ── Adjustment Details ── */}
-        <div ref={sectionRefs.adjustment} id="adjustment" style={sectionPad}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 20 }}>
-            <Text style={{ fontSize: 15, fontWeight: 700 }}>Adjustment Details</Text>
-            <Text style={{ fontSize: 13, color: '#595959' }}>Sub-total: {fmt(Math.abs(adjTotal))}</Text>
-          </div>
-          <Table<AdjustmentRecord>
-            columns={adjustmentColumns}
-            dataSource={invoice.adjustments}
-            rowKey={(_, i) => String(i)}
-            pagination={false}
-            size="middle"
-            locale={{ emptyText: 'No adjustments' }}
-          />
+      {/* ── Payment Received ── */}
+      <div ref={sectionRefs.payment} id="payment" style={{ ...cardStyle, ...sectionPad, marginTop: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 20 }}>
+          <Text style={{ fontSize: 15, fontWeight: 700 }}>Payment Received</Text>
+          <Text style={{ fontSize: 13, color: '#595959' }}>Sub-total: {fmt(payTotal)}</Text>
         </div>
+        <Table<PaymentRecord>
+          columns={paymentColumns}
+          dataSource={invoice.payments}
+          rowKey={(_, i) => String(i)}
+          pagination={false}
+          size="middle"
+          locale={{ emptyText: 'No payments recorded' }}
+        />
+      </div>
 
-        <Divider style={{ margin: 0 }} />
-
-        {/* ── Payment Received ── */}
-        <div ref={sectionRefs.payment} id="payment" style={sectionPad}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 20 }}>
-            <Text style={{ fontSize: 15, fontWeight: 700 }}>Payment Received</Text>
-            <Text style={{ fontSize: 13, color: '#595959' }}>Sub-total: {fmt(payTotal)}</Text>
+      {/* ── Additional Information ── */}
+      <div ref={sectionRefs.additional} id="additional" style={{ ...cardStyle, ...sectionPad, marginTop: 16 }}>
+        {sectionTitle('Additional Information')}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '16px 24px' }}>
+          <div>
+            <Text style={{ fontSize: 12, color: '#8c8c8c', display: 'block', marginBottom: 3 }}>Created On</Text>
+            <Text style={{ fontSize: 14, fontWeight: 600, display: 'block' }}>{invoice.createdOn}</Text>
+            <Text style={{ fontSize: 12, color: '#8c8c8c' }}>1 month ago</Text>
           </div>
-          <Table<PaymentRecord>
-            columns={paymentColumns}
-            dataSource={invoice.payments}
-            rowKey={(_, i) => String(i)}
-            pagination={false}
-            size="middle"
-            locale={{ emptyText: 'No payments recorded' }}
-          />
-        </div>
-
-        <Divider style={{ margin: 0 }} />
-
-        {/* ── Additional Information ── */}
-        <div ref={sectionRefs.additional} id="additional" style={sectionPad}>
-          {sectionTitle('Additional Information')}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '16px 24px' }}>
-            <div>
-              <Text style={{ fontSize: 12, color: '#8c8c8c', display: 'block', marginBottom: 3 }}>Created On</Text>
-              <Text style={{ fontSize: 14, fontWeight: 600, display: 'block' }}>{invoice.createdOn}</Text>
-              <Text style={{ fontSize: 12, color: '#8c8c8c' }}>1 month ago</Text>
-            </div>
-            <LabelValue label="Created By"      value={invoice.createdBy} />
-            <div>
-              <Text style={{ fontSize: 12, color: '#8c8c8c', display: 'block', marginBottom: 3 }}>Last Updated On</Text>
-              <Text style={{ fontSize: 14, fontWeight: 600, display: 'block' }}>{invoice.lastUpdatedOn}</Text>
-              <Text style={{ fontSize: 12, color: '#8c8c8c' }}>{invoice.lastUpdatedAgo}</Text>
-            </div>
-            <LabelValue label="Last Updated By" value={invoice.lastUpdatedBy} />
+          <LabelValue label="Created By"      value={invoice.createdBy} />
+          <div>
+            <Text style={{ fontSize: 12, color: '#8c8c8c', display: 'block', marginBottom: 3 }}>Last Updated On</Text>
+            <Text style={{ fontSize: 14, fontWeight: 600, display: 'block' }}>{invoice.lastUpdatedOn}</Text>
+            <Text style={{ fontSize: 12, color: '#8c8c8c' }}>{invoice.lastUpdatedAgo}</Text>
           </div>
+          <LabelValue label="Last Updated By" value={invoice.lastUpdatedBy} />
         </div>
       </div>
 
