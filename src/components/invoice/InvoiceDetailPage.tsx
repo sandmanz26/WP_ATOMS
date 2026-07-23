@@ -37,8 +37,8 @@ function fmt(n: number) {
 function LabelValue({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <Text style={{ fontSize: 12, color: '#8c8c8c', display: 'block', marginBottom: 3 }}>{label}</Text>
-      <Text style={{ fontSize: 14, fontWeight: 600, color: '#1a1a1a' }}>{value}</Text>
+      <Text style={{ fontSize: 13, color: '#8c8c8c', display: 'block', marginBottom: 4 }}>{label}</Text>
+      <Text style={{ fontSize: 15, fontWeight: 600, color: '#1a1a1a' }}>{value}</Text>
     </div>
   )
 }
@@ -48,6 +48,36 @@ function SummaryRow({ label, value, bold, color }: { label: string; value: strin
     <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0' }}>
       <Text style={{ fontSize: 13, fontWeight: bold ? 700 : 400, color: bold ? '#1a1a1a' : '#595959' }}>{label}</Text>
       <Text style={{ fontSize: 13, fontWeight: bold ? 700 : 500, color: color ?? (bold ? '#1a1a1a' : '#595959') }}>{value}</Text>
+    </div>
+  )
+}
+
+// Field rows with a divider under each row, matching the reference layout
+function FieldRows({ rows, columns = 3 }: { rows: { label: string; value: string }[][]; columns?: number }) {
+  return (
+    <div>
+      {rows.map((row, i) => (
+        <div key={i}>
+          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${columns}, 1fr)`, gap: '4px 24px', padding: '16px 0' }}>
+            {row.map((f, j) => <LabelValue key={j} label={f.label} value={f.value} />)}
+          </div>
+          <Divider style={{ margin: 0 }} />
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// Stats rows with a divider under each row; Grand Total / Amount Received /
+// Outstanding Balance are emphasized (bold), the rest are plain.
+function StatRow({ label, value, bold, last }: { label: string; value: string; bold?: boolean; last?: boolean }) {
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '16px 0' }}>
+        <Text style={{ fontSize: bold ? 15 : 14, fontWeight: bold ? 700 : 400, color: bold ? '#1a1a1a' : '#595959' }}>{label}</Text>
+        <Text style={{ fontSize: bold ? 15 : 14, fontWeight: bold ? 700 : 500, color: '#1a1a1a' }}>{value}</Text>
+      </div>
+      {!last && <Divider style={{ margin: 0 }} />}
     </div>
   )
 }
@@ -96,7 +126,14 @@ export default function InvoiceDetailPage({ invoiceId }: Props) {
   }
 
   const contractDetail = invoice.contractDetails.find((c) => c.contractNo === selectedContract) ?? invoice.contractDetails[0]
-  const contractOptions = invoice.contractDetails.map((c) => ({ value: c.contractNo, label: c.contractNo }))
+  // Real linked contract(s) first, plus a few dummy contract numbers so the
+  // dropdown shows a realistic multi-option list (invoices only carry 1
+  // linked contract in this mock dataset).
+  const DUMMY_CONTRACT_NOS = ['CC-2024-29122484', 'CC-2024-50021222', 'CC-2024-29121234', 'CC-2024-24000012', 'CC-2024-29122485']
+  const contractOptions = [
+    ...invoice.contractDetails.map((c) => ({ value: c.contractNo, label: c.contractNo })),
+    ...DUMMY_CONTRACT_NOS.filter((no) => !invoice.contractDetails.some((c) => c.contractNo === no)).map((no) => ({ value: no, label: no })),
+  ]
 
   /* ── Trip table columns ── */
   const tripColumns = [
@@ -197,37 +234,33 @@ export default function InvoiceDetailPage({ invoiceId }: Props) {
 
   return (
     <div style={{ padding: 24 }}>
-      {/* ── Invoice header ── */}
-      <div style={{ ...cardStyle, marginBottom: 16 }}>
-        <div style={{ padding: '20px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <Title level={3} style={{ margin: 0, fontWeight: 700 }}>{invoice.invoiceNo}</Title>
-            <StatusBadge status={invoice.status} />
-          </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <Dropdown menu={{ items: ACTIONS_ITEMS }} trigger={['click']}>
-              <Button style={{ borderRadius: 6 }}>
-                Actions <DownOutlined style={{ fontSize: 10 }} />
-              </Button>
-            </Dropdown>
-            <Button type="primary" style={{ borderRadius: 6 }} onClick={() => setLogPaymentOpen(true)}>
-              Log Payment
-            </Button>
-          </div>
+      {/* ── Invoice title (bare, no card) ── */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <Title level={3} style={{ margin: 0, fontWeight: 700 }}>{invoice.invoiceNo}</Title>
+          <StatusBadge status={invoice.status} />
         </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <Dropdown menu={{ items: ACTIONS_ITEMS }} trigger={['click']}>
+            <Button style={{ borderRadius: 6 }}>
+              Actions <DownOutlined style={{ fontSize: 10 }} />
+            </Button>
+          </Dropdown>
+          <Button type="primary" style={{ borderRadius: 6 }} onClick={() => setLogPaymentOpen(true)}>
+            Log Payment
+          </Button>
+        </div>
+      </div>
 
-        {/* ── Tab nav (sticky) ── */}
-        <div style={{
-          display: 'flex', borderTop: '1px solid #f0f0f0',
-          position: 'sticky', top: 48, background: '#fff', zIndex: 10,
-          overflowX: 'auto',
-        }}>
+      {/* ── Tab nav (own card, evenly spread) ── */}
+      <div style={{ ...cardStyle, marginBottom: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0 24px' }}>
           {TAB_ITEMS.map((tab) => (
             <button
               key={tab.key}
               onClick={() => scrollTo(tab.key)}
               style={{
-                padding: '11px 18px', border: 'none', cursor: 'pointer', fontSize: 14,
+                padding: '18px 0', border: 'none', cursor: 'pointer', fontSize: 14,
                 fontWeight: activeTab === tab.key ? 600 : 400, whiteSpace: 'nowrap',
                 background: 'none',
                 borderBottom: `2px solid ${activeTab === tab.key ? '#1677ff' : 'transparent'}`,
@@ -245,55 +278,34 @@ export default function InvoiceDetailPage({ invoiceId }: Props) {
       <div style={{ display: 'flex', gap: 16 }}>
         <div ref={sectionRefs.basic} id="basic" style={{ ...cardStyle, ...sectionPad, flex: 1 }}>
           {sectionTitle('Basic Information')}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px 24px' }}>
-            <LabelValue label="Customer Code"   value={invoice.customerCode} />
-            <LabelValue label="Contract Group"  value={invoice.contractGroup} />
-            <LabelValue label="Invoice Date"    value={invoice.invoiceDate} />
-            <LabelValue label="Payment Terms"   value={invoice.paymentTerms} />
-            <LabelValue label="Due Date"        value={invoice.dueDate} />
-            <LabelValue label="Purchase Order"  value={invoice.purchaseOrder} />
-            <LabelValue label="Billing Company" value={invoice.billingCompany} />
-            <LabelValue label="Account Payable" value={invoice.accountPayable} />
-          </div>
+          <FieldRows rows={[
+            [{ label: 'Customer Code', value: invoice.customerCode }, { label: 'Contract Group', value: invoice.contractGroup }, { label: 'Invoice Date', value: invoice.invoiceDate }],
+            [{ label: 'Payment Terms', value: invoice.paymentTerms }, { label: 'Due Date', value: invoice.dueDate }, { label: 'Purchase Order', value: invoice.purchaseOrder }],
+            [{ label: 'Billing Company', value: invoice.billingCompany }, { label: 'Account Payable', value: invoice.accountPayable }],
+          ]} />
         </div>
 
-        <div style={{ ...cardStyle, ...sectionPad, width: 280, flexShrink: 0 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-            <Text style={{ fontSize: 13, color: '#595959' }}>Sub Total</Text>
-            <Text style={{ fontSize: 13, fontWeight: 500 }}>{fmt(invoice.subTotal)}</Text>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-            <Text style={{ fontSize: 13, color: '#595959' }}>Adjustment</Text>
-            <Text style={{ fontSize: 13, fontWeight: 500 }}>{fmt(invoice.adjustment)}</Text>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-            <Text style={{ fontSize: 13, color: '#595959' }}>GST</Text>
-            <Text style={{ fontSize: 13, fontWeight: 500 }}>{fmt(invoice.gst)}</Text>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderTop: '1.5px solid #1a1a1a', marginBottom: 12 }}>
-            <Text style={{ fontSize: 14, fontWeight: 700 }}>Grand Total</Text>
-            <Text style={{ fontSize: 14, fontWeight: 700 }}>{fmt(invoice.grandTotal)}</Text>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-            <Text style={{ fontSize: 13, color: '#595959' }}>Amount Received</Text>
-            <Text style={{ fontSize: 13, fontWeight: 500 }}>{fmt(invoice.amountReceived)}</Text>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <Text style={{ fontSize: 13, color: '#595959' }}>Outstanding Balance</Text>
-            <Text style={{ fontSize: 13, fontWeight: 500 }}>{fmt(invoice.outstandingBalance)}</Text>
-          </div>
+        <div style={{ ...cardStyle, padding: '0 24px', width: 340, flexShrink: 0 }}>
+          <StatRow label="Sub-total"            value={fmt(invoice.subTotal)} />
+          <StatRow label="Adjustment"           value={fmt(invoice.adjustment)} />
+          <StatRow label="GST"                  value={fmt(invoice.gst)} />
+          <StatRow label="Grand Total"           value={fmt(invoice.grandTotal)} bold />
+          <StatRow label="Amount Received"      value={fmt(invoice.amountReceived)} bold />
+          <StatRow label="Outstanding Balance"  value={fmt(invoice.outstandingBalance)} bold last />
         </div>
       </div>
 
       {/* ── Billing Details ── */}
       <div ref={sectionRefs.billing} id="billing" style={{ ...cardStyle, ...sectionPad, marginTop: 16 }}>
         {sectionTitle('Billing Details')}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '16px 24px' }}>
-          <LabelValue label="Company Name" value={invoice.billingCompanyName} />
-          <LabelValue label="Attention"    value={invoice.attention} />
-          <LabelValue label="Email"        value={invoice.email} />
-          <LabelValue label="Email CC"     value={invoice.emailCc} />
-        </div>
+        <FieldRows columns={4} rows={[
+          [
+            { label: 'Company Name', value: invoice.billingCompanyName },
+            { label: 'Attention',    value: invoice.attention },
+            { label: 'Email',        value: invoice.email },
+            { label: 'Email CC',     value: invoice.emailCc },
+          ],
+        ]} />
       </div>
 
       {/* ── Invoice Details ── */}
@@ -301,9 +313,9 @@ export default function InvoiceDetailPage({ invoiceId }: Props) {
         {sectionTitle('Invoice Details')}
 
           <div style={{ marginBottom: 20 }}>
-            <Text style={{ fontSize: 12, color: '#8c8c8c', display: 'block', marginBottom: 6 }}>Contract No</Text>
+            <Text style={{ fontSize: 13, color: '#8c8c8c', display: 'block', marginBottom: 8 }}>Contract No.</Text>
             <Select
-              style={{ width: '100%', maxWidth: 420 }}
+              style={{ width: '100%' }}
               options={contractOptions.length > 0 ? contractOptions : [{ value: 'CC-2024-291224848', label: 'CC-2024-291224848' }]}
               value={selectedContract}
               onChange={setSelectedContract}
