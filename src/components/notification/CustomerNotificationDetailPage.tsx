@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Typography, Button, Table, Dropdown, Tooltip, message } from 'antd'
 import { DownOutlined, PlusOutlined, MoreOutlined, CheckCircleFilled, ExclamationCircleOutlined } from '@ant-design/icons'
-import { NOTIFICATIONS, type TripNotification } from './notificationData'
+import { NOTIFICATIONS, type TripNotification, type TripNotificationStatus } from './notificationData'
 import {
   NotificationStatusBadge, TripStatusBadge, computeContractNotificationStatus,
   canMarkAsNotRequired, canSendNotification, markAsNotRequiredTooltip, sendNotificationTooltip,
@@ -10,6 +10,7 @@ import EditRecipientsModal from './EditRecipientsModal'
 import SendEmailModal from './SendEmailModal'
 import SendSMSModal from './SendSMSModal'
 import SendFeedbackModal from './SendFeedbackModal'
+import StatusSwitcher from './StatusSwitcher'
 
 const { Text, Title } = Typography
 
@@ -170,6 +171,10 @@ export default function CustomerNotificationDetailPage({ notificationId }: Props
     setNotRequiredConfirmOpen(false)
     setToast('Notification marked as not required')
     cancelSendMode()
+  }
+
+  const handleSwitchTripStatus = (index: number, status: TripNotificationStatus) => {
+    setTrips((prev) => prev.map((t, i) => (i === index ? { ...t, notificationStatus: status } : t)))
   }
 
   const tripColumns = [
@@ -451,6 +456,8 @@ export default function CustomerNotificationDetailPage({ notificationId }: Props
           <Text style={{ fontSize: 13.5, color: '#1a1a1a' }}>{toast}</Text>
         </div>
       )}
+
+      <StatusSwitcher trips={trips} onChangeTripStatus={handleSwitchTripStatus} contractStatus={contractStatus} />
     </div>
   )
 }
