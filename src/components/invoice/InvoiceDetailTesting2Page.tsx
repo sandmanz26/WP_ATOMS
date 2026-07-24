@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { Typography, Button, Select, Table, Dropdown, Divider, Tooltip } from 'antd'
 import {
   DownOutlined, LinkOutlined, EyeOutlined, ExclamationCircleOutlined, CheckCircleFilled,
-  FileTextOutlined, PlusOutlined, PaperClipOutlined, DownloadOutlined, HistoryOutlined,
+  FileTextOutlined, PlusOutlined, PaperClipOutlined, DownloadOutlined,
 } from '@ant-design/icons'
 import { INVOICES, type InvoiceStatus, type TripRecord, type OtherChargeRecord, type AdjustmentRecord, type PaymentRecord } from './invoiceData'
 import { StatusBadge, computeStatusFromBalance, canMarkAsSent, canLogPayment, markAsSentTooltip, logPaymentTooltip } from './invoiceStatusLogic'
@@ -69,13 +69,7 @@ const TAB_ITEMS = [
   { key: 'adjustment', label: 'Adjustment Details' },
   { key: 'payment',    label: 'Payment Received' },
   { key: 'additional', label: 'Additional Information' },
-  { key: 'history',    label: 'Change History' },
 ]
-
-interface HistoryEntry {
-  text: string
-  time: string
-}
 
 interface Props {
   invoiceId: string
@@ -89,19 +83,14 @@ export default function InvoiceDetailTesting2Page({ invoiceId }: Props) {
   const [selectedContract, setSelectedContract] = useState(invoice.contractDetails[0]?.contractNo ?? '')
   const [logPaymentOpen,   setLogPaymentOpen]   = useState(false)
 
-  // Local, session-only status + change history — this "2.0" page has no
-  // backend, so Mark as Sent / Log Payment update state here rather than persisting.
+  // Local, session-only status — this "2.0" page has no backend, so Mark
+  // as Sent / Log Payment update state here rather than persisting.
   const [status, setStatus] = useState<InvoiceStatus>(invoice.status)
   const [amountReceived, setAmountReceived] = useState(invoice.amountReceived)
   const [outstandingBalance, setOutstandingBalance] = useState(invoice.outstandingBalance)
   const [payments, setPayments] = useState<PaymentRecord[]>(invoice.payments)
-  const [history, setHistory] = useState<HistoryEntry[]>([])
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
-
-  const addHistoryEntry = (text: string, stamp: string) => {
-    setHistory((prev) => [{ text, time: stamp }, ...prev])
-  }
 
   useEffect(() => {
     if (!toast) return
@@ -119,7 +108,6 @@ export default function InvoiceDetailTesting2Page({ invoiceId }: Props) {
     { key: 'adj',    label: 'Add Adjustment',         icon: <PlusOutlined /> },
     { key: 'po',     label: 'Attach Purchase Order',  icon: <PaperClipOutlined /> },
     { key: 'dl',     label: 'Download',               icon: <DownloadOutlined /> },
-    { key: 'hist',   label: 'View Change History',    icon: <HistoryOutlined />, onClick: () => scrollTo('history') },
   ]
 
   const logPaymentEnabled = canLogPayment(status)
@@ -131,7 +119,6 @@ export default function InvoiceDetailTesting2Page({ invoiceId }: Props) {
     adjustment: useRef<HTMLDivElement>(null),
     payment:    useRef<HTMLDivElement>(null),
     additional: useRef<HTMLDivElement>(null),
-    history:    useRef<HTMLDivElement>(null),
   }
 
   const scrollTo = (key: string) => {
@@ -141,8 +128,6 @@ export default function InvoiceDetailTesting2Page({ invoiceId }: Props) {
 
   const handleConfirmMarkAsSent = () => {
     const now = new Date()
-    const stamp = now.toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).replace(',', ' ·')
-    const previousStatus = status
 
     // 1. Modal closes
     setConfirmOpen(false)
@@ -155,18 +140,10 @@ export default function InvoiceDetailTesting2Page({ invoiceId }: Props) {
     const dueDate = new Date(invoice.dueDate)
     const nextStatus = computeStatusFromBalance(invoice.grandTotal, outstandingBalance, dueDate, now)
     setStatus(nextStatus)
-
-    // 4. Capture the action + status change in change history
-    addHistoryEntry('Invoice marked as Sent', stamp)
-    if (nextStatus !== previousStatus) {
-      addHistoryEntry(`Status changed from ${previousStatus} to ${nextStatus}`, stamp)
-    }
   }
 
   const handleLogPayment = (payload: LogPaymentPayload) => {
     const now = new Date()
-    const stamp = now.toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).replace(',', ' ·')
-    const previousStatus = status
 
     const newOutstanding = Math.max(0, outstandingBalance - payload.amount)
     const newReceived = amountReceived + payload.amount
@@ -190,10 +167,6 @@ export default function InvoiceDetailTesting2Page({ invoiceId }: Props) {
     setStatus(nextStatus)
 
     setToast('Payment logged successfully')
-    addHistoryEntry(`Payment of ${fmt(payload.amount)} logged`, stamp)
-    if (nextStatus !== previousStatus) {
-      addHistoryEntry(`Status changed from ${previousStatus} to ${nextStatus}`, stamp)
-    }
   }
 
   const contractDetail = invoice.contractDetails.find((c) => c.contractNo === selectedContract) ?? invoice.contractDetails[0]
@@ -504,26 +477,6 @@ export default function InvoiceDetailTesting2Page({ invoiceId }: Props) {
           </div>
           <LabelValue label="Last Updated By" value={invoice.lastUpdatedBy} />
         </div>
-      </div>
-
-      {/* ── Change History ── */}
-      <div ref={sectionRefs.history} id="history" style={{ ...cardStyle, ...sectionPad, marginTop: 16 }}>
-        {sectionTitle('Change History')}
-        {history.length === 0 ? (
-          <Text style={{ fontSize: 13, color: '#8c8c8c' }}>No changes recorded yet.</Text>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            {history.map((h, i) => (
-              <div key={i} style={{ display: 'flex', gap: 12, padding: '12px 0', borderBottom: i === history.length - 1 ? 'none' : '1px solid #f5f5f5' }}>
-                <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#1677ff', marginTop: 6, flexShrink: 0 }} />
-                <div>
-                  <Text style={{ fontSize: 13.5, color: '#1a1a1a', display: 'block' }}>{h.text}</Text>
-                  <Text style={{ fontSize: 12, color: '#8c8c8c' }}>{h.time}</Text>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
 
       <LogPaymentModal
