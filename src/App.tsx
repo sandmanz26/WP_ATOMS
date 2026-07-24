@@ -46,6 +46,13 @@ export default function App() {
   const navigate = (p: AppPage) => setPage(p)
   const goBack = () => setPage({ type: 'listing' })
 
+  // PRD §9.2/§17 — "Return to Listing" must be hidden while the Customer
+  // Notification detail page is in a multi-select mode (Email/SMS/Mark as
+  // Not Required). That mode lives inside the page component, but this
+  // button is rendered by AppLayout at the App level, so the page reports
+  // its mode up via this callback.
+  const [notifSelectModeActive, setNotifSelectModeActive] = useState(false)
+
   if (page.type === 'detail') return <ContractDetailPage contractId={page.contractId} onNavigate={navigate} onBack={goBack} />
   if (page.type === 'edit-basic') return <EditBasicInformationPage contractId={page.contractId} onBack={goBack} />
   if (page.type === 'edit-price') return <EditPricePage contractId={page.contractId} onBack={goBack} />
@@ -181,18 +188,24 @@ export default function App() {
         activeKey="customer-notification"
         breadcrumbItems={['Customer Notification', 'Notification Details']}
         topBarRight={
-          <Button
-            size="small"
-            icon={<ArrowLeftOutlined />}
-            onClick={() => navigate({ type: 'customer-notification' })}
-            style={{ borderRadius: 6 }}
-          >
-            Return to Listing
-          </Button>
+          notifSelectModeActive ? <></> : (
+            <Button
+              size="small"
+              icon={<ArrowLeftOutlined />}
+              onClick={() => navigate({ type: 'customer-notification' })}
+              style={{ borderRadius: 6 }}
+            >
+              Return to Listing
+            </Button>
+          )
         }
         onNavigate={navigate}
       >
-        <CustomerNotificationDetailPage notificationId={page.notificationId} onBack={() => navigate({ type: 'customer-notification' })} />
+        <CustomerNotificationDetailPage
+          notificationId={page.notificationId}
+          onBack={() => navigate({ type: 'customer-notification' })}
+          onSelectModeChange={setNotifSelectModeActive}
+        />
       </AppLayout>
     )
   }

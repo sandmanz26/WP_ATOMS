@@ -38,9 +38,10 @@ const TAB_ITEMS = [
 interface Props {
   notificationId: string
   onBack: () => void
+  onSelectModeChange?: (active: boolean) => void
 }
 
-export default function CustomerNotificationDetailPage({ notificationId }: Props) {
+export default function CustomerNotificationDetailPage({ notificationId, onSelectModeChange }: Props) {
   const notification = NOTIFICATIONS.find((n) => n.id === notificationId) ?? NOTIFICATIONS[0]
 
   // Local, session-only trips override — this page has no backend, so
@@ -104,6 +105,11 @@ export default function CustomerNotificationDetailPage({ notificationId }: Props
   const [feedbackOpen, setFeedbackOpen] = useState(false)
   const [feedbackLoading, setFeedbackLoading] = useState(false)
   const [notRequiredConfirmOpen, setNotRequiredConfirmOpen] = useState(false)
+
+  useEffect(() => {
+    onSelectModeChange?.(sendMode !== 'none')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sendMode])
 
   const selectedTrips = selectedRowKeys.map((k) => trips[Number(k)]).filter(Boolean) as TripNotification[]
 
@@ -417,10 +423,10 @@ export default function CustomerNotificationDetailPage({ notificationId }: Props
         onReturn={handleReturnFromFeedback}
       />
 
-      {/* ── Mark as Not Required confirm modal (PRD §10.3) ── */}
+      {/* ── Mark as Not Required confirm modal (PRD §9.3) ── */}
       {notRequiredConfirmOpen && (
         <div
-          onClick={() => setNotRequiredConfirmOpen(false)}
+          onClick={() => { setNotRequiredConfirmOpen(false); cancelSendMode() }}
           style={{
             position: 'fixed', inset: 0, background: 'rgba(15,23,42,.45)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20,
@@ -438,7 +444,8 @@ export default function CustomerNotificationDetailPage({ notificationId }: Props
               {'{{refer to copy master list}}'}
             </Text>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-              <Button size="large" style={{ borderRadius: 8 }} onClick={() => setNotRequiredConfirmOpen(false)}>Cancel</Button>
+              {/* PRD §9.5 — cancelling the confirm modal also exits multi-select mode entirely */}
+              <Button size="large" style={{ borderRadius: 8 }} onClick={() => { setNotRequiredConfirmOpen(false); cancelSendMode() }}>Cancel</Button>
               <Button size="large" type="primary" style={{ borderRadius: 8 }} onClick={handleConfirmNotRequired}>Confirm</Button>
             </div>
           </div>
