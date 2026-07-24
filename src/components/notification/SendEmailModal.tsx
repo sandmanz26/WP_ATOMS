@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Modal, Typography, Select, Input, Button, message } from 'antd'
 import { LinkOutlined } from '@ant-design/icons'
 import type { TripNotification } from './notificationData'
@@ -43,16 +43,21 @@ export default function SendEmailModal({ open, onClose, contractNo, selectedTrip
   const [content, setContent] = useState(DEFAULT_CONTENT)
   const [editorKey, setEditorKey] = useState(0)
 
-  const reset = () => {
-    setEmails(defaultEmails)
-    setEmailCc(defaultEmailCc)
-    setSubject(defaultSubject(contractNo, selectedTrips))
-    setContent(DEFAULT_CONTENT)
-    setEditorKey((k) => k + 1) // force RichTextEditor to reseed default content next open
-  }
+  // selectedTrips is [] at first mount (before any row is selected), so the
+  // initial useState above seeds subject with no dates. Re-sync every time
+  // the modal opens so it reflects whichever trips are actually selected.
+  useEffect(() => {
+    if (open) {
+      setEmails(defaultEmails)
+      setEmailCc(defaultEmailCc)
+      setSubject(defaultSubject(contractNo, selectedTrips))
+      setContent(DEFAULT_CONTENT)
+      setEditorKey((k) => k + 1)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
 
   const handleClose = () => {
-    reset()
     onClose()
   }
 
@@ -71,7 +76,6 @@ export default function SendEmailModal({ open, onClose, contractNo, selectedTrip
       return
     }
     onSend({ emails, emailCc, subject, content })
-    reset()
   }
 
   const tripColumns = [

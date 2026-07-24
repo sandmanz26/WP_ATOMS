@@ -8,6 +8,7 @@ import {
 } from './notificationStatusLogic'
 import EditRecipientsModal from './EditRecipientsModal'
 import SendEmailModal from './SendEmailModal'
+import SendSMSModal from './SendSMSModal'
 import SendFeedbackModal from './SendFeedbackModal'
 
 const { Text, Title } = Typography
@@ -91,13 +92,14 @@ export default function CustomerNotificationDetailPage({ notificationId }: Props
   const sendDisabled = !canSendNotification(contractStatus)
   const SEND_MENU_ITEMS = [
     { key: 'email', label: 'Email', disabled: sendDisabled, onClick: () => { setSendMode('email'); setSelectedRowKeys([]) } },
-    { key: 'sms',   label: 'SMS',   disabled: sendDisabled, onClick: () => setToast('Send SMS flow is not yet built — coming soon') },
+    { key: 'sms',   label: 'SMS',   disabled: sendDisabled, onClick: () => { setSendMode('sms'); setSelectedRowKeys([]) } },
   ]
 
-  // ── Multi-select modes (PRD §8.2/§8.3 for Email, §10.2 for Mark as Not Required) ──
-  const [sendMode, setSendMode] = useState<'none' | 'email' | 'notRequired'>('none')
+  // ── Multi-select modes (PRD §8.2/§8.3 for Email, §9 for SMS, §10.2 for Mark as Not Required) ──
+  const [sendMode, setSendMode] = useState<'none' | 'email' | 'sms' | 'notRequired'>('none')
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([])
   const [sendEmailOpen, setSendEmailOpen] = useState(false)
+  const [sendSmsOpen, setSendSmsOpen] = useState(false)
   const [feedbackOpen, setFeedbackOpen] = useState(false)
   const [feedbackLoading, setFeedbackLoading] = useState(false)
   const [notRequiredConfirmOpen, setNotRequiredConfirmOpen] = useState(false)
@@ -130,6 +132,25 @@ export default function CustomerNotificationDetailPage({ notificationId }: Props
     setTimeout(() => {
       // Sending an email always moves the trip to Sent, even if it was
       // Not Required — PRD §8.8 step 5.
+      const selectedSet = new Set(selectedRowKeys.map(String))
+      setTrips((prev) => prev.map((t, i) => (selectedSet.has(String(i)) ? { ...t, notificationStatus: 'Sent' } : t)))
+      setFeedbackLoading(false)
+    }, 700)
+  }
+
+  const handlePreviewSMS = () => {
+    if (selectedTrips.length !== 1) {
+      message.error('Select 1 schedule to preview the SMS')
+      return
+    }
+    setSendSmsOpen(true)
+  }
+
+  const handleSendSMS = () => {
+    setSendSmsOpen(false)
+    setFeedbackOpen(true)
+    setFeedbackLoading(true)
+    setTimeout(() => {
       const selectedSet = new Set(selectedRowKeys.map(String))
       setTrips((prev) => prev.map((t, i) => (selectedSet.has(String(i)) ? { ...t, notificationStatus: 'Sent' } : t)))
       setFeedbackLoading(false)
@@ -202,6 +223,12 @@ export default function CustomerNotificationDetailPage({ notificationId }: Props
             <Text style={{ fontSize: 13, color: '#595959' }}>{selectedTrips.length} schedule(s) selected</Text>
             <Button onClick={cancelSendMode} style={{ borderRadius: 6 }}>Cancel</Button>
             <Button type="primary" style={{ borderRadius: 6 }} onClick={handlePreviewEmail}>Preview Email</Button>
+          </div>
+        ) : sendMode === 'sms' ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <Text style={{ fontSize: 13, color: '#595959' }}>{selectedTrips.length} schedule selected</Text>
+            <Button onClick={cancelSendMode} style={{ borderRadius: 6 }}>Cancel</Button>
+            <Button type="primary" style={{ borderRadius: 6 }} onClick={handlePreviewSMS}>Preview SMS</Button>
           </div>
         ) : sendMode === 'notRequired' ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
@@ -281,32 +308,41 @@ export default function CustomerNotificationDetailPage({ notificationId }: Props
             <Text style={{ fontSize: 13, color: '#595959' }}>{sentCount}/{trips.length} Sent</Text>
           </div>
         </div>
-        <Table<TripNotification>
-          columns={tripColumns}
-          dataSource={trips}
-          rowKey={(_, i) => String(i)}
-          pagination={false}
-          size="middle"
-          rowSelection={
-            sendMode === 'email' ? {
-              type: 'checkbox',
-              selectedRowKeys,
-              onChange: setSelectedRowKeys,
-              // Pending Assignment trips can't be sent an email — hide their checkbox entirely (PRD §8.2)
-              renderCell: (_checked, record, _index, originNode) =>
-                record.notificationStatus === 'Pending Assignment' ? null : originNode,
-            } : sendMode === 'notRequired' ? {
-              type: 'checkbox',
-              selectedRowKeys,
-              onChange: setSelectedRowKeys,
-              // Only Pending Assignment / Ready to Sent trips can be marked not required (PRD §10.2)
-              renderCell: (_checked, record, _index, originNode) =>
-                record.notificationStatus === 'Pending Assignment' || record.notificationStatus === 'Ready to Sent'
-                  ? originNode
-                  : null,
-            } : undefined
-          }
-        />
+        <div style={{ padding: '0 16px 16px' }}>
+          <Table<TripNotification>
+            columns={tripColumns}
+            dataSource={trips}
+            rowKey={(_, i) => String(i)}
+            pagination={false}
+            size="middle"
+            rowSelection={
+              sendMode === 'email' ? {
+                type: 'checkbox',
+                selectedRowKeys,
+                onChange: setSelectedRowKeys,
+                // Pending Assignment trips can't be sent an email — hide their checkbox entirely (PRD §8.2)
+                renderCell: (_checked, record, _index, originNode) =>
+                  record.notificationStatus === 'Pending Assignment' ? null : originNode,
+              } : sendMode === 'notRequired' ? {
+                type: 'checkbox',
+                selectedRowKeys,
+                onChange: setSelectedRowKeys,
+                // Only Pending Assignment / Ready to Sent trips can be marked not required (PRD §10.2)
+                renderCell: (_checked, record, _index, originNode) =>
+                  record.notificationStatus === 'Pending Assignment' || record.notificationStatus === 'Ready to Sent'
+                    ? originNode
+                    : null,
+              } : sendMode === 'sms' ? {
+                type: 'radio',
+                selectedRowKeys,
+                onChange: setSelectedRowKeys,
+                // SMS is single-trip only; same eligibility as email — Pending Assignment excluded (PRD §9/Appendix A)
+                renderCell: (_checked, record, _index, originNode) =>
+                  record.notificationStatus === 'Pending Assignment' ? null : originNode,
+              } : undefined
+            }
+          />
+        </div>
         <button
           style={{
             width: '100%', padding: '13px 0', border: 'none', borderTop: '1px solid #f0f0f0',
@@ -359,6 +395,14 @@ export default function CustomerNotificationDetailPage({ notificationId }: Props
         defaultEmails={emails}
         defaultEmailCc={emailCc}
         onSend={handleSendEmail}
+      />
+
+      <SendSMSModal
+        open={sendSmsOpen}
+        onClose={() => setSendSmsOpen(false)}
+        selectedTrip={selectedTrips[0] ?? null}
+        defaultPhoneNumbers={phoneNumbers}
+        onSend={handleSendSMS}
       />
 
       <SendFeedbackModal
