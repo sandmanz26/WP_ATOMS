@@ -80,7 +80,7 @@ export default function AppLayout({
   return (
     <Layout style={{ minHeight: '100vh' }}>
       <Sider
-        width={220}
+        width={250}
         collapsible
         collapsed={collapsed}
         onCollapse={setCollapsed}
@@ -159,7 +159,7 @@ export default function AppLayout({
 
       </Sider>
 
-      <Layout style={{ marginLeft: collapsed ? 80 : 220, transition: 'margin-left 0.2s' }}>
+      <Layout style={{ marginLeft: collapsed ? 80 : 250, transition: 'margin-left 0.2s' }}>
         {/* Top breadcrumb */}
         <div
           style={{

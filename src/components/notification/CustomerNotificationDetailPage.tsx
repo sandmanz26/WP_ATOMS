@@ -191,58 +191,58 @@ export default function CustomerNotificationDetailPage({ notificationId }: Props
 
   return (
     <div style={{ padding: 24, position: 'relative' }}>
-      {/* ── Header ── */}
-      <div style={{ background: '#fff', border: '1px solid #f0f0f0', borderRadius: 10, marginBottom: 12, overflow: 'hidden' }}>
-        <div style={{ padding: '20px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <Title level={3} style={{ margin: 0, fontWeight: 700 }}>{notification.contractNo}</Title>
-            <NotificationStatusBadge status={contractStatus} />
-          </div>
-          {sendMode === 'email' ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-              <Text style={{ fontSize: 13, color: '#595959' }}>{selectedTrips.length} schedule(s) selected</Text>
-              <Button onClick={cancelSendMode} style={{ borderRadius: 6 }}>Cancel</Button>
-              <Button type="primary" style={{ borderRadius: 6 }} onClick={handlePreviewEmail}>Preview Email</Button>
-            </div>
-          ) : sendMode === 'notRequired' ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-              <Text style={{ fontSize: 13, color: '#595959' }}>{selectedTrips.length} schedule(s) selected</Text>
-              <Button onClick={cancelSendMode} style={{ borderRadius: 6 }}>Cancel</Button>
-              <Button
-                type="primary"
-                style={{ borderRadius: 6 }}
-                disabled={selectedTrips.length === 0}
-                onClick={() => setNotRequiredConfirmOpen(true)}
-              >
-                Notification Not Required
-              </Button>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', gap: 8 }}>
-              <Dropdown menu={{ items: ACTIONS_ITEMS }} trigger={['click']}>
-                <Button style={{ borderRadius: 6 }}>
-                  Actions <DownOutlined style={{ fontSize: 10 }} />
-                </Button>
-              </Dropdown>
-              <Dropdown menu={{ items: SEND_MENU_ITEMS }} trigger={['click']}>
-                <Tooltip title={sendNotificationTooltip(contractStatus) ?? ''}>
-                  <Button type="primary" style={{ borderRadius: 6 }}>
-                    Send <DownOutlined style={{ fontSize: 10 }} />
-                  </Button>
-                </Tooltip>
-              </Dropdown>
-            </div>
-          )}
+      {/* ── Title (bare, no card) ── */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <Title level={3} style={{ margin: 0, fontWeight: 700 }}>{notification.contractNo}</Title>
+          <NotificationStatusBadge status={contractStatus} />
         </div>
+        {sendMode === 'email' ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <Text style={{ fontSize: 13, color: '#595959' }}>{selectedTrips.length} schedule(s) selected</Text>
+            <Button onClick={cancelSendMode} style={{ borderRadius: 6 }}>Cancel</Button>
+            <Button type="primary" style={{ borderRadius: 6 }} onClick={handlePreviewEmail}>Preview Email</Button>
+          </div>
+        ) : sendMode === 'notRequired' ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <Text style={{ fontSize: 13, color: '#595959' }}>{selectedTrips.length} schedule(s) selected</Text>
+            <Button onClick={cancelSendMode} style={{ borderRadius: 6 }}>Cancel</Button>
+            <Button
+              type="primary"
+              style={{ borderRadius: 6 }}
+              disabled={selectedTrips.length === 0}
+              onClick={() => setNotRequiredConfirmOpen(true)}
+            >
+              Notification Not Required
+            </Button>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Dropdown menu={{ items: ACTIONS_ITEMS }} trigger={['click']}>
+              <Button style={{ borderRadius: 6 }}>
+                Actions <DownOutlined style={{ fontSize: 10 }} />
+              </Button>
+            </Dropdown>
+            <Dropdown menu={{ items: SEND_MENU_ITEMS }} trigger={['click']}>
+              <Tooltip title={sendNotificationTooltip(contractStatus) ?? ''}>
+                <Button type="primary" style={{ borderRadius: 6 }}>
+                  Send <DownOutlined style={{ fontSize: 10 }} />
+                </Button>
+              </Tooltip>
+            </Dropdown>
+          </div>
+        )}
+      </div>
 
-        {/* ── Tab nav ── */}
-        <div style={{ display: 'flex', borderTop: '1px solid #f0f0f0' }}>
+      {/* ── Tab nav (own card, evenly spread, sticky) ── */}
+      <div style={{ background: '#fff', border: '1px solid #f0f0f0', borderRadius: 10, overflow: 'hidden', marginBottom: 16, position: 'sticky', top: 48, zIndex: 10 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0 24px', overflowX: 'auto' }}>
           {TAB_ITEMS.map((tab) => (
             <button
               key={tab.key}
               onClick={() => scrollTo(tab.key)}
               style={{
-                padding: '11px 18px', border: 'none', cursor: 'pointer', fontSize: 14,
+                padding: '18px 0', border: 'none', cursor: 'pointer', fontSize: 14,
                 fontWeight: activeTab === tab.key ? 600 : 400, whiteSpace: 'nowrap',
                 background: 'none',
                 borderBottom: `2px solid ${activeTab === tab.key ? '#1677ff' : 'transparent'}`,
