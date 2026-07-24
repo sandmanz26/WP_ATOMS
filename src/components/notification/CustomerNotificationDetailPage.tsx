@@ -4,7 +4,7 @@ import { DownOutlined, PlusOutlined, MoreOutlined, CheckCircleFilled, Exclamatio
 import { NOTIFICATIONS, type TripNotification, type TripNotificationStatus } from './notificationData'
 import {
   NotificationStatusBadge, TripStatusBadge, computeContractNotificationStatus,
-  canMarkAsNotRequired, canSendNotification, markAsNotRequiredTooltip, sendNotificationTooltip,
+  canMarkAsNotRequired, canSendNotification, markAsNotRequiredTooltip, sendNotificationTooltip, syncTripAssignment,
 } from './notificationStatusLogic'
 import EditRecipientsModal from './EditRecipientsModal'
 import SendEmailModal from './SendEmailModal'
@@ -47,6 +47,14 @@ export default function CustomerNotificationDetailPage({ notificationId, onSelec
   // Local, session-only trips override — this page has no backend, so
   // Send Email/SMS and Mark as Not Required update state here.
   const [trips, setTrips] = useState<TripNotification[]>(notification.trips)
+
+  // Mirror every trip change back onto the shared NOTIFICATIONS record so
+  // the listing table's Progress/Notification Status columns (computed
+  // fresh from NOTIFICATIONS on its own mount) stay in sync with whatever
+  // was sent/marked here, instead of only living in this page's state.
+  useEffect(() => {
+    notification.trips = trips
+  }, [trips, notification])
 
   // Contract-level status is always computed from trips, never stored —
   // see notificationStatusLogic.tsx / PRD §2.2.
@@ -180,7 +188,7 @@ export default function CustomerNotificationDetailPage({ notificationId, onSelec
   }
 
   const handleSwitchTripStatus = (index: number, status: TripNotificationStatus) => {
-    setTrips((prev) => prev.map((t, i) => (i === index ? { ...t, notificationStatus: status } : t)))
+    setTrips((prev) => prev.map((t, i) => (i === index ? syncTripAssignment({ ...t, notificationStatus: status }, index) : t)))
   }
 
   const tripColumns = [

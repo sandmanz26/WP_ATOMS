@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { Typography, Select } from 'antd'
 import { ExperimentOutlined, CloseOutlined, HolderOutlined } from '@ant-design/icons'
 import type { TripNotification, TripNotificationStatus, NotificationStatus } from './notificationData'
-import { TripStatusBadge, NotificationStatusBadge } from './notificationStatusLogic'
+import { TripStatusBadge, NotificationStatusBadge, syncTripAssignment } from './notificationStatusLogic'
 
 const { Text } = Typography
 
@@ -24,22 +24,26 @@ const CONTRACT_STATUS_OPTIONS: NotificationStatus[] = [
 function applyContractStatusPreset(trips: TripNotification[], target: NotificationStatus): TripNotification[] {
   const n = trips.length
   if (n === 0) return trips
+
+  let next: TripNotification[]
   if (target === 'Pending Assignment') {
-    return trips.map((t) => ({ ...t, notificationStatus: 'Pending Assignment' as const }))
+    next = trips.map((t) => ({ ...t, notificationStatus: 'Pending Assignment' as const }))
+  } else if (target === 'Ready to Send') {
+    next = trips.map((t, i) => ({ ...t, notificationStatus: (i === 0 ? 'Ready to Sent' : 'Pending Assignment') as TripNotificationStatus }))
+  } else if (target === 'Completed') {
+    next = trips.map((t) => ({ ...t, notificationStatus: 'Sent' as const }))
+  } else {
+    // Partially Sent — alternate Sent/Ready to Sent; guarantee at least one
+    // of each even for very small trip counts so it never collapses into
+    // Completed or Ready to Send.
+    next = trips.map((t, i) => ({
+      ...t,
+      notificationStatus: (n === 1 ? 'Sent' : i % 2 === 0 ? 'Sent' : 'Ready to Sent') as TripNotificationStatus,
+    }))
   }
-  if (target === 'Ready to Send') {
-    return trips.map((t, i) => ({ ...t, notificationStatus: (i === 0 ? 'Ready to Sent' : 'Pending Assignment') as TripNotificationStatus }))
-  }
-  if (target === 'Completed') {
-    return trips.map((t) => ({ ...t, notificationStatus: 'Sent' as const }))
-  }
-  // Partially Sent — alternate Sent/Ready to Sent; guarantee at least one of
-  // each even for very small trip counts so it never collapses into
-  // Completed or Ready to Send.
-  return trips.map((t, i) => ({
-    ...t,
-    notificationStatus: (n === 1 ? 'Sent' : i % 2 === 0 ? 'Sent' : 'Ready to Sent') as TripNotificationStatus,
-  }))
+
+  // Keep driver/vehicle consistent with whatever status each trip landed on.
+  return next.map((t, i) => syncTripAssignment(t, i))
 }
 
 interface Props {

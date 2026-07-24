@@ -1,4 +1,4 @@
-import type { ContractStatus, NotificationStatus, TripNotificationStatus } from './notificationData'
+import type { ContractStatus, NotificationStatus, TripNotificationStatus, TripNotification } from './notificationData'
 
 const badgeStyle = (cfg: { color: string; bg: string; border: string }): React.CSSProperties => ({
   display: 'inline-flex', alignItems: 'center',
@@ -63,6 +63,32 @@ export function computeContractNotificationStatus(trips: { notificationStatus: T
   // No trip sent or marked not required yet, but not all pending either
   // (i.e. at least one is ready to send / resend required).
   return 'Ready to Send'
+}
+
+// Demo-only pool used to keep driver/vehicle consistent with trip status —
+// see syncTripAssignment below.
+const DEMO_ASSIGNMENTS = [
+  { driver: 'Ahmad Rizal', vehicle: 'SBS1234A' },
+  { driver: 'Lim Wei Jie', vehicle: 'SBS5678B' },
+  { driver: 'Muthu Krishnan', vehicle: 'SBS9012C' },
+  { driver: 'Tan Wei Ming', vehicle: 'SBS3456D' },
+  { driver: 'Farid Osman', vehicle: 'SBS7890E' },
+]
+
+// §2.1 — "pending assignment" means no driver AND/OR no vehicle assigned;
+// every other trip status requires both to be assigned. Whenever the demo
+// Status Switcher changes a trip's status directly, keep driver/vehicle in
+// sync so the row never shows a status that contradicts its own assignment
+// columns (e.g. "Ready to Sent" with driver/vehicle still "-").
+export function syncTripAssignment(trip: TripNotification, seed: number): TripNotification {
+  if (trip.notificationStatus === 'Pending Assignment') {
+    return { ...trip, driver: '-', vehicle: '-' }
+  }
+  if (trip.driver === '-' || trip.vehicle === '-') {
+    const a = DEMO_ASSIGNMENTS[seed % DEMO_ASSIGNMENTS.length]
+    return { ...trip, driver: a.driver, vehicle: a.vehicle }
+  }
+  return trip
 }
 
 // Enable/disable rules from Appendix B
