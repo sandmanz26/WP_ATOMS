@@ -51,6 +51,9 @@ export interface ContractLineItem {
 export interface Invoice {
   id: string
   invoiceNo: string
+  // PRD §16.1 — individual invoices show Contract No. as plain text;
+  // group invoices (2+ real contracts) get a switchable dropdown.
+  invoiceType: 'individual' | 'group'
   customerCode: string
   contractTitles: string[]
   dueDate: string
@@ -131,10 +134,26 @@ function makeContractDetail(contractNo: string, title: string): ContractLineItem
   }
 }
 
+// For group invoices, each linked contract needs genuinely different trip/
+// charge data so switching the Contract No. dropdown visibly changes the
+// page (PRD §16.1 — Trips, Other Charges, and the price summary all update).
+function buildContract(
+  contractNo: string, title: string, trips: TripRecord[], otherCharges: OtherChargeRecord[], discount: number, surcharge: number,
+): ContractLineItem {
+  const tripsSubtotal = trips.reduce((s, t) => s + t.tripPrice, 0)
+  const otherChargesSubtotal = otherCharges.reduce((s, c) => s + c.amount, 0)
+  const subTotal = tripsSubtotal + otherChargesSubtotal
+  return {
+    contractNo, title, trips, tripsSubtotal, otherCharges, otherChargesSubtotal, subTotal, discount, surcharge,
+    total: subTotal - discount + surcharge,
+  }
+}
+
 export const INVOICES: Invoice[] = [
   {
     id: '1',
     invoiceNo: 'ATA-2026-0015',
+    invoiceType: 'group',
     customerCode: 'CUST-0042',
     contractTitles: ['Airport Shuttle Service - Terminal 1 & 2', 'Airport Shuttle Service - Terminal 3', 'Airport Shuttle - Park Area'],
     dueDate: '28 Jun 2026',
@@ -164,10 +183,61 @@ export const INVOICES: Invoice[] = [
     ],
     contractDetails: [
       makeContractDetail('CC-2024-29122484', 'Transportation Agreement with NUS - Summer Period'),
-      makeContractDetail('CC-2024-50021222', 'Airport Shuttle Agreement - Terminal 1 & 2'),
-      makeContractDetail('CC-2024-29121234', 'Airport Shuttle Agreement - Terminal 3'),
-      makeContractDetail('CC-2024-24000012', 'Airport Shuttle Agreement - Park Area'),
-      makeContractDetail('CC-2024-29122485', 'Airport Shuttle Agreement - Budget Terminal'),
+      buildContract(
+        'CC-2024-50021222', 'Airport Shuttle Agreement - Terminal 1 & 2',
+        [
+          { activeDays: 'Daily - Mon to Fri', startTime: '06:00 AM', description: 'Terminal 1 pickup - inbound crew', capacity: 12, tripPrice: 1800 },
+          { activeDays: 'Daily - Mon to Fri', startTime: '06:00 AM', description: 'Terminal 2 pickup - inbound crew', capacity: 12, tripPrice: 1800 },
+          { activeDays: 'Daily - Mon to Fri', startTime: '06:00 PM', description: 'Terminal 1 & 2 return - outbound crew', capacity: 12, tripPrice: 1800 },
+        ],
+        [
+          { description: 'Toll Charges', quantity: 1, unitPrice: 60, amount: 60 },
+          { description: 'Parking Fee', quantity: 1, unitPrice: 40, amount: 40 },
+        ],
+        50, 100,
+      ),
+      buildContract(
+        'CC-2024-29121234', 'Airport Shuttle Agreement - Terminal 3',
+        [
+          { activeDays: 'Daily - Mon to Sun', startTime: '05:30 AM', description: 'Terminal 3 pickup - inbound crew', capacity: 15, tripPrice: 2200 },
+          { activeDays: 'Daily - Mon to Sun', startTime: '07:00 PM', description: 'Terminal 3 return - outbound crew', capacity: 15, tripPrice: 2200 },
+        ],
+        [
+          { description: 'Toll Charges', quantity: 1, unitPrice: 80, amount: 80 },
+          { description: 'Parking Fee', quantity: 1, unitPrice: 50, amount: 50 },
+          { description: 'Late Night Surcharge', quantity: 1, unitPrice: 100, amount: 100 },
+        ],
+        0, 150,
+      ),
+      buildContract(
+        'CC-2024-24000012', 'Airport Shuttle Agreement - Park Area',
+        [
+          { activeDays: 'Every 2 weeks - Sat', startTime: '09:00 AM', description: 'Park Area shuttle - weekend staff', capacity: 8, tripPrice: 1200 },
+          { activeDays: 'Every 2 weeks - Sun', startTime: '09:00 AM', description: 'Park Area shuttle - weekend staff return', capacity: 8, tripPrice: 1200 },
+          { activeDays: 'Every 4 weeks - Wed', startTime: '02:00 PM', description: 'Park Area midweek special event', capacity: 20, tripPrice: 3000 },
+          { activeDays: 'Every 4 weeks - Wed', startTime: '06:00 PM', description: 'Park Area midweek special event return', capacity: 20, tripPrice: 3000 },
+        ],
+        [
+          { description: 'Event Setup Fee', quantity: 1, unitPrice: 200, amount: 200 },
+          { description: 'Security Pack', quantity: 1, unitPrice: 90, amount: 90 },
+        ],
+        200, 0,
+      ),
+      buildContract(
+        'CC-2024-29122485', 'Airport Shuttle Agreement - Budget Terminal',
+        [
+          { activeDays: 'Daily - Mon to Fri', startTime: '07:00 AM', description: 'Budget Terminal shuttle - inbound', capacity: 25, tripPrice: 1500 },
+          { activeDays: 'Daily - Mon to Fri', startTime: '05:00 PM', description: 'Budget Terminal shuttle - outbound', capacity: 25, tripPrice: 1500 },
+          { activeDays: 'Weekly - Sat', startTime: '10:00 AM', description: 'Budget Terminal weekend special', capacity: 30, tripPrice: 1800 },
+        ],
+        [
+          { description: 'Fuel Surcharge', quantity: 1, unitPrice: 120, amount: 120 },
+          { description: 'Toll Charges', quantity: 1, unitPrice: 70, amount: 70 },
+          { description: 'Driver Retribution', quantity: 3, unitPrice: 5, amount: 15 },
+          { description: 'Extra Wheels', quantity: 1, unitPrice: 149, amount: 149 },
+        ],
+        54, 200,
+      ),
     ],
     adjustments: defaultAdjustments,
     payments: defaultPayments,
@@ -204,6 +274,7 @@ export const INVOICES: Invoice[] = [
       { no: 'CC-2026-0041', title: 'Employee Transport - Morning Shift Route A', price: 4000 },
       { no: 'CC-2026-0042', title: 'Employee Transport - Night Shift Route A', price: 4000 },
     ],
+    invoiceType: 'individual',
     contractDetails: [makeContractDetail('CC-2026-0041', 'Employee Transport - Morning Shift Route A')],
     adjustments: defaultAdjustments,
     payments: [],
@@ -240,6 +311,7 @@ export const INVOICES: Invoice[] = [
       { no: 'CC-2025-0331', title: 'School Bus Service - Morning Route', price: 6000 },
       { no: 'CC-2025-0332', title: 'School Bus Service - Afternoon Route', price: 6000 },
     ],
+    invoiceType: 'individual',
     contractDetails: [makeContractDetail('CC-2025-0331', 'School Bus Service - Greenfield International School')],
     adjustments: defaultAdjustments,
     payments: [],
@@ -275,6 +347,7 @@ export const INVOICES: Invoice[] = [
     sourceContracts: [
       { no: 'CC-2026-0099', title: 'Airport Shuttle - Terminal 3', price: 5000 },
     ],
+    invoiceType: 'individual',
     contractDetails: [makeContractDetail('CC-2026-0099', 'Airport Shuttle Service - Terminal 3')],
     adjustments: defaultAdjustments,
     payments: [],
@@ -310,6 +383,7 @@ export const INVOICES: Invoice[] = [
     sourceContracts: [
       { no: 'CC-2026-0077', title: 'Daily Commuter Route - Jurong East to CBD', price: 3200 },
     ],
+    invoiceType: 'individual',
     contractDetails: [makeContractDetail('CC-2026-0077', 'Daily Commuter Route - Jurong East to CBD')],
     adjustments: defaultAdjustments,
     payments: [],
@@ -346,6 +420,7 @@ export const INVOICES: Invoice[] = [
       { no: 'CC-2025-0188', title: 'Weekend Tour - Sentosa Loop Morning', price: 3750 },
       { no: 'CC-2025-0189', title: 'Weekend Tour - Sentosa Loop Afternoon', price: 3750 },
     ],
+    invoiceType: 'individual',
     contractDetails: [makeContractDetail('CC-2025-0188', 'Weekend Tour Package - Sentosa Island Loop')],
     adjustments: defaultAdjustments,
     payments: [],
@@ -381,6 +456,7 @@ export const INVOICES: Invoice[] = [
     sourceContracts: [
       { no: 'CC-2026-0012', title: 'Daily Commuter Route - Tampines to Raffles Place', price: 4100 },
     ],
+    invoiceType: 'individual',
     contractDetails: [makeContractDetail('CC-2026-0012', 'Daily Commuter Route - Tampines to Raffles Place')],
     adjustments: defaultAdjustments,
     payments: [],
@@ -416,6 +492,7 @@ export const INVOICES: Invoice[] = [
     sourceContracts: [
       { no: 'CC-2026-0025', title: 'Hotel Guest Shuttle - Orchard Road Circuit', price: 6200 },
     ],
+    invoiceType: 'individual',
     contractDetails: [makeContractDetail('CC-2026-0025', 'Hotel Guest Shuttle - Orchard Road Circuit')],
     adjustments: [],
     payments: [
@@ -453,6 +530,7 @@ export const INVOICES: Invoice[] = [
     sourceContracts: [
       { no: 'CC-2025-0401', title: 'Daily Commuter Route - Woodlands to Tanjong Pagar', price: 3800 },
     ],
+    invoiceType: 'individual',
     contractDetails: [makeContractDetail('CC-2025-0401', 'Daily Commuter Route - Woodlands to Tanjong Pagar')],
     adjustments: [],
     payments: [
@@ -494,6 +572,7 @@ export const INVOICES: Invoice[] = [
       { no: 'CC-2026-0101', title: 'Airport Shuttle - Terminal 3 -2', price: 5000 },
       { no: 'CC-2026-0102', title: 'National Security of Singapore Agreement - Transportation Project', price: 5000 },
     ],
+    invoiceType: 'individual',
     contractDetails: [makeContractDetail('CC-2026-0089', 'Corporate Event Transport - Annual Dinner 2026')],
     adjustments: defaultAdjustments,
     payments: [
@@ -531,6 +610,7 @@ export const INVOICES: Invoice[] = [
     sourceContracts: [
       { no: 'CC-2026-0066', title: 'Medical Center Route - Buona Vista', price: 5500 },
     ],
+    invoiceType: 'individual',
     contractDetails: [makeContractDetail('CC-2026-0066', 'Medical Center Route - Buona Vista')],
     adjustments: [],
     payments: [
@@ -568,6 +648,7 @@ export const INVOICES: Invoice[] = [
     sourceContracts: [
       { no: 'CC-2026-0044', title: 'Staff Shuttle - Marina Bay Financial', price: 9000 },
     ],
+    invoiceType: 'individual',
     contractDetails: [makeContractDetail('CC-2026-0044', 'Staff Shuttle - Marina Bay Financial')],
     adjustments: [],
     payments: [
@@ -605,6 +686,7 @@ export const INVOICES: Invoice[] = [
     sourceContracts: [
       { no: 'CC-2026-0031', title: 'Airport Shuttle Service - Budget Terminal', price: 3600 },
     ],
+    invoiceType: 'individual',
     contractDetails: [makeContractDetail('CC-2026-0031', 'Airport Shuttle Service - Budget Terminal')],
     adjustments: defaultAdjustments,
     payments: [],
@@ -640,6 +722,7 @@ export const INVOICES: Invoice[] = [
     sourceContracts: [
       { no: 'CC-2026-0038', title: 'Corporate Retreat Transport - Bintan Package', price: 11000 },
     ],
+    invoiceType: 'individual',
     contractDetails: [makeContractDetail('CC-2026-0038', 'Corporate Retreat Transport - Bintan')],
     adjustments: [],
     payments: [
@@ -677,6 +760,7 @@ export const INVOICES: Invoice[] = [
     sourceContracts: [
       { no: 'CC-2026-0021', title: 'Daily Commuter Route - Pasir Ris to CBD', price: 3500 },
     ],
+    invoiceType: 'individual',
     contractDetails: [makeContractDetail('CC-2026-0021', 'Daily Commuter Route - Pasir Ris to CBD')],
     adjustments: defaultAdjustments,
     payments: [
@@ -714,6 +798,7 @@ export const INVOICES: Invoice[] = [
     sourceContracts: [
       { no: 'CC-2026-0009', title: 'Museum Shuttle - Heritage Trail Circuit', price: 4200 },
     ],
+    invoiceType: 'individual',
     contractDetails: [makeContractDetail('CC-2026-0009', 'Museum Shuttle - Heritage Trail Circuit')],
     adjustments: defaultAdjustments,
     payments: [],
@@ -749,6 +834,7 @@ export const INVOICES: Invoice[] = [
     sourceContracts: [
       { no: 'CC-2026-0019', title: 'Hotel Shuttle - Sentosa Integrated Resort', price: 8800 },
     ],
+    invoiceType: 'individual',
     contractDetails: [makeContractDetail('CC-2026-0019', 'Hotel Shuttle - Sentosa Integrated Resort')],
     adjustments: defaultAdjustments,
     payments: [],
@@ -785,6 +871,7 @@ export const INVOICES: Invoice[] = [
       { no: 'CC-2026-0055', title: 'School Bus - Raffles Institution Morning', price: 3600 },
       { no: 'CC-2026-0056', title: 'School Bus - Raffles Institution Afternoon', price: 3600 },
     ],
+    invoiceType: 'individual',
     contractDetails: [makeContractDetail('CC-2026-0055', 'School Bus - Raffles Institution')],
     adjustments: defaultAdjustments,
     payments: [],
@@ -820,6 +907,7 @@ export const INVOICES: Invoice[] = [
     sourceContracts: [
       { no: 'CC-2025-0422', title: 'Daily Commuter Route - Clementi to CBD', price: 2900 },
     ],
+    invoiceType: 'individual',
     contractDetails: [makeContractDetail('CC-2025-0422', 'Daily Commuter Route - Clementi to CBD')],
     adjustments: defaultAdjustments,
     payments: [],

@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react'
-import { Typography, Button, Select, Table, Dropdown, Divider } from 'antd'
+import { Typography, Button, Select, Table, Dropdown, Divider, Tooltip } from 'antd'
 import {
   DownOutlined, LinkOutlined, EyeOutlined,
   FileTextOutlined, PlusOutlined, PaperClipOutlined, DownloadOutlined, HistoryOutlined,
@@ -126,14 +126,10 @@ export default function InvoiceDetailPage({ invoiceId }: Props) {
   }
 
   const contractDetail = invoice.contractDetails.find((c) => c.contractNo === selectedContract) ?? invoice.contractDetails[0]
-  // Real linked contract(s) first, plus a few dummy contract numbers so the
-  // dropdown shows a realistic multi-option list (invoices only carry 1
-  // linked contract in this mock dataset).
-  const DUMMY_CONTRACT_NOS = ['CC-2024-29122484', 'CC-2024-50021222', 'CC-2024-29121234', 'CC-2024-24000012', 'CC-2024-29122485']
-  const contractOptions = [
-    ...invoice.contractDetails.map((c) => ({ value: c.contractNo, label: c.contractNo })),
-    ...DUMMY_CONTRACT_NOS.filter((no) => !invoice.contractDetails.some((c) => c.contractNo === no)).map((no) => ({ value: no, label: no })),
-  ]
+  // PRD §16.1 — only group invoices get a switchable dropdown; individual
+  // invoices show Contract No. as plain, disabled text.
+  const isGroupInvoice = invoice.invoiceType === 'group'
+  const contractOptions = invoice.contractDetails.map((c) => ({ value: c.contractNo, label: c.contractNo }))
 
   /* ── Trip table columns ── */
   const tripColumns = [
@@ -314,13 +310,21 @@ export default function InvoiceDetailPage({ invoiceId }: Props) {
 
           <div style={{ marginBottom: 20 }}>
             <Text style={{ fontSize: 13, color: '#8c8c8c', display: 'block', marginBottom: 8 }}>Contract No.</Text>
-            <Select
-              style={{ width: '100%' }}
-              options={contractOptions.length > 0 ? contractOptions : [{ value: 'CC-2024-291224848', label: 'CC-2024-291224848' }]}
-              value={selectedContract}
-              onChange={setSelectedContract}
-              showSearch
-            />
+            {isGroupInvoice ? (
+              <Select
+                style={{ width: '100%' }}
+                options={contractOptions}
+                value={selectedContract}
+                onChange={setSelectedContract}
+                showSearch
+              />
+            ) : (
+              <Tooltip title="This invoice is linked to a single contract">
+                <Text style={{ fontSize: 14, fontWeight: 600, color: '#1a1a1a', cursor: 'default' }}>
+                  {invoice.contractDetails[0]?.contractNo ?? '-'}
+                </Text>
+              </Tooltip>
+            )}
           </div>
 
           {contractDetail && (
