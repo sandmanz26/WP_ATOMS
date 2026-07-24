@@ -10,9 +10,42 @@ const TRIP_STATUS_OPTIONS: TripNotificationStatus[] = [
   'Pending Assignment', 'Ready to Sent', 'Sent', 'Resend Required', 'Not Required',
 ]
 
+const CONTRACT_STATUS_OPTIONS: NotificationStatus[] = [
+  'Pending Assignment', 'Ready to Send', 'Partially Sent', 'Completed',
+]
+
+// Maps a target contract status to a representative trip-status pattern
+// that satisfies the §2.2 aggregation rule, so picking a contract status
+// directly is a shortcut for setting every trip by hand.
+//   pending assignment = ALL trips pending assignment
+//   ready to send      = ≥1 ready to send, 0 sent, not all pending
+//   partially sent      = ≥1 but not all sent/not required
+//   completed           = ALL trips sent/not required
+function applyContractStatusPreset(trips: TripNotification[], target: NotificationStatus): TripNotification[] {
+  const n = trips.length
+  if (n === 0) return trips
+  if (target === 'Pending Assignment') {
+    return trips.map((t) => ({ ...t, notificationStatus: 'Pending Assignment' as const }))
+  }
+  if (target === 'Ready to Send') {
+    return trips.map((t, i) => ({ ...t, notificationStatus: (i === 0 ? 'Ready to Sent' : 'Pending Assignment') as TripNotificationStatus }))
+  }
+  if (target === 'Completed') {
+    return trips.map((t) => ({ ...t, notificationStatus: 'Sent' as const }))
+  }
+  // Partially Sent — alternate Sent/Ready to Sent; guarantee at least one of
+  // each even for very small trip counts so it never collapses into
+  // Completed or Ready to Send.
+  return trips.map((t, i) => ({
+    ...t,
+    notificationStatus: (n === 1 ? 'Sent' : i % 2 === 0 ? 'Sent' : 'Ready to Sent') as TripNotificationStatus,
+  }))
+}
+
 interface Props {
   trips: TripNotification[]
   onChangeTripStatus: (index: number, status: TripNotificationStatus) => void
+  onBulkSetTrips: (trips: TripNotification[]) => void
   contractStatus: NotificationStatus
 }
 
@@ -20,7 +53,7 @@ interface Props {
 // individual trip statuses live to show how contract status aggregation
 // (§2.2) and the action enable/disable rules react, without having to
 // drive the real Send Email/SMS/Mark-as-Not-Required flows each time.
-export default function StatusSwitcher({ trips, onChangeTripStatus, contractStatus }: Props) {
+export default function StatusSwitcher({ trips, onChangeTripStatus, onBulkSetTrips, contractStatus }: Props) {
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null)
   const dragState = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null)
@@ -71,7 +104,7 @@ export default function StatusSwitcher({ trips, onChangeTripStatus, contractStat
   }
 
   return (
-    <div style={{ ...style, width: 340, maxHeight: '70vh', display: 'flex', flexDirection: 'column', background: '#fff', borderRadius: 12, boxShadow: '0 16px 40px rgba(15,23,42,.28)', border: '1px solid #f0f0f0', overflow: 'hidden' }}>
+    <div id="status-switcher-panel" style={{ ...style, width: 340, maxHeight: '70vh', display: 'flex', flexDirection: 'column', background: '#fff', borderRadius: 12, boxShadow: '0 16px 40px rgba(15,23,42,.28)', border: '1px solid #f0f0f0', overflow: 'hidden' }}>
       <div
         onMouseDown={startDrag}
         style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: '#1a1a1a', color: '#fff', cursor: 'grab' }}
@@ -83,9 +116,19 @@ export default function StatusSwitcher({ trips, onChangeTripStatus, contractStat
         </button>
       </div>
 
-      <div style={{ padding: '10px 12px', borderBottom: '1px solid #f0f0f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Text style={{ fontSize: 12, color: '#8c8c8c' }}>Contract Status (computed)</Text>
-        <NotificationStatusBadge status={contractStatus} />
+      <div style={{ padding: '10px 12px', borderBottom: '1px solid #f0f0f0' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+          <Text style={{ fontSize: 12, color: '#8c8c8c' }}>Contract Status (computed)</Text>
+          <NotificationStatusBadge status={contractStatus} />
+        </div>
+        <Select<NotificationStatus>
+          size="small"
+          value={contractStatus}
+          onChange={(v) => onBulkSetTrips(applyContractStatusPreset(trips, v))}
+          style={{ width: '100%' }}
+          options={CONTRACT_STATUS_OPTIONS.map((s) => ({ value: s, label: `Set contract → ${s}` }))}
+          dropdownStyle={{ zIndex: 1300 }}
+        />
       </div>
 
       <div style={{ overflowY: 'auto', padding: 8 }}>
@@ -102,6 +145,7 @@ export default function StatusSwitcher({ trips, onChangeTripStatus, contractStat
               style={{ width: 150 }}
               options={TRIP_STATUS_OPTIONS.map((s) => ({ value: s, label: s }))}
               optionRender={(opt) => <TripStatusBadge status={opt.value as TripNotificationStatus} />}
+              dropdownStyle={{ zIndex: 1300 }}
             />
           </div>
         ))}

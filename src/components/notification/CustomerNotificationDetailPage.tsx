@@ -464,7 +464,7 @@ export default function CustomerNotificationDetailPage({ notificationId, onSelec
         </div>
       )}
 
-      <StatusSwitcher trips={trips} onChangeTripStatus={handleSwitchTripStatus} contractStatus={contractStatus} />
+      <StatusSwitcher trips={trips} onChangeTripStatus={handleSwitchTripStatus} onBulkSetTrips={setTrips} contractStatus={contractStatus} />
     </div>
   )
 }
