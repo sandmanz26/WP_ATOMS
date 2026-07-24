@@ -427,7 +427,7 @@ export default function CustomerNotificationDetailPage({ notificationId }: Props
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
               <ExclamationCircleOutlined style={{ fontSize: 22, color: '#faad14' }} />
-              <Text style={{ fontSize: 17, fontWeight: 700, color: '#1a1a1a' }}>{'{{refer to copy master list}}'}</Text>
+              <Text style={{ fontSize: 17, fontWeight: 700, color: '#1a1a1a' }}>Confirm Notification Not Required</Text>
             </div>
             <Text style={{ fontSize: 13.5, color: '#595959', display: 'block', marginLeft: 34, marginBottom: 26, lineHeight: 1.6 }}>
               {'{{refer to copy master list}}'}
