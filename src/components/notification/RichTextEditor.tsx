@@ -7,6 +7,7 @@ import {
 interface Props {
   defaultHtml: string
   onChange: (html: string) => void
+  minHeight?: number
 }
 
 const TOOLBAR_BUTTONS: { icon: React.ReactNode; command: string; arg?: string }[] = [
@@ -18,7 +19,7 @@ const TOOLBAR_BUTTONS: { icon: React.ReactNode; command: string; arg?: string }[
   { icon: <OrderedListOutlined />, command: 'insertOrderedList' },
 ]
 
-export default function RichTextEditor({ defaultHtml, onChange }: Props) {
+export default function RichTextEditor({ defaultHtml, onChange, minHeight = 140 }: Props) {
   const ref = useRef<HTMLDivElement>(null)
 
   // Seed content once — this is intentionally an uncontrolled editor so
@@ -76,7 +77,7 @@ export default function RichTextEditor({ defaultHtml, onChange }: Props) {
         contentEditable
         suppressContentEditableWarning
         onInput={() => { if (ref.current) onChange(ref.current.innerHTML) }}
-        style={{ minHeight: 140, padding: 12, fontSize: 13.5, outline: 'none', lineHeight: 1.6 }}
+        style={{ minHeight, padding: 12, fontSize: 13.5, outline: 'none', lineHeight: 1.6 }}
       />
     </div>
   )

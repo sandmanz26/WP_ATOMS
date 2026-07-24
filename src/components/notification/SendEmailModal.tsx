@@ -98,9 +98,9 @@ export default function SendEmailModal({ open, onClose, contractNo, selectedTrip
       destroyOnClose
     >
       <div style={{ background: '#fafafa', border: '1px solid #f0f0f0', borderRadius: 8, padding: 20, marginBottom: 20 }}>
-        <Text style={{ fontSize: 14, fontWeight: 700, display: 'block', marginBottom: 16 }}>Email Information</Text>
+        <Text style={{ fontSize: 14, fontWeight: 700, display: 'block', marginBottom: 12 }}>Email Information</Text>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
           <div>
             <Text style={{ fontSize: 13, display: 'block', marginBottom: 6 }}>Email</Text>
             <Select
@@ -127,30 +127,28 @@ export default function SendEmailModal({ open, onClose, contractNo, selectedTrip
           </div>
         </div>
 
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ marginBottom: 12 }}>
           <Text style={{ fontSize: 13, display: 'block', marginBottom: 6 }}>Subject</Text>
           <Input value={subject} onChange={(e) => setSubject(e.target.value)} style={{ borderRadius: 6 }} />
         </div>
 
-        <div>
+        <div style={{ marginBottom: 20 }}>
           <Text style={{ fontSize: 13, display: 'block', marginBottom: 6 }}>Content</Text>
-          <RichTextEditor key={editorKey} defaultHtml={DEFAULT_CONTENT} onChange={setContent} />
+          <RichTextEditor key={editorKey} defaultHtml={DEFAULT_CONTENT} onChange={setContent} minHeight={90} />
         </div>
-      </div>
 
-      <div style={{ marginBottom: 20 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12 }}>
           <Text style={{ fontSize: 14, fontWeight: 700 }}>Assigned Trip</Text>
           <Text style={{ fontSize: 13, color: '#595959' }}>{selectedTrips.length} Schedule selected</Text>
         </div>
-        <div style={{ border: '1px solid #f0f0f0', borderRadius: 8, overflow: 'hidden' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '110px 100px 1fr 100px 90px 140px', padding: '9px 12px', background: '#fafafa', borderBottom: '1px solid #f0f0f0' }}>
+        <div style={{ border: '1px solid #f0f0f0', borderRadius: 8, overflow: 'hidden', background: '#fff' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '90px 90px 1fr 100px 90px 130px', gap: 8, padding: '9px 12px', background: '#fafafa', borderBottom: '1px solid #f0f0f0' }}>
             {tripColumns.map((c) => (
               <Text key={c.key} style={{ fontSize: 12, color: '#8c8c8c', fontWeight: 600 }}>{c.title}</Text>
             ))}
           </div>
           {selectedTrips.map((t, i) => (
-            <div key={i} style={{ display: 'grid', gridTemplateColumns: '110px 100px 1fr 100px 90px 140px', padding: '10px 12px', borderBottom: i === selectedTrips.length - 1 ? 'none' : '1px solid #f5f5f5', alignItems: 'center' }}>
+            <div key={i} style={{ display: 'grid', gridTemplateColumns: '90px 90px 1fr 100px 90px 130px', gap: 8, padding: '10px 12px', borderBottom: i === selectedTrips.length - 1 ? 'none' : '1px solid #f5f5f5', alignItems: 'center' }}>
               <Text style={{ fontSize: 13 }}>{t.date}</Text>
               <Text style={{ fontSize: 13 }}>{t.startTime}</Text>
               <Text style={{ fontSize: 13 }}>{t.driver}</Text>
