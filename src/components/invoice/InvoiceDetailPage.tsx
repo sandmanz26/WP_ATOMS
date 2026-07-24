@@ -252,9 +252,9 @@ export default function InvoiceDetailPage({ invoiceId }: Props) {
         </div>
       </div>
 
-      {/* ── Tab nav (own card, evenly spread) ── */}
-      <div style={{ ...cardStyle, marginBottom: 16 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0 24px' }}>
+      {/* ── Tab nav (own card, evenly spread, sticky) ── */}
+      <div style={{ ...cardStyle, marginBottom: 16, position: 'sticky', top: 48, zIndex: 10 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0 24px', overflowX: 'auto' }}>
           {TAB_ITEMS.map((tab) => (
             <button
               key={tab.key}
