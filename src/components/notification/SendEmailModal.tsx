@@ -93,7 +93,7 @@ export default function SendEmailModal({ open, onClose, contractNo, selectedTrip
       open={open}
       onCancel={handleClose}
       footer={null}
-      width={680}
+      width={720}
       centered
       destroyOnClose
     >
@@ -134,7 +134,7 @@ export default function SendEmailModal({ open, onClose, contractNo, selectedTrip
 
         <div style={{ marginBottom: 20 }}>
           <Text style={{ fontSize: 13, display: 'block', marginBottom: 6 }}>Content</Text>
-          <RichTextEditor key={editorKey} defaultHtml={DEFAULT_CONTENT} onChange={setContent} minHeight={90} />
+          <RichTextEditor key={editorKey} defaultHtml={DEFAULT_CONTENT} onChange={setContent} minHeight={60} />
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12 }}>
@@ -142,17 +142,17 @@ export default function SendEmailModal({ open, onClose, contractNo, selectedTrip
           <Text style={{ fontSize: 13, color: '#595959' }}>{selectedTrips.length} Schedule selected</Text>
         </div>
         <div style={{ border: '1px solid #f0f0f0', borderRadius: 8, overflow: 'hidden', background: '#fff' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '90px 90px 1fr 100px 90px 130px', gap: 8, padding: '9px 12px', background: '#fafafa', borderBottom: '1px solid #f0f0f0' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '85px 80px 125px 95px 70px 1fr', gap: 8, padding: '9px 12px', background: '#fafafa', borderBottom: '1px solid #f0f0f0' }}>
             {tripColumns.map((c) => (
-              <Text key={c.key} style={{ fontSize: 12, color: '#8c8c8c', fontWeight: 600 }}>{c.title}</Text>
+              <Text key={c.key} style={{ fontSize: 12, color: '#8c8c8c', fontWeight: 600, whiteSpace: 'nowrap' }}>{c.title}</Text>
             ))}
           </div>
           {selectedTrips.map((t, i) => (
-            <div key={i} style={{ display: 'grid', gridTemplateColumns: '90px 90px 1fr 100px 90px 130px', gap: 8, padding: '10px 12px', borderBottom: i === selectedTrips.length - 1 ? 'none' : '1px solid #f5f5f5', alignItems: 'center' }}>
-              <Text style={{ fontSize: 13 }}>{t.date}</Text>
-              <Text style={{ fontSize: 13 }}>{t.startTime}</Text>
-              <Text style={{ fontSize: 13 }}>{t.driver}</Text>
-              <Text style={{ fontSize: 13 }}>{t.vehicle}</Text>
+            <div key={i} style={{ display: 'grid', gridTemplateColumns: '85px 80px 125px 95px 70px 1fr', gap: 8, padding: '10px 12px', borderBottom: i === selectedTrips.length - 1 ? 'none' : '1px solid #f5f5f5', alignItems: 'center' }}>
+              <Text style={{ fontSize: 13, whiteSpace: 'nowrap' }}>{t.date}</Text>
+              <Text style={{ fontSize: 13, whiteSpace: 'nowrap' }}>{t.startTime}</Text>
+              <Text style={{ fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.driver}</Text>
+              <Text style={{ fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.vehicle}</Text>
               <LinkOutlined style={{ color: '#8c8c8c' }} />
               <TripStatusBadge status={t.notificationStatus} />
             </div>
