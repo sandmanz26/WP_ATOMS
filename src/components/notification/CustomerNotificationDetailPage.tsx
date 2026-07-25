@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Typography, Button, Table, Dropdown, Tooltip, message } from 'antd'
-import { DownOutlined, PlusOutlined, MoreOutlined, CheckCircleFilled, ExclamationCircleOutlined } from '@ant-design/icons'
+import { DownOutlined, MoreOutlined, CheckCircleFilled, ExclamationCircleOutlined } from '@ant-design/icons'
 import { NOTIFICATIONS, type TripNotification, type TripNotificationStatus } from './notificationData'
 import {
   NotificationStatusBadge, TripStatusBadge, computeContractNotificationStatus,
@@ -362,15 +362,6 @@ export default function CustomerNotificationDetailPage({ notificationId, onSelec
             }
           />
         </div>
-        <button
-          style={{
-            width: '100%', padding: '13px 0', border: 'none', borderTop: '1px solid #f0f0f0',
-            background: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-            fontSize: 13.5, color: '#1a1a1a', fontFamily: 'inherit',
-          }}
-        >
-          <PlusOutlined style={{ fontSize: 12 }} /> Add Trips
-        </button>
       </div>
 
       {/* ── Additional Information ── */}
