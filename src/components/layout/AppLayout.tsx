@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Layout, Menu, Avatar, Typography } from 'antd'
 import {
   AppstoreOutlined,
+  CalendarOutlined,
   DownOutlined,
   RightOutlined,
 } from '@ant-design/icons'
@@ -30,8 +31,31 @@ export default function AppLayout({
 }: AppLayoutProps) {
   const [collapsed, setCollapsed] = useState(false)
   const [salesOpen, setSalesOpen] = useState(true)
+  const [operationsOpen, setOperationsOpen] = useState(true)
 
   const menuItems = [
+    {
+      key: 'operations-header',
+      icon: <CalendarOutlined style={{ fontSize: 16, color: '#595959' }} />,
+      label: (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span>Operations</span>
+          {operationsOpen ? <DownOutlined style={{ fontSize: 10 }} /> : <RightOutlined style={{ fontSize: 10 }} />}
+        </div>
+      ),
+      onClick: () => setOperationsOpen(!operationsOpen),
+    },
+    ...(operationsOpen
+      ? [
+          {
+            key: 'roster',
+            label: (
+              <Text style={{ fontSize: 13, paddingLeft: 8 }}>Roster Calendar</Text>
+            ),
+            onClick: () => onNavigate?.({ type: 'roster' }),
+          },
+        ]
+      : []),
     {
       key: 'sales-module-header',
       icon: <AppstoreOutlined style={{ fontSize: 16, color: '#595959' }} />,
