@@ -18,6 +18,7 @@ import InvoiceDetailTesting2Page from '@/components/invoice/InvoiceDetailTesting
 import NotificationPage from '@/components/sales-module/NotificationPage'
 import CustomerNotificationPage from '@/components/notification/CustomerNotificationPage'
 import CustomerNotificationDetailPage from '@/components/notification/CustomerNotificationDetailPage'
+import RosterPage from '@/components/roster/RosterPage'
 import { Button } from 'antd'
 import { ArrowLeftOutlined } from '@ant-design/icons'
 
@@ -40,6 +41,7 @@ export type AppPage =
   | { type: 'notification' }
   | { type: 'customer-notification' }
   | { type: 'customer-notification-detail'; notificationId: string }
+  | { type: 'roster' }
 
 export default function App() {
   const [page, setPage] = useState<AppPage>({ type: 'live-tracking-testing-2' })
@@ -206,6 +208,14 @@ export default function App() {
           onBack={() => navigate({ type: 'customer-notification' })}
           onSelectModeChange={setNotifSelectModeActive}
         />
+      </AppLayout>
+    )
+  }
+
+  if (page.type === 'roster') {
+    return (
+      <AppLayout activeKey="roster" breadcrumbLabel="Roster Calendar" onNavigate={navigate}>
+        <RosterPage />
       </AppLayout>
     )
   }
