@@ -32,6 +32,22 @@ const STATUS_ORDER: Record<EmployeeStatus, number> = {
   'Contract Expired': 3,
 }
 
+// The four ordering buckets, used by variants that group employees under
+// status headers instead of tagging every row (see Roster3Page.tsx).
+export type EmployeeStatusGroup = 'Active' | 'Suspended' | 'Future Employee' | 'Inactive'
+
+export const EMPLOYEE_STATUS_GROUPS: EmployeeStatusGroup[] = [
+  'Active',
+  'Suspended',
+  'Future Employee',
+  'Inactive',
+]
+
+export function employeeStatusGroup(status: EmployeeStatus): EmployeeStatusGroup {
+  if (status === 'Active' || status === 'Suspended' || status === 'Future Employee') return status
+  return 'Inactive'
+}
+
 export function sortRosterEmployees(employees: RosterEmployee[]): RosterEmployee[] {
   return [...employees].sort((a, b) => {
     const orderDiff = STATUS_ORDER[a.status] - STATUS_ORDER[b.status]
@@ -115,6 +131,53 @@ export function resolveDailyStatus(
 
   const status: DailyStatus = isWeekend && shift === 'AM' ? 'AM_WEEKEND' : (shift as DailyStatus)
   return { status, standby, coverageGap: false }
+}
+
+export interface DailyCoverage {
+  am: number
+  pm: number
+  off: number
+  leave: number
+  na: number
+  standby: number
+  coverageGap: number
+}
+
+// Per-day headcount across a set of employees. Backs the coverage strip in
+// Roster 3.0 — the "see coverage at a glance" half of the MOVE-3608 user story.
+export function computeDailyCoverage(
+  employees: RosterEmployee[],
+  date: Dayjs,
+  ctx: { patterns: RosterPattern[]; leaves: LeaveRecord[]; holidays: PublicHoliday[] }
+): DailyCoverage {
+  const coverage: DailyCoverage = { am: 0, pm: 0, off: 0, leave: 0, na: 0, standby: 0, coverageGap: 0 }
+  for (const employee of employees) {
+    const result = resolveDailyStatus(employee, date, ctx)
+    if (result.coverageGap) coverage.coverageGap++
+    else if (result.standby) coverage.standby++
+    switch (result.status) {
+      case 'AM':
+      case 'AM_WEEKEND':
+        coverage.am++
+        break
+      case 'PM':
+        coverage.pm++
+        break
+      case 'OFF':
+      case 'PUBLIC_HOLIDAY':
+        coverage.off++
+        break
+      case 'ON_LEAVE':
+        coverage.leave++
+        break
+      case 'NA':
+        coverage.na++
+        break
+      default:
+        break
+    }
+  }
+  return coverage
 }
 
 export const STATUS_COLORS: Record<DailyStatus, { bg: string; text: string; label: string }> = {
