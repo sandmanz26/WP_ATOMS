@@ -19,6 +19,7 @@ import NotificationPage from '@/components/sales-module/NotificationPage'
 import CustomerNotificationPage from '@/components/notification/CustomerNotificationPage'
 import CustomerNotificationDetailPage from '@/components/notification/CustomerNotificationDetailPage'
 import RosterPage from '@/components/roster/RosterPage'
+import Roster3Page from '@/components/roster/Roster3Page'
 import { Button } from 'antd'
 import { ArrowLeftOutlined } from '@ant-design/icons'
 
@@ -42,6 +43,7 @@ export type AppPage =
   | { type: 'customer-notification' }
   | { type: 'customer-notification-detail'; notificationId: string }
   | { type: 'roster' }
+  | { type: 'roster-3' }
 
 export default function App() {
   const [page, setPage] = useState<AppPage>({ type: 'live-tracking-testing-2' })
@@ -216,6 +218,14 @@ export default function App() {
     return (
       <AppLayout activeKey="roster" breadcrumbLabel="Roster Calendar" onNavigate={navigate}>
         <RosterPage />
+      </AppLayout>
+    )
+  }
+
+  if (page.type === 'roster-3') {
+    return (
+      <AppLayout activeKey="roster-3" breadcrumbLabel="Roster 3.0" onNavigate={navigate}>
+        <Roster3Page />
       </AppLayout>
     )
   }
