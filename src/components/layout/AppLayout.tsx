@@ -61,6 +61,13 @@ export default function AppLayout({
             ),
             onClick: () => onNavigate?.({ type: 'roster-3' }),
           },
+          {
+            key: 'roster-4',
+            label: (
+              <Text style={{ fontSize: 13, paddingLeft: 8 }}>Roster 4.0</Text>
+            ),
+            onClick: () => onNavigate?.({ type: 'roster-4' }),
+          },
         ]
       : []),
     {
