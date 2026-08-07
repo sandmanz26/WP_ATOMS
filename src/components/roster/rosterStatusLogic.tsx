@@ -20,7 +20,6 @@ export type DailyStatus = 'ON_LEAVE' | 'DASH' | 'NA' | 'PUBLIC_HOLIDAY' | 'AM' |
 export interface DailyCellResult {
   status: DailyStatus
   standby: boolean
-  coverageGap: boolean
   holidayName?: string
   leave?: LeaveRecord
   /** True when a manual Bulk Edit override produced this cell's shift. */
@@ -168,7 +167,7 @@ export function findApprovedLeave(leaves: LeaveRecord[], employeeId: string, dat
 
 export function resolveDailyStatus(employee: RosterEmployee, date: Dayjs, ctx: RosterContext): DailyCellResult {
   const dateStr = date.format(ISO)
-  const base = { standby: false, coverageGap: false, edited: false }
+  const base = { standby: false, edited: false }
 
   // Priority 2 — outside the employee's contract range.
   if (!isUnderContract(employee, dateStr)) return { ...base, status: 'DASH' }
@@ -185,8 +184,7 @@ export function resolveDailyStatus(employee: RosterEmployee, date: Dayjs, ctx: R
   const holiday = ctx.holidays.find((h) => h.date === dateStr)
 
   // Priority 1 — approved leave overrides every other status.
-  // Standby that lands on leave is a Coverage Gap (MOVE-3608 §6.2).
-  if (leave) return { ...base, status: 'ON_LEAVE', standby, coverageGap: standby, leave }
+  if (leave) return { ...base, status: 'ON_LEAVE', standby, leave }
 
   // Priority 3 — active employee, but no roster covers this date.
   if (!hasRoster) return { ...base, status: 'NA' }
@@ -226,15 +224,13 @@ export interface DailyCoverage {
   leave: number
   na: number
   standby: number
-  coverageGap: number
 }
 
 export function computeDailyCoverage(employees: RosterEmployee[], date: Dayjs, ctx: RosterContext): DailyCoverage {
-  const coverage: DailyCoverage = { am: 0, pm: 0, off: 0, leave: 0, na: 0, standby: 0, coverageGap: 0 }
+  const coverage: DailyCoverage = { am: 0, pm: 0, off: 0, leave: 0, na: 0, standby: 0 }
   for (const employee of employees) {
     const r = resolveDailyStatus(employee, date, ctx)
-    if (r.coverageGap) coverage.coverageGap++
-    else if (r.standby) coverage.standby++
+    if (r.standby) coverage.standby++
     switch (r.status) {
       case 'AM':
       case 'AM_WEEKEND':
@@ -260,6 +256,63 @@ export function computeDailyCoverage(employees: RosterEmployee[], date: Dayjs, c
   return coverage
 }
 
+// ---------------------------------------------------------------------------
+// Day grouping for the month-grid calendar
+// ---------------------------------------------------------------------------
+
+export type DayGroupKey = 'STANDBY' | 'ON_LEAVE' | 'AM' | 'PM' | 'OFF' | 'NO_ROSTER'
+
+export interface DayGroup {
+  key: DayGroupKey
+  label: string
+  employees: RosterEmployee[]
+}
+
+/** Bar order inside a day cell. */
+export const DAY_GROUP_ORDER: DayGroupKey[] = ['STANDBY', 'ON_LEAVE', 'AM', 'PM', 'OFF', 'NO_ROSTER']
+
+export const DAY_GROUP_STYLE: Record<DayGroupKey, { bg: string; fg: string; border?: string; label: string }> = {
+  STANDBY: { bg: '#2f54eb', fg: '#ffffff', label: 'Standby' },
+  ON_LEAVE: { bg: '#ffccc7', fg: '#a8071a', label: 'On Leave' },
+  AM: { bg: '#d9f7be', fg: '#237804', label: 'AM' },
+  PM: { bg: '#fff1b8', fg: '#ad6800', label: 'PM' },
+  OFF: { bg: '#d6e4ff', fg: '#2f4a8c', label: 'Off' },
+  NO_ROSTER: { bg: 'transparent', fg: '#bfbfbf', border: '1px dashed #d9d9d9', label: 'No Roster' },
+}
+
+/**
+ * Buckets a day's on-duty employees into the bars shown in one calendar cell.
+ *
+ * Standby and On Leave are pulled out of their shift group onto their own bar,
+ * so every employee appears exactly once. Leave wins over standby, matching
+ * MOVE-3608's priority 1 where approved leave overrides every other status.
+ */
+export function computeDayGroups(employees: RosterEmployee[], date: Dayjs, ctx: RosterContext): DayGroup[] {
+  const buckets = new Map<DayGroupKey, RosterEmployee[]>()
+  const push = (key: DayGroupKey, employee: RosterEmployee) => {
+    const list = buckets.get(key)
+    if (list) list.push(employee)
+    else buckets.set(key, [employee])
+  }
+
+  for (const employee of employees) {
+    const r = resolveDailyStatus(employee, date, ctx)
+    if (r.status === 'DASH') continue // not yet joined / already left
+    if (r.status === 'ON_LEAVE') push('ON_LEAVE', employee)
+    else if (r.standby) push('STANDBY', employee)
+    else if (r.status === 'NA') push('NO_ROSTER', employee)
+    else if (r.status === 'AM' || r.status === 'AM_WEEKEND') push('AM', employee)
+    else if (r.status === 'PM') push('PM', employee)
+    else push('OFF', employee) // OFF and PUBLIC_HOLIDAY both read as an off day
+  }
+
+  return DAY_GROUP_ORDER.filter((key) => buckets.has(key)).map((key) => ({
+    key,
+    label: DAY_GROUP_STYLE[key].label,
+    employees: sortRosterEmployees(buckets.get(key)!),
+  }))
+}
+
 export interface RosterHighlightsResult {
   noStandbyDays: number
   noShiftDays: number
@@ -274,12 +327,10 @@ export const HIGHLIGHT_WINDOW_DAYS = 60
  * MOVE-3607 — rolling 60-day highlight counts starting from today.
  *
  * Note on "No Standby Coverage": the ticket words the rule as "no employee is
- * assigned standby duty". An employee who is on approved leave is assigned but
- * cannot actually cover — the same situation the calendar already flags as a
- * Coverage Gap. Counting such a day as covered would hide precisely the day the
- * badge exists to surface, so standby held by an employee on approved leave does
- * not count as coverage here. This mirrors the ticket's own explicit rule for
- * the AM/PM badge, which excludes employees on approved leave.
+ * assigned standby duty". An employee on approved leave is assigned but cannot
+ * actually cover, so their standby does not count here. This mirrors the
+ * ticket's own explicit rule for the AM/PM badge, which excludes employees on
+ * approved leave.
  */
 export function computeRosterHighlights(
   employees: RosterEmployee[],
@@ -328,7 +379,9 @@ export const STATUS_COLORS: Record<DailyStatus, { bg: string; text: string; labe
   ON_LEAVE: { bg: '#fff7e6', text: '#d46b08', label: 'On Leave' },
   DASH: { bg: '#fafafa', text: '#bfbfbf', label: '—' },
   NA: { bg: '#fafafa', text: '#8c8c8c', label: 'NA' },
-  PUBLIC_HOLIDAY: { bg: '#fff1f0', text: '#cf1322', label: 'Public Holiday (Off Day)' },
+  // Feedback item 3 — a public holiday is not an error state, so it reads green
+  // rather than red.
+  PUBLIC_HOLIDAY: { bg: '#f6ffed', text: '#389e0d', label: 'Public Holiday (Off Day)' },
   AM: { bg: '#e6f4ff', text: '#0958d9', label: 'AM' },
   AM_WEEKEND: { bg: '#f9f0ff', text: '#722ed1', label: 'AM (Weekend)' },
   PM: { bg: '#f6ffed', text: '#389e0d', label: 'PM' },

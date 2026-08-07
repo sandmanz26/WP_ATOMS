@@ -1,68 +1,82 @@
-// Roster Calendar 4.0 — traditional month-grid layout.
+// Roster Calendar 4.0 — conventional month-grid calendar.
 //
 // A third parallel variant, kept side by side with RosterPage.tsx and
 // Roster3Page.tsx per the repo's original/2.0 convention.
 //
 // Note on scope: MOVE-3608 §2 specifies the *matrix* layout — "Employees are
 // displayed as rows / Calendar dates are displayed as columns" with horizontal
-// scrolling — which is what the other two variants implement. This variant
-// answers a separate stakeholder request for a conventional month calendar
-// (7 columns, weeks as rows). The two layouts cannot both be literal readings
-// of the ticket, so this page follows the ticket wherever the calendar shape
-// does not force a choice, and deviates only where it must:
+// scrolling — which the other two variants implement. This variant answers a
+// separate stakeholder request for a conventional month calendar, and now
+// carries the Aug 7 review feedback:
 //
-//   - Weeks are rendered whole, so a month shows however many adjacent-month
-//     days complete the first and last week, rather than the ticket's fixed
-//     3 leading / 3 trailing days. Those days stay greyed out and read-only.
-//   - One cell is one date shared by the whole team, so a cell shows the day's
-//     coverage totals; the per-employee detail moves into a drawer on click.
-//   - Bulk Edit Roster (MOVE-3658) is deliberately absent: its selection model
-//     is per employee-cell, which this aggregate layout has no place for. Use
-//     Roster Calendar or Roster 3.0 to edit. Manage Roster works here as normal.
+//   1. Legend sits above the calendar, styled after the Ops Calendar chip row.
+//   2. Day cells stack one bar per group, "Group (n)", instead of count chips.
+//      Coverage Gap is gone entirely — it is no longer a product concept.
+//   3. Public holidays read green, not red.
+//   4. Highlights are compact pills on the title row and act as filters.
+//   New 2. Clicking a bar opens a details card anchored to it; the drawer is
+//      reserved for edit mode, where clicking a day opens that day's roster.
 //
-// All status resolution still comes from rosterStatusLogic.tsx, shared with the
-// other variants, so business rules cannot drift between them.
+// Status resolution still comes from the shared rosterStatusLogic.tsx, so rules
+// cannot drift between the three variants.
 
 import { useEffect, useMemo, useState } from 'react'
 import dayjs, { type Dayjs } from 'dayjs'
-import { Button, Drawer, Empty, Space, Tag, Tooltip, Typography } from 'antd'
+import { Button, Checkbox, Drawer, Empty, Popover, Segmented, Space, Tooltip, Typography, message } from 'antd'
 import {
   LeftOutlined,
   RightOutlined,
   CalendarOutlined,
   SettingOutlined,
+  EditOutlined,
+  ExclamationCircleFilled,
   WarningFilled,
+  FlagFilled,
+  CloseOutlined,
 } from '@ant-design/icons'
-import { LEAVES, OPERATIONS_EMPLOYEES, PUBLIC_HOLIDAYS, ROSTER_RULES, ROSTER_OVERRIDES } from './rosterData'
 import {
-  DailyStatus,
+  LEAVES,
+  OPERATIONS_EMPLOYEES,
+  PUBLIC_HOLIDAYS,
+  ROSTER_RULES,
+  ROSTER_OVERRIDES,
+  applyOverrides,
+  type RosterEmployee,
+  type RosterOverride,
+  type ShiftCode,
+} from './rosterData'
+import {
+  DAY_GROUP_ORDER,
+  DAY_GROUP_STYLE,
   HIGHLIGHT_WINDOW_DAYS,
   ISO,
-  STATUS_COLORS,
-  computeDailyCoverage,
+  computeDayGroups,
   computeRosterHighlights,
   employeesOnDuty,
   isoDayIndex,
   isWeekend,
   resolveDailyStatus,
   sortRosterEmployees,
-  type DailyCoverage,
+  type DayGroup,
+  type DayGroupKey,
   type RosterContext,
 } from './rosterStatusLogic'
-import RosterHighlights from './RosterHighlights'
 import ManageRosterDrawer from './ManageRosterDrawer'
+import { PAST_MONTH_TOOLTIP, canEditMonth } from './useRosterEdit'
 
 const { Text, Title } = Typography
 
 const MAX_MONTHS_AHEAD = 12
 const DAY_HEADERS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
+/** Which highlight, if any, is currently filtering the calendar (feedback item 4). */
+type HighlightFilter = 'none' | 'noStandby' | 'noShift'
+
 interface CalendarDay {
   date: Dayjs
   inSelectedMonth: boolean
 }
 
-/** Whole Monday-start weeks covering the month. */
 function buildCalendarWeeks(month: Dayjs): CalendarDay[][] {
   const monthStart = month.startOf('month')
   const monthEnd = month.endOf('month')
@@ -86,13 +100,24 @@ export default function Roster4Page() {
   const today = useMemo(() => dayjs().startOf('day'), [])
   const [month, setMonth] = useState(() => today.startOf('month'))
   const [revision, setRevision] = useState(0)
-  const [drawerOpen, setDrawerOpen] = useState(false)
-  const [selectedDate, setSelectedDate] = useState<Dayjs | null>(null)
+  const [manageOpen, setManageOpen] = useState(false)
+  const [highlightFilter, setHighlightFilter] = useState<HighlightFilter>('none')
+  const [openBarKey, setOpenBarKey] = useState<string | null>(null)
+
+  // Edit mode: a draft of overrides that only commits on Save.
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState<RosterOverride[]>([])
+  const [editDate, setEditDate] = useState<Dayjs | null>(null)
 
   const ctx: RosterContext = useMemo(
-    () => ({ rules: ROSTER_RULES, leaves: LEAVES, holidays: PUBLIC_HOLIDAYS, overrides: ROSTER_OVERRIDES }),
+    () => ({
+      rules: ROSTER_RULES,
+      leaves: LEAVES,
+      holidays: PUBLIC_HOLIDAYS,
+      overrides: editing ? [...ROSTER_OVERRIDES, ...draft] : ROSTER_OVERRIDES,
+    }),
     // The rules array is mutated in place by the Manage Roster drawer.
-    [revision]
+    [revision, editing, draft]
   )
 
   const weeks = useMemo(() => buildCalendarWeeks(month), [month])
@@ -102,57 +127,135 @@ export default function Roster4Page() {
     [today, ctx]
   )
 
-  const canGoNext = month.isBefore(today.add(MAX_MONTHS_AHEAD, 'month').startOf('month'))
+  const filteredDates = useMemo(() => {
+    if (highlightFilter === 'noStandby') return new Set(highlights.noStandbyDates)
+    if (highlightFilter === 'noShift') return new Set(highlights.noShiftDates)
+    return null
+  }, [highlightFilter, highlights])
 
-  // Reset the day drawer whenever the month changes out from under it.
+  const editableMonth = canEditMonth(month, today)
+  const canGoNext = month.isBefore(today.add(MAX_MONTHS_AHEAD, 'month').startOf('month')) && !editing
+
   useEffect(() => {
-    setSelectedDate(null)
+    setEditDate(null)
+    setOpenBarKey(null)
   }, [month])
+
+  const startEdit = () => {
+    setDraft([])
+    setEditDate(null)
+    setOpenBarKey(null)
+    setEditing(true)
+  }
+
+  const saveEdit = () => {
+    applyOverrides(draft)
+    setDraft([])
+    setEditDate(null)
+    setEditing(false)
+    setRevision((r) => r + 1)
+    message.success('Roster updated successfully.')
+  }
+
+  const cancelEdit = () => {
+    setDraft([])
+    setEditDate(null)
+    setEditing(false)
+  }
+
+  const updateDraft = (employeeId: string, date: string, patch: Partial<RosterOverride>) => {
+    setDraft((prev) => {
+      const next = [...prev]
+      const existing = next.find((o) => o.employeeId === employeeId && o.date === date)
+      if (existing) Object.assign(existing, patch)
+      else next.push({ employeeId, date, ...patch })
+      return next
+    })
+  }
 
   return (
     <div style={{ padding: 24 }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
+      {/* Title row — highlights sit here as compact pills (feedback item 4). */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16, gap: 16, flexWrap: 'wrap' }}>
         <div>
           <Title level={4} style={{ margin: 0 }}>Roster Calendar 4.0</Title>
           <Text type="secondary" style={{ fontSize: 13 }}>
-            Operations department — month grid with daily coverage totals
+            Operations department — month grid with daily coverage
           </Text>
         </div>
-        <Space>
-          <Button icon={<SettingOutlined />} onClick={() => setDrawerOpen(true)}>Manage Roster</Button>
-        </Space>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <HighlightPill
+            icon={<ExclamationCircleFilled />}
+            count={highlights.noStandbyDays}
+            label="days with no standby coverage"
+            windowDays={highlights.windowDays}
+            tone="#d46b08"
+            active={highlightFilter === 'noStandby'}
+            onClick={() => setHighlightFilter((f) => (f === 'noStandby' ? 'none' : 'noStandby'))}
+          />
+          <HighlightPill
+            icon={<WarningFilled />}
+            count={highlights.noShiftDays}
+            label="days with no AM/PM shift assigned"
+            windowDays={highlights.windowDays}
+            tone="#cf1322"
+            active={highlightFilter === 'noShift'}
+            onClick={() => setHighlightFilter((f) => (f === 'noShift' ? 'none' : 'noShift'))}
+          />
+        </div>
       </div>
 
-      <div style={{ marginBottom: 16 }}>
-        <RosterHighlights highlights={highlights} />
-      </div>
+      <div style={{ border: '1px solid #f0f0f0', borderRadius: 10, background: '#fff', padding: 16 }}>
+        {/* Toolbar */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+          <Tooltip title={editing ? 'Month navigation is disabled while editing' : undefined}>
+            <Button icon={<LeftOutlined />} disabled={editing} onClick={() => setMonth((m) => m.subtract(1, 'month'))} />
+          </Tooltip>
+          <Button icon={<RightOutlined />} disabled={!canGoNext} onClick={() => canGoNext && setMonth((m) => m.add(1, 'month'))} />
+          <Text strong style={{ fontSize: 15, minWidth: 140 }}>{month.format('MMMM YYYY')}</Text>
+          <Button icon={<CalendarOutlined />} disabled={editing} onClick={() => setMonth(today.startOf('month'))}>
+            Today
+          </Button>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-        <Button icon={<LeftOutlined />} onClick={() => setMonth((m) => m.subtract(1, 'month'))} />
-        <Button icon={<RightOutlined />} disabled={!canGoNext} onClick={() => canGoNext && setMonth((m) => m.add(1, 'month'))} />
-        <Text strong style={{ fontSize: 15, minWidth: 140 }}>{month.format('MMMM YYYY')}</Text>
-        <Button icon={<CalendarOutlined />} onClick={() => setMonth(today.startOf('month'))}>Today</Button>
-      </div>
+          <div style={{ flex: 1 }} />
 
-      <div style={{ border: '1px solid #f0f0f0', borderRadius: 8, background: '#fff', overflow: 'hidden' }}>
+          {editing ? (
+            <Space>
+              <Button onClick={cancelEdit}>Cancel</Button>
+              <Button type="primary" onClick={saveEdit}>Save</Button>
+            </Space>
+          ) : (
+            <Space>
+              <Button icon={<SettingOutlined />} onClick={() => setManageOpen(true)}>Manage Roster</Button>
+              <Tooltip title={editableMonth ? undefined : PAST_MONTH_TOOLTIP}>
+                <Button type="primary" icon={<EditOutlined />} disabled={!editableMonth} onClick={startEdit}>
+                  Edit Roster
+                </Button>
+              </Tooltip>
+            </Space>
+          )}
+        </div>
+
+        {/* Legend above the calendar, Ops Calendar chip styling (feedback item 1). */}
+        <Legend />
+
+        <Text type="secondary" style={{ fontSize: 12, display: 'block', margin: '10px 0 12px' }}>
+          {editing
+            ? 'Edit mode — click a day to open its roster and set AM / PM / Off / Standby for each employee. "On Leave" staff are view-only and excluded from the other sections.'
+            : 'Click a bar to see which staff are in it. Standby and On Leave are pulled out of their shift group onto their own bar.'}
+        </Text>
+
         {/* Weekday header */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', background: '#fafafa', borderBottom: '1px solid #f0f0f0' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', borderBottom: '1px solid #f0f0f0' }}>
           {DAY_HEADERS.map((label, i) => (
-            <div key={label} style={{ padding: '8px 12px', textAlign: 'center' }}>
+            <div key={label} style={{ padding: '8px 10px' }}>
               <Text strong style={{ fontSize: 12, color: i >= 5 ? '#cf1322' : '#595959' }}>{label}</Text>
             </div>
           ))}
         </div>
 
         {weeks.map((week, wi) => (
-          <div
-            key={wi}
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(7, 1fr)',
-              borderBottom: wi === weeks.length - 1 ? undefined : '1px solid #f0f0f0',
-            }}
-          >
+          <div key={wi} style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)' }}>
             {week.map(({ date, inSelectedMonth }) => (
               <DayCell
                 key={date.format(ISO)}
@@ -160,27 +263,77 @@ export default function Roster4Page() {
                 inSelectedMonth={inSelectedMonth}
                 isToday={date.isSame(today, 'day')}
                 ctx={ctx}
-                onClick={() => inSelectedMonth && setSelectedDate(date)}
+                editing={editing}
+                selected={!!editDate && editDate.isSame(date, 'day')}
+                dimmedByFilter={!!filteredDates && !filteredDates.has(date.format(ISO))}
+                openBarKey={openBarKey}
+                onBarOpenChange={setOpenBarKey}
+                onSelectForEdit={() => inSelectedMonth && setEditDate(date)}
               />
             ))}
           </div>
         ))}
       </div>
 
-      <Legend />
-
-      <DayDetailDrawer
-        date={selectedDate}
-        ctx={ctx}
-        onClose={() => setSelectedDate(null)}
-      />
+      {editing && (
+        <EditDayDrawer
+          date={editDate}
+          ctx={ctx}
+          onClose={() => setEditDate(null)}
+          onChange={updateDraft}
+        />
+      )}
 
       <ManageRosterDrawer
-        open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
+        open={manageOpen}
+        onClose={() => setManageOpen(false)}
         onRulesChanged={() => setRevision((r) => r + 1)}
       />
     </div>
+  )
+}
+
+function HighlightPill({
+  icon,
+  count,
+  label,
+  windowDays,
+  tone,
+  active,
+  onClick,
+}: {
+  icon: React.ReactNode
+  count: number
+  label: string
+  windowDays: number
+  tone: string
+  active: boolean
+  onClick: () => void
+}) {
+  const clear = count === 0
+  return (
+    <Tooltip title={clear ? 'Nothing to filter' : active ? 'Click to clear the filter' : 'Click to filter the calendar to these days'}>
+      <div
+        onClick={() => !clear && onClick()}
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 8,
+          padding: '6px 14px',
+          borderRadius: 18,
+          border: `1px solid ${clear ? '#f0f0f0' : `${tone}66`}`,
+          background: active ? `${tone}1a` : clear ? '#fff' : `${tone}0d`,
+          cursor: clear ? 'default' : 'pointer',
+          boxShadow: active ? `0 0 0 2px ${tone}33` : undefined,
+        }}
+      >
+        <span style={{ fontSize: 14, color: clear ? '#52c41a' : tone, display: 'flex' }}>{icon}</span>
+        <span style={{ fontSize: 13, color: '#1a1a1a', whiteSpace: 'nowrap' }}>
+          <strong style={{ color: clear ? '#1a1a1a' : tone }}>{count}</strong> {label}{' '}
+          <Text type="secondary" style={{ fontSize: 12 }}>(next {windowDays} days)</Text>
+        </span>
+      </div>
+    </Tooltip>
   )
 }
 
@@ -189,37 +342,58 @@ function DayCell({
   inSelectedMonth,
   isToday,
   ctx,
-  onClick,
+  editing,
+  selected,
+  dimmedByFilter,
+  openBarKey,
+  onBarOpenChange,
+  onSelectForEdit,
 }: {
   date: Dayjs
   inSelectedMonth: boolean
   isToday: boolean
   ctx: RosterContext
-  onClick: () => void
+  editing: boolean
+  selected: boolean
+  dimmedByFilter: boolean
+  openBarKey: string | null
+  onBarOpenChange: (key: string | null) => void
+  onSelectForEdit: () => void
 }) {
   const dateStr = date.format(ISO)
   const onDuty = employeesOnDuty(OPERATIONS_EMPLOYEES, dateStr)
-  const coverage = computeDailyCoverage(onDuty, date, ctx)
+  const groups = inSelectedMonth ? computeDayGroups(onDuty, date, ctx) : []
   const holiday = PUBLIC_HOLIDAYS.find((h) => h.date === dateStr)
   const weekend = isWeekend(date)
-  const noAmCover = coverage.am === 0 && onDuty.length > 0
+
+  const background = isToday
+    ? '#e6f4ff'
+    : holiday
+      ? '#f6ffed' // feedback item 3 — holidays read green
+      : weekend
+        ? '#fafafa'
+        : '#fff'
 
   return (
     <div
-      onClick={onClick}
+      onClick={editing ? onSelectForEdit : undefined}
       style={{
-        minHeight: 116,
+        minHeight: 124,
         padding: '8px 10px',
-        borderRight: '1px solid #f5f5f5',
-        background: isToday ? '#e6f4ff' : holiday ? '#fff1f0' : weekend ? '#fcfcfc' : '#fff',
-        opacity: inSelectedMonth ? 1 : 0.4,
-        cursor: inSelectedMonth ? 'pointer' : 'default',
+        border: '1px solid #f5f5f5',
+        marginTop: -1,
+        marginLeft: -1,
+        background,
+        opacity: inSelectedMonth ? (dimmedByFilter ? 0.35 : 1) : 0.4,
+        cursor: editing && inSelectedMonth ? 'pointer' : 'default',
+        outline: selected ? '2px dashed #1677ff' : undefined,
+        outlineOffset: -3,
         display: 'flex',
         flexDirection: 'column',
-        gap: 6,
+        gap: 5,
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
         <span
           style={{
             fontSize: 13,
@@ -227,207 +401,277 @@ function DayCell({
             color: isToday ? '#1677ff' : weekend ? '#cf1322' : '#1a1a1a',
           }}
         >
-          {date.format('D')}
+          {date.format('DD')}
         </span>
-        {noAmCover && (
-          <Tooltip title="No AM shift assigned on this day">
-            <WarningFilled style={{ fontSize: 12, color: '#cf1322' }} />
+        {holiday && (
+          <Tooltip title={`Public Holiday — ${holiday.name}`}>
+            <FlagFilled style={{ fontSize: 11, color: '#52c41a' }} />
           </Tooltip>
         )}
       </div>
 
-      {holiday && (
-        <Tooltip title={holiday.name}>
-          <div
-            style={{
-              fontSize: 10,
-              color: '#cf1322',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-            }}
-          >
-            {holiday.name}
-          </div>
-        </Tooltip>
-      )}
-
-      {inSelectedMonth && onDuty.length > 0 && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-          <CountChip label="AM" value={coverage.am} status="AM" />
-          <CountChip label="PM" value={coverage.pm} status="PM" />
-          <CountChip label="Off" value={coverage.off} status="OFF" />
-          {coverage.leave > 0 && <CountChip label="Lv" value={coverage.leave} status="ON_LEAVE" />}
-          {coverage.na > 0 && <CountChip label="NA" value={coverage.na} status="NA" />}
-        </div>
-      )}
-
-      {inSelectedMonth && (coverage.standby > 0 || coverage.coverageGap > 0) && (
-        <div style={{ display: 'flex', gap: 8, marginTop: 'auto' }}>
-          {coverage.standby > 0 && (
-            <Tooltip title={`${coverage.standby} on standby`}>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, color: '#d48806' }}>
-                <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#faad14' }} />
-                {coverage.standby}
-              </span>
-            </Tooltip>
-          )}
-          {coverage.coverageGap > 0 && (
-            <Tooltip title={`${coverage.coverageGap} coverage gap — standby overlaps approved leave`}>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, color: '#cf1322' }}>
-                <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#cf1322' }} />
-                {coverage.coverageGap}
-              </span>
-            </Tooltip>
-          )}
-        </div>
-      )}
+      {groups.map((group) => (
+        <GroupBar
+          key={group.key}
+          group={group}
+          date={date}
+          barKey={`${dateStr}|${group.key}`}
+          openBarKey={openBarKey}
+          onOpenChange={onBarOpenChange}
+          interactive={!editing}
+        />
+      ))}
     </div>
   )
 }
 
-function CountChip({ label, value, status }: { label: string; value: number; status: DailyStatus }) {
-  const colors = STATUS_COLORS[status]
-  const muted = value === 0
-  return (
-    <span
+function GroupBar({
+  group,
+  date,
+  barKey,
+  openBarKey,
+  onOpenChange,
+  interactive,
+}: {
+  group: DayGroup
+  date: Dayjs
+  barKey: string
+  openBarKey: string | null
+  onOpenChange: (key: string | null) => void
+  interactive: boolean
+}) {
+  const style = DAY_GROUP_STYLE[group.key]
+  const bar = (
+    <div
       style={{
-        fontSize: 10,
-        fontWeight: 600,
-        lineHeight: '18px',
-        padding: '0 6px',
+        background: style.bg,
+        color: style.fg,
+        border: style.border ?? '1px solid transparent',
         borderRadius: 4,
-        background: muted ? '#fafafa' : colors.bg,
-        color: muted ? '#d9d9d9' : colors.text,
+        padding: '2px 7px',
+        fontSize: 11,
+        fontWeight: 500,
+        cursor: interactive ? 'pointer' : 'default',
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
       }}
     >
-      {label} {value}
-    </span>
+      {group.label} ({group.employees.length})
+    </div>
+  )
+
+  if (!interactive) return bar
+
+  // Feedback new item 2 — a details card anchored to the bar, not a drawer.
+  return (
+    <Popover
+      open={openBarKey === barKey}
+      onOpenChange={(open) => onOpenChange(open ? barKey : null)}
+      trigger="click"
+      placement="right"
+      title={
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+          <span style={{ fontSize: 13 }}>
+            <strong>{group.label}</strong>
+            <Text type="secondary" style={{ fontSize: 12, fontWeight: 400 }}> — {date.format('D MMM YYYY')}</Text>
+          </span>
+          <CloseOutlined
+            style={{ fontSize: 11, color: '#8c8c8c', cursor: 'pointer' }}
+            onClick={() => onOpenChange(null)}
+          />
+        </div>
+      }
+      content={
+        <div style={{ minWidth: 180 }}>
+          {group.employees.map((employee) => (
+            <div key={employee.id} style={{ padding: '6px 0', borderBottom: '1px solid #f5f5f5', fontSize: 12 }}>
+              {employee.name}
+            </div>
+          ))}
+        </div>
+      }
+    >
+      {bar}
+    </Popover>
   )
 }
 
-function DayDetailDrawer({
+function EditDayDrawer({
   date,
   ctx,
   onClose,
+  onChange,
 }: {
   date: Dayjs | null
   ctx: RosterContext
   onClose: () => void
+  onChange: (employeeId: string, date: string, patch: Partial<RosterOverride>) => void
 }) {
   if (!date) return <Drawer open={false} onClose={onClose} />
 
   const dateStr = date.format(ISO)
-  const holiday = PUBLIC_HOLIDAYS.find((h) => h.date === dateStr)
   const onDuty = sortRosterEmployees(employeesOnDuty(OPERATIONS_EMPLOYEES, dateStr))
-  const coverage: DailyCoverage = computeDailyCoverage(onDuty, date, ctx)
+  const resolved = onDuty.map((employee) => ({ employee, result: resolveDailyStatus(employee, date, ctx) }))
+  const onLeave = resolved.filter((r) => r.result.status === 'ON_LEAVE')
+  const editable = resolved.filter((r) => r.result.status !== 'ON_LEAVE')
+
+  const currentShift = (status: string): ShiftCode | undefined => {
+    if (status === 'AM' || status === 'AM_WEEKEND') return 'AM'
+    if (status === 'PM') return 'PM'
+    if (status === 'OFF' || status === 'PUBLIC_HOLIDAY') return 'OFF'
+    return undefined // NA — no roster set yet
+  }
 
   return (
-    <Drawer
-      open
-      onClose={onClose}
-      width={460}
-      title={date.format('dddd, D MMMM YYYY')}
-    >
-      {holiday && (
-        <div style={{ background: '#fff1f0', border: '1px solid #ffccc7', borderRadius: 6, padding: '8px 12px', marginBottom: 16 }}>
-          <Text style={{ fontSize: 12, color: '#cf1322' }}>Public Holiday — {holiday.name}</Text>
-        </div>
-      )}
-
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
-        <CountChip label="AM" value={coverage.am} status="AM" />
-        <CountChip label="PM" value={coverage.pm} status="PM" />
-        <CountChip label="Off" value={coverage.off} status="OFF" />
-        <CountChip label="Leave" value={coverage.leave} status="ON_LEAVE" />
-        <CountChip label="NA" value={coverage.na} status="NA" />
-      </div>
-
-      {onDuty.length === 0 ? (
-        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No Operations employees under contract on this date." />
-      ) : (
-        onDuty.map((employee) => {
-          const result = resolveDailyStatus(employee, date, ctx)
-          const colors = STATUS_COLORS[result.status]
-          return (
-            <div
-              key={employee.id}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 12,
-                padding: '10px 0',
-                borderBottom: '1px solid #f5f5f5',
-              }}
-            >
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 13, color: '#1a1a1a' }}>{employee.name}</div>
-                <Text type="secondary" style={{ fontSize: 11 }}>{employee.status}</Text>
-                {/* MOVE-3659 information, inline since there is no cell to anchor to here. */}
-                {result.leave && (
-                  <div style={{ fontSize: 11, color: '#d46b08' }}>
-                    {result.leave.type}
-                    {result.leave.timing ? ` · ${result.leave.timing}` : ''}
-                    {result.leave.startDate !== result.leave.endDate
-                      ? ` · ${dayjs(result.leave.startDate).format('D MMM')} – ${dayjs(result.leave.endDate).format('D MMM')}`
-                      : ''}
-                  </div>
-                )}
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-                {result.coverageGap ? (
-                  <Tag color="red" style={{ fontSize: 10, margin: 0 }}>Coverage Gap</Tag>
-                ) : result.standby ? (
-                  <Tag color="gold" style={{ fontSize: 10, margin: 0 }}>Standby</Tag>
-                ) : null}
+    <Drawer open onClose={onClose} width={480} title={`Edit Roster — ${date.format('D MMM YYYY')}`}>
+      <div style={{ marginBottom: 20 }}>
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          On Leave <span style={{ fontStyle: 'italic' }}>(view only — excluded below)</span>
+        </Text>
+        <div
+          style={{
+            marginTop: 6,
+            border: '1px solid #f0f0f0',
+            borderRadius: 6,
+            padding: 10,
+            display: 'flex',
+            gap: 6,
+            flexWrap: 'wrap',
+            minHeight: 42,
+            alignItems: 'center',
+          }}
+        >
+          {onLeave.length === 0 ? (
+            <Text type="secondary" style={{ fontSize: 12 }}>No one on leave this day.</Text>
+          ) : (
+            onLeave.map(({ employee, result }) => (
+              <Tooltip
+                key={employee.id}
+                title={`${result.leave?.type}${result.leave?.timing ? ` · ${result.leave.timing}` : ''}`}
+              >
                 <span
                   style={{
-                    fontSize: 11,
-                    fontWeight: 600,
-                    padding: '2px 8px',
-                    borderRadius: 4,
-                    background: colors.bg,
-                    color: colors.text,
+                    fontSize: 12,
+                    padding: '2px 10px',
+                    borderRadius: 12,
+                    background: '#ffccc7',
+                    color: '#a8071a',
                   }}
                 >
-                  {colors.label}
+                  {employee.name}
                 </span>
-              </div>
+              </Tooltip>
+            ))
+          )}
+        </div>
+      </div>
+
+      <Text strong style={{ fontSize: 13 }}>{editable.length} Employees</Text>
+
+      {editable.length === 0 ? (
+        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No employees to roster on this date." />
+      ) : (
+        editable.map(({ employee, result }) => (
+          <div key={employee.id} style={{ padding: '12px 0', borderBottom: '1px solid #f5f5f5' }}>
+            <div style={{ fontSize: 13, marginBottom: 6 }}>{employee.name}</div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+              <Segmented
+                size="small"
+                value={currentShift(result.status) ?? ''}
+                onChange={(v) => onChange(employee.id, dateStr, { shift: v as ShiftCode })}
+                options={[
+                  { value: 'AM', label: 'AM' },
+                  { value: 'PM', label: 'PM' },
+                  { value: 'OFF', label: 'Off' },
+                ]}
+              />
+              <Checkbox
+                checked={result.standby}
+                onChange={(e) => onChange(employee.id, dateStr, { standby: e.target.checked })}
+                style={{ fontSize: 12 }}
+              >
+                Standby
+              </Checkbox>
             </div>
-          )
-        })
+          </div>
+        ))
       )}
     </Drawer>
   )
 }
 
 function Legend() {
-  const entries: DailyStatus[] = ['AM', 'PM', 'OFF', 'ON_LEAVE', 'NA']
   return (
-    <div style={{ marginTop: 16, display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'center' }}>
-      <Text type="secondary" style={{ fontSize: 12 }}>Counts per day:</Text>
-      {entries.map((status) => {
-        const c = STATUS_COLORS[status]
-        return (
-          <div key={status} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ width: 14, height: 14, borderRadius: 4, background: c.bg, border: `1px solid ${c.text}22`, display: 'inline-block' }} />
-            <Text style={{ fontSize: 12, color: '#595959' }}>{c.label}</Text>
-          </div>
-        )
-      })}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#faad14', display: 'inline-block' }} />
-        <Text style={{ fontSize: 12, color: '#595959' }}>Standby</Text>
+    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+      {DAY_GROUP_ORDER.map((key) => (
+        <LegendChip key={key} groupKey={key} />
+      ))}
+      <div
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 8,
+          padding: '5px 14px 5px 8px',
+          borderRadius: 20,
+          border: '1px solid #f0f0f0',
+        }}
+      >
+        <span
+          style={{
+            width: 24,
+            height: 24,
+            borderRadius: '50%',
+            background: '#f6ffed',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <FlagFilled style={{ fontSize: 11, color: '#52c41a' }} />
+        </span>
+        <Text style={{ fontSize: 13 }}>Public Holiday</Text>
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#cf1322', display: 'inline-block' }} />
-        <Text style={{ fontSize: 12, color: '#595959' }}>Coverage Gap</Text>
-      </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <WarningFilled style={{ fontSize: 12, color: '#cf1322' }} />
-        <Text style={{ fontSize: 12, color: '#595959' }}>No AM cover</Text>
-      </div>
+
+      <Text type="secondary" style={{ fontSize: 12, marginLeft: 4 }}>
+        “No Roster” = joined, no roster set
+      </Text>
+    </div>
+  )
+}
+
+function LegendChip({ groupKey }: { groupKey: DayGroupKey }) {
+  const style = DAY_GROUP_STYLE[groupKey]
+  const initial = style.label.replace('On ', '').charAt(0).toUpperCase()
+  return (
+    <div
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 8,
+        padding: '5px 14px 5px 8px',
+        borderRadius: 20,
+        border: '1px solid #f0f0f0',
+      }}
+    >
+      <span
+        style={{
+          width: 24,
+          height: 24,
+          borderRadius: '50%',
+          background: style.bg === 'transparent' ? '#fafafa' : style.bg,
+          border: style.border,
+          color: style.fg,
+          fontSize: 11,
+          fontWeight: 700,
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        {initial}
+      </span>
+      <Text style={{ fontSize: 13 }}>{style.label}</Text>
     </div>
   )
 }

@@ -330,8 +330,7 @@ function RosterCell({
   const tooltip: string[] = [colors.label]
   if (result.holidayName) tooltip.push(result.holidayName)
   if (result.edited) tooltip.push('Edited')
-  if (result.coverageGap) tooltip.push('Coverage Gap: standby overlaps approved leave')
-  else if (result.standby) tooltip.push('Standby')
+  if (result.standby) tooltip.push('Standby')
   if (editing && !selectable && result.status !== 'ON_LEAVE') tooltip.push('Not editable')
 
   const body = (
@@ -359,11 +358,9 @@ function RosterCell({
         {result.status === 'DASH' ? '—' : shortLabel(result.status)}
       </span>
 
-      {result.coverageGap ? (
-        <span style={{ position: 'absolute', bottom: 3, left: '50%', marginLeft: -3, width: 6, height: 6, borderRadius: '50%', background: '#cf1322' }} />
-      ) : result.standby ? (
+      {result.standby && (
         <span style={{ position: 'absolute', bottom: 3, left: '50%', marginLeft: -3, width: 6, height: 6, borderRadius: '50%', background: '#faad14' }} />
-      ) : null}
+      )}
 
       {result.edited && (
         <span style={{ position: 'absolute', top: 3, left: 4, width: 5, height: 5, borderRadius: '50%', background: '#1677ff' }} />
@@ -507,10 +504,6 @@ function RosterLegend() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
         <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#faad14', display: 'inline-block' }} />
         <Text style={{ fontSize: 12, color: '#595959' }}>Standby</Text>
-      </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#cf1322', display: 'inline-block' }} />
-        <Text style={{ fontSize: 12, color: '#595959' }}>Coverage Gap</Text>
       </div>
     </div>
   )

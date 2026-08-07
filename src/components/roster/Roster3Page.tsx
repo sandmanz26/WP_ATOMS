@@ -4,16 +4,16 @@
 // original/2.0 convention — do not fold the two together. Both implement the
 // same epic (MOVE-3429) and share every business rule via rosterStatusLogic.tsx
 // and the same drawer/modals; what differs is presentation, aimed at the "see
-// coverage at a glance and plan around gaps" half of the user story:
+// coverage at a glance" half of the user story:
 //
 //   - a per-day AM/PM headcount strip pinned under the date header
 //   - employees grouped under status headers rather than a tag on every row
-//   - name search + status filter + a "coverage gaps only" toggle
+//   - name search + employee status filter
 //   - denser solid-chip cells, with row/column crosshair highlighting
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import dayjs, { type Dayjs } from 'dayjs'
-import { Button, Input, Segmented, Select, Space, Tag, Tooltip, Typography } from 'antd'
+import { Button, Input, Select, Space, Tag, Tooltip, Typography } from 'antd'
 import {
   LeftOutlined,
   RightOutlined,
@@ -68,7 +68,7 @@ const CHIP: Record<DailyStatus, { bg: string; fg: string; border?: string; short
   PM: { bg: '#52c41a', fg: '#fff', short: 'PM' },
   OFF: { bg: '#f0f0f0', fg: '#8c8c8c', short: 'Off' },
   ON_LEAVE: { bg: '#fa8c16', fg: '#fff', short: 'Lv' },
-  PUBLIC_HOLIDAY: { bg: '#ff4d4f', fg: '#fff', short: 'PH' },
+  PUBLIC_HOLIDAY: { bg: '#52c41a', fg: '#fff', short: 'PH' },
   NA: { bg: 'transparent', fg: '#bfbfbf', border: '1px dashed #d9d9d9', short: 'NA' },
   DASH: { bg: 'transparent', fg: '#d9d9d9', short: '—' },
 }
@@ -93,7 +93,6 @@ export default function Roster3Page() {
   const [month, setMonth] = useState(() => today.startOf('month'))
   const [search, setSearch] = useState('')
   const [groupFilter, setGroupFilter] = useState<EmployeeStatusGroup | 'All'>('All')
-  const [gapsOnly, setGapsOnly] = useState(false)
   const [hover, setHover] = useState<{ employeeId?: string; dateKey?: string }>({})
   const [revision, setRevision] = useState(0)
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -123,26 +122,14 @@ export default function Roster3Page() {
     [monthStart, monthEnd]
   )
 
-  const employeeHasGap = useMemo(() => {
-    const map = new Map<string, boolean>()
-    for (const emp of monthEmployees) {
-      map.set(
-        emp.id,
-        days.some(({ date, inSelectedMonth }) => inSelectedMonth && resolveDailyStatus(emp, date, ctx).coverageGap)
-      )
-    }
-    return map
-  }, [monthEmployees, days, ctx])
-
   const displayedEmployees = useMemo(
     () =>
       monthEmployees.filter((e) => {
         if (search && !e.name.toLowerCase().includes(search.toLowerCase())) return false
         if (groupFilter !== 'All' && employeeStatusGroup(e.status) !== groupFilter) return false
-        if (gapsOnly && !employeeHasGap.get(e.id)) return false
         return true
       }),
-    [monthEmployees, search, groupFilter, gapsOnly, employeeHasGap]
+    [monthEmployees, search, groupFilter]
   )
 
   const coverageByDay = useMemo(
@@ -236,14 +223,6 @@ export default function Roster3Page() {
             ...EMPLOYEE_STATUS_GROUPS.map((g) => ({ value: g, label: g })),
           ]}
         />
-        <Segmented
-          value={gapsOnly ? 'gaps' : 'all'}
-          onChange={(v) => setGapsOnly(v === 'gaps')}
-          options={[
-            { value: 'all', label: 'All rows' },
-            { value: 'gaps', label: 'Coverage gaps' },
-          ]}
-        />
       </div>
 
       <div style={{ border: '1px solid #f0f0f0', borderRadius: 8, background: '#fff', overflow: 'hidden' }}>
@@ -298,9 +277,7 @@ export default function Roster3Page() {
                 return (
                   <Tooltip
                     key={key}
-                    title={`${date.format('ddd, D MMM')} — AM ${c.am}, PM ${c.pm}, Off ${c.off}, Leave ${c.leave}${
-                      c.coverageGap ? `, Coverage gaps ${c.coverageGap}` : ''
-                    }`}
+                    title={`${date.format('ddd, D MMM')} — AM ${c.am}, PM ${c.pm}, Off ${c.off}, Leave ${c.leave}, Standby ${c.standby}`}
                   >
                     <div
                       style={{
@@ -536,8 +513,7 @@ function Cell({
   const parts: string[] = [STATUS_COLORS[result.status].label]
   if (result.holidayName) parts.push(result.holidayName)
   if (result.edited) parts.push('Edited')
-  if (result.coverageGap) parts.push('Coverage Gap — standby overlaps approved leave')
-  else if (result.standby) parts.push('Standby')
+  if (result.standby) parts.push('Standby')
   if (editing && !selectable && result.status !== 'ON_LEAVE') parts.push('Not editable')
 
   const body = (
@@ -582,11 +558,9 @@ function Cell({
         {chip.short}
       </span>
 
-      {result.coverageGap ? (
-        <span style={{ position: 'absolute', top: 3, right: 5, width: 6, height: 6, borderRadius: '50%', background: '#cf1322' }} />
-      ) : result.standby ? (
+      {result.standby && (
         <span style={{ position: 'absolute', top: 3, right: 5, width: 6, height: 6, borderRadius: '50%', background: '#faad14' }} />
-      ) : null}
+      )}
 
       {result.edited && (
         <span style={{ position: 'absolute', top: 3, left: 4, width: 5, height: 5, borderRadius: '50%', background: '#1677ff' }} />
@@ -714,10 +688,6 @@ function Legend() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
         <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#faad14', display: 'inline-block' }} />
         <Text style={{ fontSize: 12, color: '#595959' }}>Standby</Text>
-      </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#cf1322', display: 'inline-block' }} />
-        <Text style={{ fontSize: 12, color: '#595959' }}>Coverage Gap</Text>
       </div>
     </div>
   )
