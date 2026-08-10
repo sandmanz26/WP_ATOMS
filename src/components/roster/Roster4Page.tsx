@@ -62,6 +62,12 @@ import {
   type RosterContext,
 } from './rosterStatusLogic'
 import ManageRosterDrawer from './ManageRosterDrawer'
+import RosterVariantSwitcher, {
+  CALENDAR_STYLE_METRICS,
+  DEFAULT_VARIANTS,
+  type CalendarStyle,
+  type RosterVariantState,
+} from './RosterVariantSwitcher'
 import { PAST_MONTH_TOOLTIP, canEditMonth } from './useRosterEdit'
 
 const { Text, Title } = Typography
@@ -103,6 +109,11 @@ export default function Roster4Page() {
   const [manageOpen, setManageOpen] = useState(false)
   const [highlightFilter, setHighlightFilter] = useState<HighlightFilter>('none')
   const [openBarKey, setOpenBarKey] = useState<string | null>(null)
+
+  // Demo-only display variants, driven by the floating switcher.
+  const [variants, setVariants] = useState<RosterVariantState>(DEFAULT_VARIANTS)
+  // Variant 3 — legend chips double as per-group filters.
+  const [hiddenGroups, setHiddenGroups] = useState<Set<DayGroupKey>>(new Set())
 
   // Edit mode: a draft of overrides that only commits on Save.
   const [editing, setEditing] = useState(false)
@@ -237,7 +248,18 @@ export default function Roster4Page() {
         </div>
 
         {/* Legend above the calendar, Ops Calendar chip styling (feedback item 1). */}
-        <Legend />
+        <Legend
+          filtersEnabled={variants.legendFilters}
+          hiddenGroups={hiddenGroups}
+          onToggleGroup={(key) =>
+            setHiddenGroups((prev) => {
+              const next = new Set(prev)
+              if (next.has(key)) next.delete(key)
+              else next.add(key)
+              return next
+            })
+          }
+        />
 
         <Text type="secondary" style={{ fontSize: 12, display: 'block', margin: '10px 0 12px' }}>
           {editing
@@ -245,8 +267,18 @@ export default function Roster4Page() {
             : 'Click a bar to see which staff are in it. Standby and On Leave are pulled out of their shift group onto their own bar.'}
         </Text>
 
-        {/* Weekday header */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', borderBottom: '1px solid #f0f0f0' }}>
+        {/* Weekday header — variant 2 pins it to the top of the viewport. */}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(7, 1fr)',
+            borderBottom: '1px solid #f0f0f0',
+            background: '#fff',
+            ...(variants.freezeDayNames
+              ? { position: 'sticky' as const, top: 0, zIndex: 20 }
+              : {}),
+          }}
+        >
           {DAY_HEADERS.map((label, i) => (
             <div key={label} style={{ padding: '8px 10px' }}>
               <Text strong style={{ fontSize: 12, color: i >= 5 ? '#cf1322' : '#595959' }}>{label}</Text>
@@ -269,6 +301,8 @@ export default function Roster4Page() {
                 openBarKey={openBarKey}
                 onBarOpenChange={setOpenBarKey}
                 onSelectForEdit={() => inSelectedMonth && setEditDate(date)}
+                calendarStyle={variants.calendarStyle}
+                hiddenGroups={variants.legendFilters ? hiddenGroups : EMPTY_HIDDEN}
               />
             ))}
           </div>
@@ -289,9 +323,14 @@ export default function Roster4Page() {
         onClose={() => setManageOpen(false)}
         onRulesChanged={() => setRevision((r) => r + 1)}
       />
+
+      <RosterVariantSwitcher value={variants} onChange={setVariants} />
     </div>
   )
 }
+
+/** Stable empty set so DayCell's props don't change identity every render. */
+const EMPTY_HIDDEN: Set<DayGroupKey> = new Set()
 
 function HighlightPill({
   icon,
@@ -348,6 +387,8 @@ function DayCell({
   openBarKey,
   onBarOpenChange,
   onSelectForEdit,
+  calendarStyle,
+  hiddenGroups,
 }: {
   date: Dayjs
   inSelectedMonth: boolean
@@ -359,10 +400,15 @@ function DayCell({
   openBarKey: string | null
   onBarOpenChange: (key: string | null) => void
   onSelectForEdit: () => void
+  calendarStyle: CalendarStyle
+  hiddenGroups: Set<DayGroupKey>
 }) {
   const dateStr = date.format(ISO)
+  const metrics = CALENDAR_STYLE_METRICS[calendarStyle]
   const onDuty = employeesOnDuty(OPERATIONS_EMPLOYEES, dateStr)
-  const groups = inSelectedMonth ? computeDayGroups(onDuty, date, ctx) : []
+  const groups = inSelectedMonth
+    ? computeDayGroups(onDuty, date, ctx).filter((g) => !hiddenGroups.has(g.key))
+    : []
   const holiday = PUBLIC_HOLIDAYS.find((h) => h.date === dateStr)
   const weekend = isWeekend(date)
 
@@ -378,8 +424,8 @@ function DayCell({
     <div
       onClick={editing ? onSelectForEdit : undefined}
       style={{
-        minHeight: 124,
-        padding: '8px 10px',
+        minHeight: metrics.minHeight,
+        padding: metrics.datePadding,
         border: '1px solid #f5f5f5',
         marginTop: -1,
         marginLeft: -1,
@@ -390,13 +436,13 @@ function DayCell({
         outlineOffset: -3,
         display: 'flex',
         flexDirection: 'column',
-        gap: 5,
+        gap: metrics.gap,
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
         <span
           style={{
-            fontSize: 13,
+            fontSize: calendarStyle === 'comfortable' || calendarStyle === 'detailed' ? 13 : 12,
             fontWeight: isToday ? 700 : 500,
             color: isToday ? '#1677ff' : weekend ? '#cf1322' : '#1a1a1a',
           }}
@@ -410,17 +456,36 @@ function DayCell({
         )}
       </div>
 
-      {groups.map((group) => (
-        <GroupBar
-          key={group.key}
-          group={group}
-          date={date}
-          barKey={`${dateStr}|${group.key}`}
-          openBarKey={openBarKey}
-          onOpenChange={onBarOpenChange}
-          interactive={!editing}
-        />
-      ))}
+      {calendarStyle === 'chips' ? (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+          {groups.map((group) => (
+            <GroupBar
+              key={group.key}
+              group={group}
+              date={date}
+              barKey={`${dateStr}|${group.key}`}
+              openBarKey={openBarKey}
+              onOpenChange={onBarOpenChange}
+              interactive={!editing}
+              metrics={metrics}
+              chip
+            />
+          ))}
+        </div>
+      ) : (
+        groups.map((group) => (
+          <GroupBar
+            key={group.key}
+            group={group}
+            date={date}
+            barKey={`${dateStr}|${group.key}`}
+            openBarKey={openBarKey}
+            onOpenChange={onBarOpenChange}
+            interactive={!editing}
+            metrics={metrics}
+          />
+        ))
+      )}
     </div>
   )
 }
@@ -432,6 +497,8 @@ function GroupBar({
   openBarKey,
   onOpenChange,
   interactive,
+  metrics,
+  chip = false,
 }: {
   group: DayGroup
   date: Dayjs
@@ -439,25 +506,39 @@ function GroupBar({
   openBarKey: string | null
   onOpenChange: (key: string | null) => void
   interactive: boolean
+  metrics: (typeof CALENDAR_STYLE_METRICS)[CalendarStyle]
+  chip?: boolean
 }) {
   const style = DAY_GROUP_STYLE[group.key]
+  // In chip mode the label shrinks to its initial so a whole day fits on one line.
+  const text = chip
+    ? `${group.label === 'No Roster' ? 'NR' : group.label === 'On Leave' ? 'L' : group.label.charAt(0)}${group.employees.length}`
+    : `${group.label} (${group.employees.length})`
+
   const bar = (
     <div
+      title={chip ? `${group.label} (${group.employees.length})` : undefined}
       style={{
         background: style.bg,
         color: style.fg,
         border: style.border ?? '1px solid transparent',
         borderRadius: 4,
-        padding: '2px 7px',
-        fontSize: 11,
+        padding: metrics.barPadding,
+        fontSize: metrics.barFontSize,
         fontWeight: 500,
         cursor: interactive ? 'pointer' : 'default',
         whiteSpace: 'nowrap',
         overflow: 'hidden',
         textOverflow: 'ellipsis',
+        ...(chip ? { minWidth: 26, textAlign: 'center' as const } : {}),
       }}
     >
-      {group.label} ({group.employees.length})
+      {text}
+      {metrics.showNames && (
+        <div style={{ fontSize: 10, fontWeight: 400, opacity: 0.85, whiteSpace: 'normal' }}>
+          {group.employees.map((e) => e.name.split(' ')[0]).join(', ')}
+        </div>
+      )}
     </div>
   )
 
@@ -601,11 +682,25 @@ function EditDayDrawer({
   )
 }
 
-function Legend() {
+function Legend({
+  filtersEnabled,
+  hiddenGroups,
+  onToggleGroup,
+}: {
+  filtersEnabled: boolean
+  hiddenGroups: Set<DayGroupKey>
+  onToggleGroup: (key: DayGroupKey) => void
+}) {
   return (
     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
       {DAY_GROUP_ORDER.map((key) => (
-        <LegendChip key={key} groupKey={key} />
+        <LegendChip
+          key={key}
+          groupKey={key}
+          filtersEnabled={filtersEnabled}
+          hidden={hiddenGroups.has(key)}
+          onToggle={() => onToggleGroup(key)}
+        />
       ))}
       <div
         style={{
@@ -640,18 +735,36 @@ function Legend() {
   )
 }
 
-function LegendChip({ groupKey }: { groupKey: DayGroupKey }) {
+function LegendChip({
+  groupKey,
+  filtersEnabled,
+  hidden,
+  onToggle,
+}: {
+  groupKey: DayGroupKey
+  filtersEnabled: boolean
+  hidden: boolean
+  onToggle: () => void
+}) {
   const style = DAY_GROUP_STYLE[groupKey]
   const initial = style.label.replace('On ', '').charAt(0).toUpperCase()
-  return (
+  const off = filtersEnabled && hidden
+
+  const chip = (
     <div
+      onClick={filtersEnabled ? onToggle : undefined}
       style={{
         display: 'inline-flex',
         alignItems: 'center',
         gap: 8,
         padding: '5px 14px 5px 8px',
         borderRadius: 20,
-        border: '1px solid #f0f0f0',
+        border: `1px solid ${off ? '#f0f0f0' : '#e6e6e6'}`,
+        background: off ? '#fafafa' : '#fff',
+        opacity: off ? 0.5 : 1,
+        cursor: filtersEnabled ? 'pointer' : 'default',
+        textDecoration: off ? 'line-through' : undefined,
+        userSelect: 'none',
       }}
     >
       <span
@@ -667,11 +780,15 @@ function LegendChip({ groupKey }: { groupKey: DayGroupKey }) {
           display: 'inline-flex',
           alignItems: 'center',
           justifyContent: 'center',
+          filter: off ? 'grayscale(1)' : undefined,
         }}
       >
         {initial}
       </span>
-      <Text style={{ fontSize: 13 }}>{style.label}</Text>
+      <Text style={{ fontSize: 13, color: off ? '#8c8c8c' : undefined }}>{style.label}</Text>
     </div>
   )
+
+  if (!filtersEnabled) return chip
+  return <Tooltip title={hidden ? `Show ${style.label} in the calendar` : `Hide ${style.label} from the calendar`}>{chip}</Tooltip>
 }
