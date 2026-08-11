@@ -44,6 +44,12 @@ of the revisions contradicted what was already built.
   edit drawer (MOVE-3658 §3), replacing the status-then-name ordering the
   rewritten tickets no longer ask for.
 
+### Removed
+
+- The "Click a bar to see which staff are in it…" helper line above the Roster
+  4.0 calendar, on request. The edit-mode helper line stays, since that mode's
+  interaction is not self-evident.
+
 ### Fixed
 
 - The floating variant switcher covered the edit drawer's Save button. It now

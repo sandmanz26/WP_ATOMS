@@ -267,11 +267,15 @@ export default function Roster4Page() {
           }
         />
 
-        <Text type="secondary" style={{ fontSize: 12, display: 'block', margin: '10px 0 12px' }}>
-          {editing
-            ? 'Edit mode — click a day to open its roster and set AM / PM / Off / Standby for each employee. "On Leave" staff are view-only and excluded from the other sections.'
-            : 'Click a bar to see which staff are in it. Standby is an independent assignment, so an employee can appear in both their shift group and Standby.'}
-        </Text>
+        {/* Only edit mode carries a helper line; the view mode is self-explanatory. */}
+        {editing ? (
+          <Text type="secondary" style={{ fontSize: 12, display: 'block', margin: '10px 0 12px' }}>
+            Edit mode — click a day to open its roster and set AM / PM / Off / Standby for each employee.
+            "On Leave" staff are view-only and excluded from the other sections.
+          </Text>
+        ) : (
+          <div style={{ height: 12 }} />
+        )}
 
         {/* Weekday header — variant 2 pins it to the top of the viewport. */}
         <div
