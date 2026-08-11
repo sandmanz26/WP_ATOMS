@@ -183,8 +183,10 @@ export function resolveDailyStatus(employee: RosterEmployee, date: Dayjs, ctx: R
   const leave = findApprovedLeave(ctx.leaves, employee.id, dateStr)
   const holiday = ctx.holidays.find((h) => h.date === dateStr)
 
-  // Priority 1 — approved leave overrides every other status.
-  if (leave) return { ...base, status: 'ON_LEAVE', standby, leave }
+  // Priority 1 — approved leave overrides every other status. MOVE-3608 also
+  // states employees on leave cannot be assigned to Standby, so it is cleared
+  // here rather than left for each caller to remember.
+  if (leave) return { ...base, status: 'ON_LEAVE', standby: false, leave }
 
   // Priority 3 — active employee, but no roster covers this date.
   if (!hasRoster) return { ...base, status: 'NA' }
@@ -208,9 +210,19 @@ export function isCellSelectable(result: DailyCellResult): boolean {
   return result.status === 'AM' || result.status === 'AM_WEEKEND' || result.status === 'PM' || result.status === 'OFF'
 }
 
+/**
+ * Shift options available for a given day (MOVE-3658 §3).
+ *
+ * Weekdays offer AM and PM only — Off Day cannot be assigned to an Operations
+ * employee on a working day. Weekends offer AM and Off Day; PM is not permitted.
+ */
+export function shiftOptionsForDay(date: Dayjs): ShiftCode[] {
+  return isWeekend(date) ? ['AM', 'OFF'] : ['AM', 'PM']
+}
+
 /** Shift options offered by the bulk action bar for the current selection. */
 export function bulkShiftOptions(weekendSelection: boolean): ShiftCode[] {
-  return weekendSelection ? ['AM', 'OFF'] : ['AM', 'PM', 'OFF']
+  return weekendSelection ? ['AM', 'OFF'] : ['AM', 'PM']
 }
 
 // ---------------------------------------------------------------------------
@@ -283,9 +295,12 @@ export const DAY_GROUP_STYLE: Record<DayGroupKey, { bg: string; fg: string; bord
 /**
  * Buckets a day's on-duty employees into the bars shown in one calendar cell.
  *
- * Standby and On Leave are pulled out of their shift group onto their own bar,
- * so every employee appears exactly once. Leave wins over standby, matching
- * MOVE-3608's priority 1 where approved leave overrides every other status.
+ * MOVE-3608: Standby is an *independent* assignment, not a replacement for the
+ * employee's shift — someone rostered AM and put on standby appears in both
+ * "AM (n)" and "Standby (n)". Only On Leave is exclusive: it overrides the
+ * roster status, and employees on leave cannot be assigned standby at all.
+ *
+ * Employees within each group are listed A–Z (MOVE-3659 §2).
  */
 export function computeDayGroups(employees: RosterEmployee[], date: Dayjs, ctx: RosterContext): DayGroup[] {
   const buckets = new Map<DayGroupKey, RosterEmployee[]>()
@@ -297,19 +312,26 @@ export function computeDayGroups(employees: RosterEmployee[], date: Dayjs, ctx: 
 
   for (const employee of employees) {
     const r = resolveDailyStatus(employee, date, ctx)
-    if (r.status === 'DASH') continue // not yet joined / already left
-    if (r.status === 'ON_LEAVE') push('ON_LEAVE', employee)
-    else if (r.standby) push('STANDBY', employee)
-    else if (r.status === 'NA') push('NO_ROSTER', employee)
+    if (r.status === 'DASH') continue // not yet joined / already left — not displayed
+
+    if (r.status === 'ON_LEAVE') {
+      push('ON_LEAVE', employee)
+      continue // leave is exclusive, and cannot carry standby
+    }
+
+    if (r.status === 'NA') push('NO_ROSTER', employee)
     else if (r.status === 'AM' || r.status === 'AM_WEEKEND') push('AM', employee)
     else if (r.status === 'PM') push('PM', employee)
     else push('OFF', employee) // OFF and PUBLIC_HOLIDAY both read as an off day
+
+    // Additive, on top of whichever shift group the employee just landed in.
+    if (r.standby) push('STANDBY', employee)
   }
 
   return DAY_GROUP_ORDER.filter((key) => buckets.has(key)).map((key) => ({
     key,
     label: DAY_GROUP_STYLE[key].label,
-    employees: sortRosterEmployees(buckets.get(key)!),
+    employees: [...buckets.get(key)!].sort((a, b) => a.name.localeCompare(b.name)),
   }))
 }
 

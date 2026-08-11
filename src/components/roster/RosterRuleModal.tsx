@@ -30,10 +30,16 @@ const SHIFT_STYLE: Record<ShiftCode, { bg: string; fg: string }> = {
   OFF: { bg: '#f5f5f5', fg: '#8c8c8c' },
 }
 
-/** MOVE-3610: weekdays cycle AM → PM → Off Day → AM; weekends cycle AM → Off Day → AM. */
+/**
+ * MOVE-3610: weekdays cycle AM → PM → AM; weekends cycle AM → Off Day → AM.
+ *
+ * Off Day is no longer part of the weekday cycle — weekdays are Operations
+ * working days. A weekday cell that already holds Off Day (from older data)
+ * still resolves back to AM so it is never stuck outside the cycle.
+ */
 function nextShift(current: ShiftCode, weekend: boolean): ShiftCode {
   if (weekend) return current === 'AM' ? 'OFF' : 'AM'
-  return current === 'AM' ? 'PM' : current === 'PM' ? 'OFF' : 'AM'
+  return current === 'AM' ? 'PM' : 'AM'
 }
 
 function defaultWeek(): PatternWeek {

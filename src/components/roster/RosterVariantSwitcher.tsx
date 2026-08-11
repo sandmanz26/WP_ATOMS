@@ -91,9 +91,11 @@ export default function RosterVariantSwitcher({
     onChange({ ...value, [key]: v })
 
   // Default to bottom-right until the user drags it somewhere else.
+  // Sits below AntD's drawer/modal layer (1000) so it never covers the Edit
+  // Roster drawer's Save button, while still floating over the page itself.
   const style: React.CSSProperties = pos
-    ? { position: 'fixed', left: pos.x, top: pos.y, zIndex: 1200 }
-    : { position: 'fixed', right: 24, bottom: 24, zIndex: 1200 }
+    ? { position: 'fixed', left: pos.x, top: pos.y, zIndex: 900 }
+    : { position: 'fixed', right: 24, bottom: 24, zIndex: 900 }
 
   if (!open) {
     return (

@@ -1,24 +1,26 @@
 // Roster Calendar 4.0 — conventional month-grid calendar.
 //
-// A third parallel variant, kept side by side with RosterPage.tsx and
-// Roster3Page.tsx per the repo's original/2.0 convention.
+// As of the Aug 11 ticket rewrite this is the variant that matches the PRD.
+// MOVE-3608 §2 now specifies "a monthly calendar grid for the whole team" with a
+// Monday–Sunday layout and roster information as grouped bars within each day —
+// the matrix layout it used to describe (employees as rows, dates as columns)
+// is gone. RosterPage.tsx and Roster3Page.tsx still implement that older matrix
+// reading and are kept only as prior explorations.
 //
-// Note on scope: MOVE-3608 §2 specifies the *matrix* layout — "Employees are
-// displayed as rows / Calendar dates are displayed as columns" with horizontal
-// scrolling — which the other two variants implement. This variant answers a
-// separate stakeholder request for a conventional month calendar, and now
-// carries the Aug 7 review feedback:
+// What this page implements:
+//   MOVE-3608 — month grid, greyed adjacent-month days, today highlighted,
+//     grouped bars "Group (n)" for On Leave / AM / PM / Off / No Roster /
+//     Standby, public holiday indicator, 12-month forward navigation, legend.
+//     Standby is an independent assignment: an employee rostered AM and put on
+//     standby appears in both bars.
+//   MOVE-3607 — the two highlight badges, here as pills that also filter.
+//   MOVE-3659 — clicking a bar opens the view-only Details Card, staff A–Z.
+//   MOVE-3609/3610/3611/3705 — via the shared Manage Roster drawer.
+//   MOVE-3658 — edit mode: pick a day, edit it in a drawer with its own
+//     Save/Cancel, then commit or discard the whole session.
 //
-//   1. Legend sits above the calendar, styled after the Ops Calendar chip row.
-//   2. Day cells stack one bar per group, "Group (n)", instead of count chips.
-//      Coverage Gap is gone entirely — it is no longer a product concept.
-//   3. Public holidays read green, not red.
-//   4. Highlights are compact pills on the title row and act as filters.
-//   New 2. Clicking a bar opens a details card anchored to it; the drawer is
-//      reserved for edit mode, where clicking a day opens that day's roster.
-//
-// Status resolution still comes from the shared rosterStatusLogic.tsx, so rules
-// cannot drift between the three variants.
+// Status resolution comes from the shared rosterStatusLogic.tsx, so rules
+// cannot drift between the variants.
 
 import { useEffect, useMemo, useState } from 'react'
 import dayjs, { type Dayjs } from 'dayjs'
@@ -50,13 +52,14 @@ import {
   DAY_GROUP_STYLE,
   HIGHLIGHT_WINDOW_DAYS,
   ISO,
+  SHIFT_LABEL,
   computeDayGroups,
   computeRosterHighlights,
   employeesOnDuty,
   isoDayIndex,
   isWeekend,
   resolveDailyStatus,
-  sortRosterEmployees,
+  shiftOptionsForDay,
   type DayGroup,
   type DayGroupKey,
   type RosterContext,
@@ -174,12 +177,15 @@ export default function Roster4Page() {
     setEditing(false)
   }
 
-  const updateDraft = (employeeId: string, date: string, patch: Partial<RosterOverride>) => {
+  /** Folds one day's saved drawer edits into the session draft. */
+  const commitDay = (overrides: RosterOverride[]) => {
     setDraft((prev) => {
       const next = [...prev]
-      const existing = next.find((o) => o.employeeId === employeeId && o.date === date)
-      if (existing) Object.assign(existing, patch)
-      else next.push({ employeeId, date, ...patch })
+      for (const override of overrides) {
+        const existing = next.find((o) => o.employeeId === override.employeeId && o.date === override.date)
+        if (existing) Object.assign(existing, override)
+        else next.push({ ...override })
+      }
       return next
     })
   }
@@ -264,7 +270,7 @@ export default function Roster4Page() {
         <Text type="secondary" style={{ fontSize: 12, display: 'block', margin: '10px 0 12px' }}>
           {editing
             ? 'Edit mode — click a day to open its roster and set AM / PM / Off / Standby for each employee. "On Leave" staff are view-only and excluded from the other sections.'
-            : 'Click a bar to see which staff are in it. Standby and On Leave are pulled out of their shift group onto their own bar.'}
+            : 'Click a bar to see which staff are in it. Standby is an independent assignment, so an employee can appear in both their shift group and Standby.'}
         </Text>
 
         {/* Weekday header — variant 2 pins it to the top of the viewport. */}
@@ -314,7 +320,7 @@ export default function Roster4Page() {
           date={editDate}
           ctx={ctx}
           onClose={() => setEditDate(null)}
-          onChange={updateDraft}
+          onCommitDay={commitDay}
         />
       )}
 
@@ -578,34 +584,85 @@ function GroupBar({
   )
 }
 
+/**
+ * MOVE-3658 §3 — the day's roster editor.
+ *
+ * Edits here are staged locally and only handed to the session draft when the
+ * drawer's own Save is pressed; Cancel (or closing the drawer) throws that day's
+ * changes away. The session-level Save/Cancel on the page then commits or
+ * discards everything across all edited days.
+ */
 function EditDayDrawer({
   date,
   ctx,
   onClose,
-  onChange,
+  onCommitDay,
 }: {
   date: Dayjs | null
   ctx: RosterContext
   onClose: () => void
-  onChange: (employeeId: string, date: string, patch: Partial<RosterOverride>) => void
+  onCommitDay: (overrides: RosterOverride[]) => void
 }) {
+  // Pending edits for this day, keyed by employee id.
+  const [pending, setPending] = useState<Record<string, Partial<RosterOverride>>>({})
+
+  useEffect(() => {
+    setPending({})
+  }, [date])
+
   if (!date) return <Drawer open={false} onClose={onClose} />
 
   const dateStr = date.format(ISO)
-  const onDuty = sortRosterEmployees(employeesOnDuty(OPERATIONS_EMPLOYEES, dateStr))
+  // MOVE-3658 §3 — eligible employees are listed A–Z by name.
+  const onDuty = employeesOnDuty(OPERATIONS_EMPLOYEES, dateStr).sort((a, b) => a.name.localeCompare(b.name))
   const resolved = onDuty.map((employee) => ({ employee, result: resolveDailyStatus(employee, date, ctx) }))
   const onLeave = resolved.filter((r) => r.result.status === 'ON_LEAVE')
   const editable = resolved.filter((r) => r.result.status !== 'ON_LEAVE')
 
-  const currentShift = (status: string): ShiftCode | undefined => {
+  // Weekdays: AM/PM. Weekends: AM/Off Day.
+  const dayShiftOptions = shiftOptionsForDay(date)
+
+  const resolvedShift = (status: string): ShiftCode | undefined => {
     if (status === 'AM' || status === 'AM_WEEKEND') return 'AM'
     if (status === 'PM') return 'PM'
     if (status === 'OFF' || status === 'PUBLIC_HOLIDAY') return 'OFF'
-    return undefined // NA — no roster set yet
+    return undefined // No Roster — nothing set yet
   }
 
+  const shiftOf = (employeeId: string, status: string) =>
+    (pending[employeeId]?.shift as ShiftCode | undefined) ?? resolvedShift(status)
+
+  const standbyOf = (employeeId: string, standby: boolean) => pending[employeeId]?.standby ?? standby
+
+  const stage = (employeeId: string, patch: Partial<RosterOverride>) =>
+    setPending((prev) => ({ ...prev, [employeeId]: { ...prev[employeeId], ...patch } }))
+
+  const handleSave = () => {
+    const overrides: RosterOverride[] = Object.entries(pending).map(([employeeId, patch]) => ({
+      employeeId,
+      date: dateStr,
+      ...patch,
+    }))
+    onCommitDay(overrides)
+    setPending({})
+    onClose()
+  }
+
+  const dirty = Object.keys(pending).length > 0
+
   return (
-    <Drawer open onClose={onClose} width={480} title={`Edit Roster — ${date.format('D MMM YYYY')}`}>
+    <Drawer
+      open
+      onClose={onClose}
+      width={480}
+      title={`Edit Roster — ${date.format('D MMM YYYY')}`}
+      footer={
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+          <Button onClick={onClose}>Cancel</Button>
+          <Button type="primary" disabled={!dirty} onClick={handleSave}>Save</Button>
+        </div>
+      }
+    >
       <div style={{ marginBottom: 20 }}>
         <Text type="secondary" style={{ fontSize: 12 }}>
           On Leave <span style={{ fontStyle: 'italic' }}>(view only — excluded below)</span>
@@ -659,17 +716,14 @@ function EditDayDrawer({
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
               <Segmented
                 size="small"
-                value={currentShift(result.status) ?? ''}
-                onChange={(v) => onChange(employee.id, dateStr, { shift: v as ShiftCode })}
-                options={[
-                  { value: 'AM', label: 'AM' },
-                  { value: 'PM', label: 'PM' },
-                  { value: 'OFF', label: 'Off' },
-                ]}
+                value={shiftOf(employee.id, result.status) ?? ''}
+                onChange={(v) => stage(employee.id, { shift: v as ShiftCode })}
+                options={dayShiftOptions.map((s) => ({ value: s, label: SHIFT_LABEL[s] }))}
               />
+              {/* Standby is independent of the shift above (MOVE-3608). */}
               <Checkbox
-                checked={result.standby}
-                onChange={(e) => onChange(employee.id, dateStr, { standby: e.target.checked })}
+                checked={standbyOf(employee.id, result.standby)}
+                onChange={(e) => stage(employee.id, { standby: e.target.checked })}
                 style={{ fontSize: 12 }}
               >
                 Standby
