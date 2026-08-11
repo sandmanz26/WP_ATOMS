@@ -620,7 +620,13 @@ function EditDayDrawer({
   const editable = resolved.filter((r) => r.result.status !== 'ON_LEAVE')
 
   // Weekdays: AM/PM. Weekends: AM/Off Day.
-  const dayShiftOptions = shiftOptionsForDay(date)
+  const dayHoliday = PUBLIC_HOLIDAYS.find((h) => h.date === dateStr)
+  // MOVE-3658 §3 — on a public holiday the shift is fixed to Off Day and the
+  // control is read-only. The options still render so the row reads the same,
+  // they just cannot be changed. Standby stays editable.
+  const dayShiftOptions: ShiftCode[] = dayHoliday
+    ? Array.from(new Set<ShiftCode>([...shiftOptionsForDay(date), 'OFF']))
+    : shiftOptionsForDay(date)
 
   const resolvedShift = (status: string): ShiftCode | undefined => {
     if (status === 'AM' || status === 'AM_WEEKEND') return 'AM'
@@ -663,6 +669,14 @@ function EditDayDrawer({
         </div>
       }
     >
+      {dayHoliday && (
+        <div style={{ background: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: 6, padding: '8px 12px', marginBottom: 16 }}>
+          <Text style={{ fontSize: 12, color: '#237804' }}>
+            Public Holiday — {dayHoliday.name}. Every shift is fixed to Off Day and cannot be changed; standby can still be assigned.
+          </Text>
+        </div>
+      )}
+
       <div style={{ marginBottom: 20 }}>
         <Text type="secondary" style={{ fontSize: 12 }}>
           On Leave <span style={{ fontStyle: 'italic' }}>(view only — excluded below)</span>
@@ -716,7 +730,8 @@ function EditDayDrawer({
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
               <Segmented
                 size="small"
-                value={shiftOf(employee.id, result.status) ?? ''}
+                disabled={!!dayHoliday}
+                value={dayHoliday ? 'OFF' : shiftOf(employee.id, result.status) ?? ''}
                 onChange={(v) => stage(employee.id, { shift: v as ShiftCode })}
                 options={dayShiftOptions.map((s) => ({ value: s, label: SHIFT_LABEL[s] }))}
               />
