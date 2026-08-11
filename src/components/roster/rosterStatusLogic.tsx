@@ -283,13 +283,26 @@ export interface DayGroup {
 /** Bar order inside a day cell. */
 export const DAY_GROUP_ORDER: DayGroupKey[] = ['STANDBY', 'ON_LEAVE', 'AM', 'PM', 'OFF', 'NO_ROSTER']
 
-export const DAY_GROUP_STYLE: Record<DayGroupKey, { bg: string; fg: string; border?: string; label: string }> = {
-  STANDBY: { bg: '#2f54eb', fg: '#ffffff', label: 'Standby' },
-  ON_LEAVE: { bg: '#ffccc7', fg: '#a8071a', label: 'On Leave' },
-  AM: { bg: '#d9f7be', fg: '#237804', label: 'AM' },
-  PM: { bg: '#fff1b8', fg: '#ad6800', label: 'PM' },
-  OFF: { bg: '#d6e4ff', fg: '#2f4a8c', label: 'Off' },
-  NO_ROSTER: { bg: 'transparent', fg: '#bfbfbf', border: '1px dashed #d9d9d9', label: 'No Roster' },
+// bgHover is one step darker on the same AntD colour ramp, so a hovered bar
+// reads as the same status rather than a different one.
+export const DAY_GROUP_STYLE: Record<
+  DayGroupKey,
+  { bg: string; bgHover: string; fg: string; border?: string; borderHover?: string; label: string }
+> = {
+  STANDBY: { bg: '#2f54eb', bgHover: '#1d39c4', fg: '#ffffff', label: 'Standby' },
+  ON_LEAVE: { bg: '#ffccc7', bgHover: '#ffa39e', fg: '#a8071a', label: 'On Leave' },
+  AM: { bg: '#d9f7be', bgHover: '#b7eb8f', fg: '#237804', label: 'AM' },
+  PM: { bg: '#fff1b8', bgHover: '#ffe58f', fg: '#ad6800', label: 'PM' },
+  OFF: { bg: '#d6e4ff', bgHover: '#adc6ff', fg: '#2f4a8c', label: 'Off' },
+  NO_ROSTER: {
+    bg: 'transparent',
+    // Transparent has nothing to darken, so this one fills in on hover instead.
+    bgHover: '#f0f0f0',
+    fg: '#bfbfbf',
+    border: '1px dashed #d9d9d9',
+    borderHover: '1px dashed #bfbfbf',
+    label: 'No Roster',
+  },
 }
 
 /**

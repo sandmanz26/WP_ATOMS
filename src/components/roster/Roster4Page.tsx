@@ -520,6 +520,12 @@ function GroupBar({
   chip?: boolean
 }) {
   const style = DAY_GROUP_STYLE[group.key]
+  const [hovered, setHovered] = useState(false)
+
+  // Only clickable bars darken — in edit mode the day cell is the target, so a
+  // hover highlight on a bar would point at the wrong thing.
+  const active = interactive && (hovered || openBarKey === barKey)
+
   // In chip mode the label shrinks to its initial so a whole day fits on one line.
   const text = chip
     ? `${group.label === 'No Roster' ? 'NR' : group.label === 'On Leave' ? 'L' : group.label.charAt(0)}${group.employees.length}`
@@ -528,15 +534,18 @@ function GroupBar({
   const bar = (
     <div
       title={chip ? `${group.label} (${group.employees.length})` : undefined}
+      onMouseEnter={() => interactive && setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       style={{
-        background: style.bg,
+        background: active ? style.bgHover : style.bg,
         color: style.fg,
-        border: style.border ?? '1px solid transparent',
+        border: (active ? style.borderHover ?? style.border : style.border) ?? '1px solid transparent',
         borderRadius: 4,
         padding: metrics.barPadding,
         fontSize: metrics.barFontSize,
         fontWeight: 500,
         cursor: interactive ? 'pointer' : 'default',
+        transition: 'background 0.12s ease, border-color 0.12s ease',
         whiteSpace: 'nowrap',
         overflow: 'hidden',
         textOverflow: 'ellipsis',

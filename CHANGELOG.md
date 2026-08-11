@@ -44,6 +44,16 @@ of the revisions contradicted what was already built.
   edit drawer (MOVE-3658 §3), replacing the status-then-name ordering the
   rewritten tickets no longer ask for.
 
+### Added
+
+- Hover feedback on the roster bars in each Roster 4.0 day cell, on request.
+  Each group darkens one step on the same AntD colour ramp, so a hovered bar
+  reads as the same status rather than a different one. "No Roster" is
+  transparent and has nothing to darken, so it fills in with a light grey and
+  its dashed border deepens instead. The bar whose details card is open stays
+  darkened, which doubles as a pointer back to the anchor. Bars do not react in
+  edit mode, where the day cell — not the bar — is the click target.
+
 ### Removed
 
 - The "Click a bar to see which staff are in it…" helper line above the Roster
