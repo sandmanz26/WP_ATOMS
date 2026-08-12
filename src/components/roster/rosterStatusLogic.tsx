@@ -13,6 +13,7 @@ import {
   RosterRule,
   RosterRulePattern,
   ShiftCode,
+  ShiftSelection,
 } from './rosterData'
 
 export type DailyStatus = 'ON_LEAVE' | 'DASH' | 'NA' | 'PUBLIC_HOLIDAY' | 'AM' | 'AM_WEEKEND' | 'PM' | 'OFF'
@@ -20,9 +21,21 @@ export type DailyStatus = 'ON_LEAVE' | 'DASH' | 'NA' | 'PUBLIC_HOLIDAY' | 'AM' |
 export interface DailyCellResult {
   status: DailyStatus
   standby: boolean
+  /**
+   * MOVE-3769 §3 — the roster rule assigns standby for this day, regardless of
+   * whether the user has since unticked it. Drives the "Standby from Rule"
+   * indicator, which stays visible either way.
+   */
+  standbyFromRule: boolean
+  standbyReason?: string
+  extend: boolean
+  extendHours?: number
+  extendReason?: string
+  /** MOVE-3769 §3 — marked absent: shift is kept but locked, and not counted. */
+  absent: boolean
   holidayName?: string
   leave?: LeaveRecord
-  /** True when a manual Bulk Edit override produced this cell's shift. */
+  /** True when a manual override produced this cell's shift. */
   edited: boolean
 }
 
@@ -167,18 +180,32 @@ export function findApprovedLeave(leaves: LeaveRecord[], employeeId: string, dat
 
 export function resolveDailyStatus(employee: RosterEmployee, date: Dayjs, ctx: RosterContext): DailyCellResult {
   const dateStr = date.format(ISO)
-  const base = { standby: false, edited: false }
+  const empty = { standby: false, standbyFromRule: false, extend: false, absent: false, edited: false }
 
   // Priority 2 — outside the employee's contract range.
-  if (!isUnderContract(employee, dateStr)) return { ...base, status: 'DASH' }
+  if (!isUnderContract(employee, dateStr)) return { ...empty, status: 'DASH' }
 
   const rule = findRuleForDate(ctx.rules, dateStr)
   const pattern = rule ? findPatternForEmployee(rule, employee.id) : undefined
   const override = ctx.overrides.find((o) => o.employeeId === employee.id && o.date === dateStr)
 
   const patternWeek = rule && pattern ? pattern.weeks[weekIndexInCycle(rule, date)] : undefined
-  const hasRoster = !!patternWeek || override?.shift !== undefined
-  const standby = override?.standby ?? patternWeek?.standby ?? false
+  // An explicit "NA" pick means the user declared this employee unrostered,
+  // which is different from having no pattern at all.
+  const explicitNA = override?.shift === 'NA'
+  const hasRoster = !explicitNA && (!!patternWeek || override?.shift !== undefined)
+
+  const standbyFromRule = patternWeek?.standby ?? false
+  const base = {
+    standby: override?.standby ?? standbyFromRule,
+    standbyFromRule,
+    standbyReason: override?.standbyReason,
+    extend: override?.extend ?? false,
+    extendHours: override?.extendHours,
+    extendReason: override?.extendReason,
+    absent: override?.absence ?? false,
+    edited: override?.shift !== undefined,
+  }
 
   const leave = findApprovedLeave(ctx.leaves, employee.id, dateStr)
   const holiday = ctx.holidays.find((h) => h.date === dateStr)
@@ -186,23 +213,26 @@ export function resolveDailyStatus(employee: RosterEmployee, date: Dayjs, ctx: R
   // Priority 1 — approved leave overrides every other status. MOVE-3608 also
   // states employees on leave cannot be assigned to Standby, so it is cleared
   // here rather than left for each caller to remember.
-  if (leave) return { ...base, status: 'ON_LEAVE', standby: false, leave }
+  if (leave) {
+    return { ...base, status: 'ON_LEAVE', standby: false, standbyReason: undefined, leave }
+  }
 
   // Priority 3 — active employee, but no roster covers this date.
   if (!hasRoster) return { ...base, status: 'NA' }
 
   // Priority 4 — a public holiday turns everyone's base roster into an Off Day.
-  if (holiday) return { ...base, status: 'PUBLIC_HOLIDAY', standby, holidayName: holiday.name }
+  if (holiday) return { ...base, status: 'PUBLIC_HOLIDAY', holidayName: holiday.name }
 
-  // Priority 5 — the roster pattern, or a manual Bulk Edit override.
-  let shift: ShiftCode = override?.shift ?? patternWeek!.days[isoDayIndex(date)]
+  // Priority 5 — the roster pattern, or a manual override.
+  const picked = override?.shift
+  let shift: ShiftCode = (picked && picked !== 'NA' ? picked : undefined) ?? patternWeek!.days[isoDayIndex(date)]
 
   // Priority 6 — weekends may only show AM or Off Day; PM is not permitted.
   const weekend = isWeekend(date)
   if (weekend && shift === 'PM') shift = 'OFF'
 
   const status: DailyStatus = weekend && shift === 'AM' ? 'AM_WEEKEND' : (shift as DailyStatus)
-  return { ...base, status, standby, edited: override?.shift !== undefined }
+  return { ...base, status }
 }
 
 /** Cells a user may select in Bulk Edit mode (MOVE-3658 §2). */
@@ -211,13 +241,14 @@ export function isCellSelectable(result: DailyCellResult): boolean {
 }
 
 /**
- * Shift options available for a given day (MOVE-3658 §3).
+ * Shift options available for a given day (MOVE-3769 §3).
  *
- * Weekdays offer AM and PM only — Off Day cannot be assigned to an Operations
- * employee on a working day. Weekends offer AM and Off Day; PM is not permitted.
+ * Weekdays offer AM, PM and NA — Off Day cannot be assigned to an Operations
+ * employee on a working day. Weekends offer AM, Off Day and NA; PM is not
+ * permitted. NA is for employees with no roster rule assigned to them.
  */
-export function shiftOptionsForDay(date: Dayjs): ShiftCode[] {
-  return isWeekend(date) ? ['AM', 'OFF'] : ['AM', 'PM']
+export function shiftOptionsForDay(date: Dayjs): ShiftSelection[] {
+  return isWeekend(date) ? ['AM', 'OFF', 'NA'] : ['AM', 'PM', 'NA']
 }
 
 /** Shift options offered by the bulk action bar for the current selection. */
@@ -242,6 +273,7 @@ export function computeDailyCoverage(employees: RosterEmployee[], date: Dayjs, c
   const coverage: DailyCoverage = { am: 0, pm: 0, off: 0, leave: 0, na: 0, standby: 0 }
   for (const employee of employees) {
     const r = resolveDailyStatus(employee, date, ctx)
+    if (r.absent) continue // MOVE-3608 §2.2 — absent employees are not counted
     if (r.standby) coverage.standby++
     switch (r.status) {
       case 'AM':
@@ -274,10 +306,17 @@ export function computeDailyCoverage(employees: RosterEmployee[], date: Dayjs, c
 
 export type DayGroupKey = 'STANDBY' | 'ON_LEAVE' | 'AM' | 'PM' | 'OFF' | 'NO_ROSTER'
 
+/** One employee inside a day's group, with the reason text MOVE-3659 asks for. */
+export interface DayGroupMember {
+  employee: RosterEmployee
+  /** Standby reason in the Standby group; extension reason in shift groups. */
+  reason?: string
+}
+
 export interface DayGroup {
   key: DayGroupKey
   label: string
-  employees: RosterEmployee[]
+  members: DayGroupMember[]
 }
 
 /** Bar order inside a day cell. */
@@ -314,37 +353,44 @@ export const DAY_GROUP_STYLE: Record<
  * roster status, and employees on leave cannot be assigned standby at all.
  *
  * Employees within each group are listed A–Z (MOVE-3659 §2).
+ *
+ * MOVE-3608 §2.2 — employees marked Absent are left out of the group counts
+ * entirely. They keep their shift in the edit drawer, but they are not covering
+ * it, so counting them would overstate the day's coverage.
  */
 export function computeDayGroups(employees: RosterEmployee[], date: Dayjs, ctx: RosterContext): DayGroup[] {
-  const buckets = new Map<DayGroupKey, RosterEmployee[]>()
-  const push = (key: DayGroupKey, employee: RosterEmployee) => {
+  const buckets = new Map<DayGroupKey, DayGroupMember[]>()
+  const push = (key: DayGroupKey, member: DayGroupMember) => {
     const list = buckets.get(key)
-    if (list) list.push(employee)
-    else buckets.set(key, [employee])
+    if (list) list.push(member)
+    else buckets.set(key, [member])
   }
 
   for (const employee of employees) {
     const r = resolveDailyStatus(employee, date, ctx)
     if (r.status === 'DASH') continue // not yet joined / already left — not displayed
+    if (r.absent) continue // marked absent — excluded from every group count
 
     if (r.status === 'ON_LEAVE') {
-      push('ON_LEAVE', employee)
+      push('ON_LEAVE', { employee })
       continue // leave is exclusive, and cannot carry standby
     }
 
-    if (r.status === 'NA') push('NO_ROSTER', employee)
-    else if (r.status === 'AM' || r.status === 'AM_WEEKEND') push('AM', employee)
-    else if (r.status === 'PM') push('PM', employee)
-    else push('OFF', employee) // OFF and PUBLIC_HOLIDAY both read as an off day
+    // Extension reason rides along with whichever shift group the employee is in.
+    const shiftMember: DayGroupMember = { employee, reason: r.extend ? r.extendReason : undefined }
+    if (r.status === 'NA') push('NO_ROSTER', shiftMember)
+    else if (r.status === 'AM' || r.status === 'AM_WEEKEND') push('AM', shiftMember)
+    else if (r.status === 'PM') push('PM', shiftMember)
+    else push('OFF', shiftMember) // OFF and PUBLIC_HOLIDAY both read as an off day
 
     // Additive, on top of whichever shift group the employee just landed in.
-    if (r.standby) push('STANDBY', employee)
+    if (r.standby) push('STANDBY', { employee, reason: r.standbyReason })
   }
 
   return DAY_GROUP_ORDER.filter((key) => buckets.has(key)).map((key) => ({
     key,
     label: DAY_GROUP_STYLE[key].label,
-    employees: [...buckets.get(key)!].sort((a, b) => a.name.localeCompare(b.name)),
+    members: [...buckets.get(key)!].sort((a, b) => a.employee.name.localeCompare(b.employee.name)),
   }))
 }
 
@@ -434,3 +480,6 @@ export const EMPLOYEE_STATUS_COLORS: Record<EmployeeStatus, string> = {
 }
 
 export const SHIFT_LABEL: Record<ShiftCode, string> = { AM: 'AM', PM: 'PM', OFF: 'Off Day' }
+
+/** Adds the explicit "NA" pick offered by the Edit Roster drawer (MOVE-3769). */
+export const SHIFT_SELECTION_LABEL: Record<ShiftSelection, string> = { ...SHIFT_LABEL, NA: 'NA' }

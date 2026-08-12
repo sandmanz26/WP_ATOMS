@@ -14,6 +14,37 @@ minor).
 
 ## [Unreleased]
 
+### Added — MOVE-3769 Edit Roster Calendar Drawer
+
+The drawer spec was split out of MOVE-3658 into its own ticket on 12 Aug and
+grew considerably.
+
+- **NA is now a shift option.** Weekdays offer AM/PM/NA, weekends AM/Off Day/NA.
+  NA is an explicit "no roster rule applies" pick, distinct from an employee
+  simply having no pattern, so `RosterOverride.shift` widened to a new
+  `ShiftSelection` type.
+- **Extend checkbox.** Ticking it opens a modal asking for the number of hours
+  and a reason, both required; the box only turns on once they are saved, so
+  cancelling leaves it untouched. Extend is independent of the shift — an
+  employee can hold Shift + Extend + Standby.
+- **Standby now captures a reason.** Ticking Standby by hand opens a modal
+  requiring a reason, shown next to the checkbox afterwards and cleared when
+  unticked. Standby that comes from the roster rule does not go through the
+  modal.
+- **"Standby from Rule" indicator**, shown for employees the rule puts on
+  standby and deliberately kept visible even after the user unticks the box.
+- **Absence checkbox.** The employee keeps their shift, but the shift control
+  locks and an Absence tag appears beside it; unticking restores editing.
+
+### Changed
+
+- Group counts exclude employees marked Absent (MOVE-3608 §2.2). They keep a
+  shift in the drawer but are not covering it, so counting them overstated the
+  day's coverage. Roster 3.0's coverage strip follows the same rule.
+- The details card shows the reason where one was captured — extension reason in
+  shift groups, standby reason in the Standby group (MOVE-3659 §1). `DayGroup`
+  now carries `members` (employee + reason) rather than a bare employee list.
+
 ### Changed — Roster 4.0 aligned with the 11 Aug ticket rewrite
 
 MOVE-3608, MOVE-3658, MOVE-3659 and MOVE-3610 were all rewritten on 11 Aug. Two

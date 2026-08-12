@@ -50,12 +50,26 @@ export interface RosterRule {
   patterns: RosterRulePattern[]
 }
 
-/** Manual per-cell edit from Bulk Edit Roster (MOVE-3658). */
+/**
+ * A shift a user can pick in the Edit Roster drawer. "NA" is an explicit
+ * choice meaning "no roster rule applies to this employee" (MOVE-3769 §3),
+ * distinct from simply having no pattern.
+ */
+export type ShiftSelection = ShiftCode | 'NA'
+
+/** Manual per-day edit saved from the Edit Roster drawer (MOVE-3769). */
 export interface RosterOverride {
   employeeId: string
   date: string // ISO date
-  shift?: ShiftCode
+  shift?: ShiftSelection
   standby?: boolean
+  /** Required when a user ticks Standby by hand; cleared when unticked. */
+  standbyReason?: string
+  extend?: boolean
+  extendHours?: number
+  extendReason?: string
+  /** Marked absent: keeps the shift but excludes the employee from group counts. */
+  absence?: boolean
 }
 
 export interface LeaveRecord {

@@ -24,7 +24,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import dayjs, { type Dayjs } from 'dayjs'
-import { Button, Checkbox, Drawer, Empty, Popover, Segmented, Space, Tooltip, Typography, message } from 'antd'
+import { Button, Checkbox, Drawer, Empty, Popover, Segmented, Space, Tag, Tooltip, Typography, message } from 'antd'
 import {
   LeftOutlined,
   RightOutlined,
@@ -45,14 +45,14 @@ import {
   applyOverrides,
   type RosterEmployee,
   type RosterOverride,
-  type ShiftCode,
+  type ShiftSelection,
 } from './rosterData'
 import {
   DAY_GROUP_ORDER,
   DAY_GROUP_STYLE,
   HIGHLIGHT_WINDOW_DAYS,
   ISO,
-  SHIFT_LABEL,
+  SHIFT_SELECTION_LABEL,
   computeDayGroups,
   computeRosterHighlights,
   employeesOnDuty,
@@ -65,6 +65,8 @@ import {
   type RosterContext,
 } from './rosterStatusLogic'
 import ManageRosterDrawer from './ManageRosterDrawer'
+import ExtendShiftModal, { type ExtendDetails } from './ExtendShiftModal'
+import StandbyReasonModal from './StandbyReasonModal'
 import RosterVariantSwitcher, {
   CALENDAR_STYLE_METRICS,
   DEFAULT_VARIANTS,
@@ -528,12 +530,12 @@ function GroupBar({
 
   // In chip mode the label shrinks to its initial so a whole day fits on one line.
   const text = chip
-    ? `${group.label === 'No Roster' ? 'NR' : group.label === 'On Leave' ? 'L' : group.label.charAt(0)}${group.employees.length}`
-    : `${group.label} (${group.employees.length})`
+    ? `${group.label === 'No Roster' ? 'NR' : group.label === 'On Leave' ? 'L' : group.label.charAt(0)}${group.members.length}`
+    : `${group.label} (${group.members.length})`
 
   const bar = (
     <div
-      title={chip ? `${group.label} (${group.employees.length})` : undefined}
+      title={chip ? `${group.label} (${group.members.length})` : undefined}
       onMouseEnter={() => interactive && setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
@@ -555,7 +557,7 @@ function GroupBar({
       {text}
       {metrics.showNames && (
         <div style={{ fontSize: 10, fontWeight: 400, opacity: 0.85, whiteSpace: 'normal' }}>
-          {group.employees.map((e) => e.name.split(' ')[0]).join(', ')}
+          {group.members.map((m) => m.employee.name.split(' ')[0]).join(', ')}
         </div>
       )}
     </div>
@@ -583,10 +585,14 @@ function GroupBar({
         </div>
       }
       content={
-        <div style={{ minWidth: 180 }}>
-          {group.employees.map((employee) => (
+        <div style={{ minWidth: 190, maxWidth: 280 }}>
+          {group.members.map(({ employee, reason }) => (
             <div key={employee.id} style={{ padding: '6px 0', borderBottom: '1px solid #f5f5f5', fontSize: 12 }}>
               {employee.name}
+              {/* MOVE-3659 §1 — show the reason where one was captured. */}
+              {reason && (
+                <div style={{ fontSize: 11, color: '#8c8c8c', whiteSpace: 'normal' }}>{reason}</div>
+              )}
             </div>
           ))}
         </div>
@@ -618,9 +624,14 @@ function EditDayDrawer({
 }) {
   // Pending edits for this day, keyed by employee id.
   const [pending, setPending] = useState<Record<string, Partial<RosterOverride>>>({})
+  // Which employee, if any, has a reason modal open.
+  const [extendFor, setExtendFor] = useState<{ employee: RosterEmployee; initial: ExtendDetails } | null>(null)
+  const [standbyFor, setStandbyFor] = useState<{ employee: RosterEmployee; reason?: string } | null>(null)
 
   useEffect(() => {
     setPending({})
+    setExtendFor(null)
+    setStandbyFor(null)
   }, [date])
 
   if (!date) return <Drawer open={false} onClose={onClose} />
@@ -632,29 +643,37 @@ function EditDayDrawer({
   const onLeave = resolved.filter((r) => r.result.status === 'ON_LEAVE')
   const editable = resolved.filter((r) => r.result.status !== 'ON_LEAVE')
 
-  // Weekdays: AM/PM. Weekends: AM/Off Day.
+  // MOVE-3769 §3 — weekdays offer AM/PM/NA, weekends AM/Off Day/NA. On a public
+  // holiday the shift is fixed to Off Day and the control is read-only, so Off
+  // Day is added to the option list purely so the row still renders.
   const dayHoliday = PUBLIC_HOLIDAYS.find((h) => h.date === dateStr)
-  // MOVE-3658 §3 — on a public holiday the shift is fixed to Off Day and the
-  // control is read-only. The options still render so the row reads the same,
-  // they just cannot be changed. Standby stays editable.
-  const dayShiftOptions: ShiftCode[] = dayHoliday
-    ? Array.from(new Set<ShiftCode>([...shiftOptionsForDay(date), 'OFF']))
+  const dayShiftOptions: ShiftSelection[] = dayHoliday
+    ? Array.from(new Set<ShiftSelection>([...shiftOptionsForDay(date), 'OFF']))
     : shiftOptionsForDay(date)
 
-  const resolvedShift = (status: string): ShiftCode | undefined => {
+  const resolvedShift = (status: string): ShiftSelection => {
     if (status === 'AM' || status === 'AM_WEEKEND') return 'AM'
     if (status === 'PM') return 'PM'
     if (status === 'OFF' || status === 'PUBLIC_HOLIDAY') return 'OFF'
-    return undefined // No Roster — nothing set yet
+    return 'NA' // No Roster — an explicit choice now, not an empty control
   }
 
   const shiftOf = (employeeId: string, status: string) =>
-    (pending[employeeId]?.shift as ShiftCode | undefined) ?? resolvedShift(status)
+    (pending[employeeId]?.shift as ShiftSelection | undefined) ?? resolvedShift(status)
 
-  const standbyOf = (employeeId: string, standby: boolean) => pending[employeeId]?.standby ?? standby
+  const valueOf = <K extends keyof RosterOverride>(
+    employeeId: string,
+    key: K,
+    fallback: RosterOverride[K]
+  ): RosterOverride[K] => (pending[employeeId]?.[key] as RosterOverride[K]) ?? fallback
 
   const stage = (employeeId: string, patch: Partial<RosterOverride>) =>
     setPending((prev) => ({ ...prev, [employeeId]: { ...prev[employeeId], ...patch } }))
+
+  // Ticking Extend or Standby opens its modal; the box only turns on once the
+  // required details are saved, so cancelling leaves it untouched.
+  const onOpenExtend = (employee: RosterEmployee, initial: ExtendDetails) => setExtendFor({ employee, initial })
+  const onOpenStandby = (employee: RosterEmployee, reason?: string) => setStandbyFor({ employee, reason })
 
   const handleSave = () => {
     const overrides: RosterOverride[] = Object.entries(pending).map(([employeeId, patch]) => ({
@@ -736,29 +755,112 @@ function EditDayDrawer({
       {editable.length === 0 ? (
         <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No employees to roster on this date." />
       ) : (
-        editable.map(({ employee, result }) => (
-          <div key={employee.id} style={{ padding: '12px 0', borderBottom: '1px solid #f5f5f5' }}>
-            <div style={{ fontSize: 13, marginBottom: 6 }}>{employee.name}</div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-              <Segmented
-                size="small"
-                disabled={!!dayHoliday}
-                value={dayHoliday ? 'OFF' : shiftOf(employee.id, result.status) ?? ''}
-                onChange={(v) => stage(employee.id, { shift: v as ShiftCode })}
-                options={dayShiftOptions.map((s) => ({ value: s, label: SHIFT_LABEL[s] }))}
-              />
-              {/* Standby is independent of the shift above (MOVE-3608). */}
-              <Checkbox
-                checked={standbyOf(employee.id, result.standby)}
-                onChange={(e) => stage(employee.id, { standby: e.target.checked })}
-                style={{ fontSize: 12 }}
-              >
-                Standby
-              </Checkbox>
+        editable.map(({ employee, result }) => {
+          const absent = !!valueOf(employee.id, 'absence', result.absent)
+          const standby = !!valueOf(employee.id, 'standby', result.standby)
+          const standbyReason = valueOf(employee.id, 'standbyReason', result.standbyReason)
+          const extend = !!valueOf(employee.id, 'extend', result.extend)
+          const extendHours = valueOf(employee.id, 'extendHours', result.extendHours)
+          const extendReason = valueOf(employee.id, 'extendReason', result.extendReason)
+
+          return (
+            <div key={employee.id} style={{ padding: '12px 0', borderBottom: '1px solid #f5f5f5' }}>
+              <div style={{ fontSize: 13, marginBottom: 6 }}>{employee.name}</div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <Segmented
+                  size="small"
+                  // Locked on a public holiday, and while the employee is marked
+                  // absent (MOVE-3769 §3).
+                  disabled={!!dayHoliday || absent}
+                  value={dayHoliday ? 'OFF' : shiftOf(employee.id, result.status)}
+                  onChange={(v) => stage(employee.id, { shift: v as ShiftSelection })}
+                  options={dayShiftOptions.map((s) => ({ value: s, label: SHIFT_SELECTION_LABEL[s] }))}
+                />
+                {absent && <Tag color="red" style={{ fontSize: 10, margin: 0 }}>Absence</Tag>}
+                {extend && (
+                  <Tag color="purple" style={{ fontSize: 10, margin: 0 }}>
+                    Extend {extendHours}h
+                  </Tag>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 8, flexWrap: 'wrap' }}>
+                <Checkbox
+                  checked={extend}
+                  onChange={(e) =>
+                    e.target.checked
+                      ? onOpenExtend(employee, { hours: extendHours ?? 0, reason: extendReason ?? '' })
+                      : stage(employee.id, { extend: false, extendHours: undefined, extendReason: undefined })
+                  }
+                  style={{ fontSize: 12 }}
+                >
+                  Extend
+                </Checkbox>
+
+                {/* Standby is independent of the shift above (MOVE-3608). */}
+                <Checkbox
+                  checked={standby}
+                  onChange={(e) =>
+                    e.target.checked
+                      ? onOpenStandby(employee, standbyReason)
+                      : stage(employee.id, { standby: false, standbyReason: undefined })
+                  }
+                  style={{ fontSize: 12 }}
+                >
+                  Standby
+                </Checkbox>
+
+                {/* MOVE-3769 §3 — stays visible even after the user unticks Standby. */}
+                {result.standbyFromRule && (
+                  <Text type="secondary" style={{ fontSize: 11 }}>Standby from Rule</Text>
+                )}
+
+                <Checkbox
+                  checked={absent}
+                  onChange={(e) => stage(employee.id, { absence: e.target.checked })}
+                  style={{ fontSize: 12 }}
+                >
+                  Absence
+                </Checkbox>
+              </div>
+
+              {(standbyReason || extendReason) && (
+                <div style={{ marginTop: 6 }}>
+                  {extendReason && (
+                    <div><Text type="secondary" style={{ fontSize: 11 }}>Extension: {extendReason}</Text></div>
+                  )}
+                  {standbyReason && (
+                    <div><Text type="secondary" style={{ fontSize: 11 }}>Standby: {standbyReason}</Text></div>
+                  )}
+                </div>
+              )}
             </div>
-          </div>
-        ))
+          )
+        })
       )}
+
+      <ExtendShiftModal
+        open={!!extendFor}
+        employeeName={extendFor?.employee.name ?? ''}
+        initial={extendFor?.initial}
+        onCancel={() => setExtendFor(null)}
+        onSave={({ hours, reason }) => {
+          if (extendFor) stage(extendFor.employee.id, { extend: true, extendHours: hours, extendReason: reason })
+          setExtendFor(null)
+        }}
+      />
+
+      <StandbyReasonModal
+        open={!!standbyFor}
+        employeeName={standbyFor?.employee.name ?? ''}
+        initialReason={standbyFor?.reason}
+        onCancel={() => setStandbyFor(null)}
+        onSave={(reason) => {
+          if (standbyFor) stage(standbyFor.employee.id, { standby: true, standbyReason: reason })
+          setStandbyFor(null)
+        }}
+      />
     </Drawer>
   )
 }
