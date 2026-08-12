@@ -72,6 +72,9 @@ of the revisions contradicted what was already built.
   effectively unavailable regardless of a half-day marker, and surfacing the
   timing invited the wrong inference.
 - The "… — click to cycle" tooltip on the Create/Edit Roster Rule week grid.
+- The "Hide/Show … from the calendar" tooltip on the legend chips. The chips
+  still filter; the greyed-out, struck-through state already says which groups
+  are hidden.
 
 ### Fixed
 

@@ -866,6 +866,5 @@ function LegendChip({
     </div>
   )
 
-  if (!filtersEnabled) return chip
-  return <Tooltip title={hidden ? `Show ${style.label} in the calendar` : `Hide ${style.label} from the calendar`}>{chip}</Tooltip>
+  return chip
 }
