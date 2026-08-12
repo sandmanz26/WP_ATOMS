@@ -54,11 +54,24 @@ of the revisions contradicted what was already built.
   darkened, which doubles as a pointer back to the anchor. Bars do not react in
   edit mode, where the day cell — not the bar — is the click target.
 
+### Changed
+
+- The Off Day group reads **"Off Day"** rather than "Off", in the calendar bars,
+  the legend, the Manage Roster rule cards and the Create/Edit Roster Rule week
+  grid. The rule card's day cell widened from 44px to 52px so the longer label
+  still fits on one line.
+
 ### Removed
 
 - The "Click a bar to see which staff are in it…" helper line above the Roster
   4.0 calendar, on request. The edit-mode helper line stays, since that mode's
   interaction is not self-evident.
+- The `"No Roster" = joined, no roster set` subtext from the Roster 4.0 legend.
+- The leave type/timing tooltip on the On Leave chips in the Edit Roster drawer.
+  Operations hours differ from the rest of the company, so someone on leave is
+  effectively unavailable regardless of a half-day marker, and surfacing the
+  timing invited the wrong inference.
+- The "… — click to cycle" tooltip on the Create/Edit Roster Rule week grid.
 
 ### Fixed
 

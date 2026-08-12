@@ -293,7 +293,7 @@ export const DAY_GROUP_STYLE: Record<
   ON_LEAVE: { bg: '#ffccc7', bgHover: '#ffa39e', fg: '#a8071a', label: 'On Leave' },
   AM: { bg: '#d9f7be', bgHover: '#b7eb8f', fg: '#237804', label: 'AM' },
   PM: { bg: '#fff1b8', bgHover: '#ffe58f', fg: '#ad6800', label: 'PM' },
-  OFF: { bg: '#d6e4ff', bgHover: '#adc6ff', fg: '#2f4a8c', label: 'Off' },
+  OFF: { bg: '#d6e4ff', bgHover: '#adc6ff', fg: '#2f4a8c', label: 'Off Day' },
   NO_ROSTER: {
     bg: 'transparent',
     // Transparent has nothing to darken, so this one fills in on hover instead.

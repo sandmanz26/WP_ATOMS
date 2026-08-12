@@ -87,9 +87,9 @@ function RuleCard({
                   return (
                     <div
                       key={dayIndex}
-                      title={SHIFT_LABEL[shift]}
                       style={{
-                        width: 44,
+                        // 52px so the "Off Day" label fits on one line.
+                        width: 52,
                         borderRadius: 5,
                         padding: '4px 0',
                         textAlign: 'center',
@@ -98,7 +98,7 @@ function RuleCard({
                     >
                       <div style={{ fontSize: 9, color: '#8c8c8c' }}>{DAY_LABELS[dayIndex]}</div>
                       <div style={{ fontSize: 11, fontWeight: 600, color: style.fg }}>
-                        {shift === 'OFF' ? 'Off' : shift}
+                        {SHIFT_LABEL[shift]}
                       </div>
                     </div>
                   )

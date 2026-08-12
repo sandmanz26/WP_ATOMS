@@ -710,23 +710,22 @@ function EditDayDrawer({
           {onLeave.length === 0 ? (
             <Text type="secondary" style={{ fontSize: 12 }}>No one on leave this day.</Text>
           ) : (
-            onLeave.map(({ employee, result }) => (
-              <Tooltip
+            // Leave type/timing is deliberately not surfaced: Operations hours
+            // differ from the rest of the company, so someone on leave is
+            // effectively unavailable regardless of the half-day marker.
+            onLeave.map(({ employee }) => (
+              <span
                 key={employee.id}
-                title={`${result.leave?.type}${result.leave?.timing ? ` · ${result.leave.timing}` : ''}`}
+                style={{
+                  fontSize: 12,
+                  padding: '2px 10px',
+                  borderRadius: 12,
+                  background: '#ffccc7',
+                  color: '#a8071a',
+                }}
               >
-                <span
-                  style={{
-                    fontSize: 12,
-                    padding: '2px 10px',
-                    borderRadius: 12,
-                    background: '#ffccc7',
-                    color: '#a8071a',
-                  }}
-                >
-                  {employee.name}
-                </span>
-              </Tooltip>
+                {employee.name}
+              </span>
             ))
           )}
         </div>
@@ -809,10 +808,6 @@ function Legend({
         </span>
         <Text style={{ fontSize: 13 }}>Public Holiday</Text>
       </div>
-
-      <Text type="secondary" style={{ fontSize: 12, marginLeft: 4 }}>
-        “No Roster” = joined, no roster set
-      </Text>
     </div>
   )
 }

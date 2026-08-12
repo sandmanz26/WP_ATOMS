@@ -17,7 +17,7 @@ import {
   type RosterRulePattern,
   type ShiftCode,
 } from './rosterData'
-import { ISO, SHIFT_LABEL, defaultNextEffectiveDate, findOverlappingRule } from './rosterStatusLogic'
+import { ISO, defaultNextEffectiveDate, findOverlappingRule } from './rosterStatusLogic'
 
 const { Text } = Typography
 
@@ -285,29 +285,25 @@ export default function RosterRuleModal({
                   const weekend = WEEKEND_INDEXES.includes(dayIndex)
                   const style = SHIFT_STYLE[shift]
                   return (
-                    <Tooltip
+                    <div
                       key={dayIndex}
-                      title={readOnly ? SHIFT_LABEL[shift] : `${SHIFT_LABEL[shift]} — click to cycle`}
+                      onClick={() => cycleCell(pattern.id, weekIndex, dayIndex)}
+                      style={{
+                        width: 66,
+                        borderRadius: 6,
+                        border: '1px solid #f0f0f0',
+                        padding: '6px 0',
+                        textAlign: 'center',
+                        cursor: readOnly ? 'default' : 'pointer',
+                        background: style.bg,
+                        userSelect: 'none',
+                      }}
                     >
-                      <div
-                        onClick={() => cycleCell(pattern.id, weekIndex, dayIndex)}
-                        style={{
-                          width: 66,
-                          borderRadius: 6,
-                          border: '1px solid #f0f0f0',
-                          padding: '6px 0',
-                          textAlign: 'center',
-                          cursor: readOnly ? 'default' : 'pointer',
-                          background: style.bg,
-                          userSelect: 'none',
-                        }}
-                      >
-                        <div style={{ fontSize: 10, color: weekend ? '#cf1322' : '#8c8c8c' }}>{DAY_LABELS[dayIndex]}</div>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: style.fg }}>
-                          {shift === 'OFF' ? 'Off' : shift}
-                        </div>
+                      <div style={{ fontSize: 10, color: weekend ? '#cf1322' : '#8c8c8c' }}>{DAY_LABELS[dayIndex]}</div>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: style.fg }}>
+                        {shift === 'OFF' ? 'Off Day' : shift}
                       </div>
-                    </Tooltip>
+                    </div>
                   )
                 })}
               </div>
