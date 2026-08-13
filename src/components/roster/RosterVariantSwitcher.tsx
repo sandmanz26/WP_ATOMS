@@ -6,6 +6,8 @@
 //   variant 1 — calendar style (4 densities)
 //   variant 2 — freeze the weekday header row or let it scroll away
 //   variant 3 — make the legend chips act as filters on the calendar
+//   variant 4 — how much contrast the drawer's shift picker carries
+//   variant 5 — where On Leave staff appear in the drawer
 
 import { useEffect, useRef, useState } from 'react'
 import { Segmented, Switch, Typography } from 'antd'
@@ -14,18 +16,34 @@ import { ControlOutlined, CloseOutlined, HolderOutlined } from '@ant-design/icon
 const { Text } = Typography
 
 export type CalendarStyle = 'comfortable' | 'compact' | 'chips' | 'detailed'
+export type ShiftContrast = 'strong' | 'subtle'
+export type OnLeaveDisplay = 'inline' | 'section'
 
 export interface RosterVariantState {
   calendarStyle: CalendarStyle
   freezeDayNames: boolean
   legendFilters: boolean
+  shiftContrast: ShiftContrast
+  onLeaveDisplay: OnLeaveDisplay
 }
 
 export const DEFAULT_VARIANTS: RosterVariantState = {
   calendarStyle: 'comfortable',
   freezeDayNames: true,
   legendFilters: true,
+  shiftContrast: 'strong',
+  onLeaveDisplay: 'inline',
 }
+
+export const SHIFT_CONTRAST_OPTIONS: { value: ShiftContrast; label: string; hint: string }[] = [
+  { value: 'strong', label: 'Strong', hint: 'Selected shift is a solid fill, so it holds up next to the Standby checkbox.' },
+  { value: 'subtle', label: 'Subtle', hint: 'The original look — selected shift is a raised white tile.' },
+]
+
+export const ON_LEAVE_DISPLAY_OPTIONS: { value: OnLeaveDisplay; label: string; hint: string }[] = [
+  { value: 'inline', label: 'In the list', hint: 'On Leave staff sit in the main list with their shift shown but disabled, so ops can see which shift they were on.' },
+  { value: 'section', label: 'Separate section', hint: 'The original layout — On Leave staff are chips in their own box above the list.' },
+]
 
 export const CALENDAR_STYLE_OPTIONS: { value: CalendarStyle; label: string; hint: string }[] = [
   { value: 'comfortable', label: 'Comfortable', hint: 'Full-width bars with group name and count.' },
@@ -191,13 +209,42 @@ export default function RosterVariantSwitcher({
         </Section>
 
         {/* Variant 3 */}
-        <Section title="Variant 3 · Legend" last>
+        <Section title="Variant 3 · Legend">
           <Row
             label="Legend filters the calendar"
             hint="Click a legend chip to show or hide that group in every day cell."
             checked={value.legendFilters}
             onChange={(v) => set('legendFilters', v)}
           />
+        </Section>
+
+        {/* Variant 4 */}
+        <Section title="Variant 4 · Shift picker contrast">
+          <Segmented
+            size="small"
+            block
+            value={value.shiftContrast}
+            onChange={(v) => set('shiftContrast', v as ShiftContrast)}
+            options={SHIFT_CONTRAST_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+          />
+          <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 6 }}>
+            {SHIFT_CONTRAST_OPTIONS.find((o) => o.value === value.shiftContrast)?.hint}
+          </Text>
+        </Section>
+
+        {/* Variant 5 */}
+        <Section title="Variant 5 · On Leave staff" last>
+          <Segmented
+            size="small"
+            block
+            vertical
+            value={value.onLeaveDisplay}
+            onChange={(v) => set('onLeaveDisplay', v as OnLeaveDisplay)}
+            options={ON_LEAVE_DISPLAY_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+          />
+          <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 6 }}>
+            {ON_LEAVE_DISPLAY_OPTIONS.find((o) => o.value === value.onLeaveDisplay)?.hint}
+          </Text>
         </Section>
       </div>
     </div>

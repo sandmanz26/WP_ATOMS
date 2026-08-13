@@ -24,7 +24,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import dayjs, { type Dayjs } from 'dayjs'
-import { Button, Checkbox, Drawer, Empty, Popover, Segmented, Space, Tag, Tooltip, Typography, message } from 'antd'
+import { Button, Checkbox, Drawer, Empty, Popover, Space, Tag, Tooltip, Typography, message } from 'antd'
 import {
   LeftOutlined,
   RightOutlined,
@@ -52,13 +52,13 @@ import {
   DAY_GROUP_STYLE,
   HIGHLIGHT_WINDOW_DAYS,
   ISO,
-  SHIFT_SELECTION_LABEL,
   computeDayGroups,
   computeRosterHighlights,
   employeesOnDuty,
   isoDayIndex,
   isWeekend,
   resolveDailyStatus,
+  resolveShiftIgnoringLeave,
   shiftOptionsForDay,
   type DayGroup,
   type DayGroupKey,
@@ -67,11 +67,14 @@ import {
 import ManageRosterDrawer from './ManageRosterDrawer'
 import ExtendShiftModal, { type ExtendDetails } from './ExtendShiftModal'
 import StandbyReasonModal from './StandbyReasonModal'
+import ShiftSelector from './ShiftSelector'
 import RosterVariantSwitcher, {
   CALENDAR_STYLE_METRICS,
   DEFAULT_VARIANTS,
   type CalendarStyle,
+  type OnLeaveDisplay,
   type RosterVariantState,
+  type ShiftContrast,
 } from './RosterVariantSwitcher'
 import { PAST_MONTH_TOOLTIP, canEditMonth } from './useRosterEdit'
 
@@ -269,15 +272,7 @@ export default function Roster4Page() {
           }
         />
 
-        {/* Only edit mode carries a helper line; the view mode is self-explanatory. */}
-        {editing ? (
-          <Text type="secondary" style={{ fontSize: 12, display: 'block', margin: '10px 0 12px' }}>
-            Edit mode — click a day to open its roster and set AM / PM / Off / Standby for each employee.
-            "On Leave" staff are view-only and excluded from the other sections.
-          </Text>
-        ) : (
-          <div style={{ height: 12 }} />
-        )}
+        <div style={{ height: 12 }} />
 
         {/* Weekday header — variant 2 pins it to the top of the viewport. */}
         <div
@@ -325,6 +320,8 @@ export default function Roster4Page() {
         <EditDayDrawer
           date={editDate}
           ctx={ctx}
+          shiftContrast={variants.shiftContrast}
+          onLeaveDisplay={variants.onLeaveDisplay}
           onClose={() => setEditDate(null)}
           onCommitDay={commitDay}
         />
@@ -614,11 +611,15 @@ function GroupBar({
 function EditDayDrawer({
   date,
   ctx,
+  shiftContrast,
+  onLeaveDisplay,
   onClose,
   onCommitDay,
 }: {
   date: Dayjs | null
   ctx: RosterContext
+  shiftContrast: ShiftContrast
+  onLeaveDisplay: OnLeaveDisplay
   onClose: () => void
   onCommitDay: (overrides: RosterOverride[]) => void
 }) {
@@ -642,6 +643,9 @@ function EditDayDrawer({
   const resolved = onDuty.map((employee) => ({ employee, result: resolveDailyStatus(employee, date, ctx) }))
   const onLeave = resolved.filter((r) => r.result.status === 'ON_LEAVE')
   const editable = resolved.filter((r) => r.result.status !== 'ON_LEAVE')
+  // Review feedback 1 — On Leave staff can sit in the main list with their shift
+  // shown but disabled, so ops can see which shift they were meant to be on.
+  const rows = onLeaveDisplay === 'inline' ? resolved : editable
 
   // MOVE-3769 §3 — weekdays offer AM/PM/NA, weekends AM/Off Day/NA. On a public
   // holiday the shift is fixed to Off Day and the control is read-only, so Off
@@ -709,6 +713,7 @@ function EditDayDrawer({
         </div>
       )}
 
+      {onLeaveDisplay === 'section' && (
       <div style={{ marginBottom: 20 }}>
         <Text type="secondary" style={{ fontSize: 12 }}>
           On Leave <span style={{ fontStyle: 'italic' }}>(view only — excluded below)</span>
@@ -749,13 +754,15 @@ function EditDayDrawer({
           )}
         </div>
       </div>
+      )}
 
-      <Text strong style={{ fontSize: 13 }}>{editable.length} Employees</Text>
+      <Text strong style={{ fontSize: 13 }}>{rows.length} Employees</Text>
 
-      {editable.length === 0 ? (
+      {rows.length === 0 ? (
         <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No employees to roster on this date." />
       ) : (
-        editable.map(({ employee, result }) => {
+        rows.map(({ employee, result }) => {
+          const onLeaveRow = result.status === 'ON_LEAVE'
           const absent = !!valueOf(employee.id, 'absence', result.absent)
           const standby = !!valueOf(employee.id, 'standby', result.standby)
           const standbyReason = valueOf(employee.id, 'standbyReason', result.standbyReason)
@@ -768,15 +775,23 @@ function EditDayDrawer({
               <div style={{ fontSize: 13, marginBottom: 6 }}>{employee.name}</div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                <Segmented
-                  size="small"
-                  // Locked on a public holiday, and while the employee is marked
-                  // absent (MOVE-3769 §3).
-                  disabled={!!dayHoliday || absent}
-                  value={dayHoliday ? 'OFF' : shiftOf(employee.id, result.status)}
-                  onChange={(v) => stage(employee.id, { shift: v as ShiftSelection })}
-                  options={dayShiftOptions.map((s) => ({ value: s, label: SHIFT_SELECTION_LABEL[s] }))}
+                <ShiftSelector
+                  contrast={shiftContrast}
+                  // Locked on a public holiday, while the employee is marked
+                  // absent (MOVE-3769 §3), and for On Leave rows, which are
+                  // view-only.
+                  disabled={!!dayHoliday || absent || onLeaveRow}
+                  value={
+                    onLeaveRow
+                      ? resolveShiftIgnoringLeave(employee, date, ctx)
+                      : dayHoliday
+                        ? 'OFF'
+                        : shiftOf(employee.id, result.status)
+                  }
+                  options={dayShiftOptions}
+                  onChange={(v) => stage(employee.id, { shift: v })}
                 />
+                {onLeaveRow && <Tag color="gold" style={{ fontSize: 10, margin: 0 }}>On Leave</Tag>}
                 {absent && <Tag color="red" style={{ fontSize: 10, margin: 0 }}>Absence</Tag>}
                 {extend && (
                   <Tag color="purple" style={{ fontSize: 10, margin: 0 }}>
@@ -785,6 +800,8 @@ function EditDayDrawer({
                 )}
               </div>
 
+              {/* On Leave rows are view-only: no shift, standby, extend or absence. */}
+              {!onLeaveRow && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 8, flexWrap: 'wrap' }}>
                 <Checkbox
                   checked={extend}
@@ -824,8 +841,9 @@ function EditDayDrawer({
                   Absence
                 </Checkbox>
               </div>
+              )}
 
-              {(standbyReason || extendReason) && (
+              {!onLeaveRow && (standbyReason || extendReason) && (
                 <div style={{ marginTop: 6 }}>
                   {extendReason && (
                     <div><Text type="secondary" style={{ fontSize: 11 }}>Extension: {extendReason}</Text></div>

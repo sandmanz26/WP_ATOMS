@@ -217,11 +217,14 @@ export function resolveDailyStatus(employee: RosterEmployee, date: Dayjs, ctx: R
     return { ...base, status: 'ON_LEAVE', standby: false, standbyReason: undefined, leave }
   }
 
-  // Priority 3 — active employee, but no roster covers this date.
-  if (!hasRoster) return { ...base, status: 'NA' }
-
-  // Priority 4 — a public holiday turns everyone's base roster into an Off Day.
+  // A public holiday turns everyone's base roster into an Off Day — including
+  // employees with no roster rule. Review feedback 5 puts this ahead of the
+  // No Roster check, which MOVE-3608's priority table has the other way round:
+  // on a public holiday nobody is working, rostered or not.
   if (holiday) return { ...base, status: 'PUBLIC_HOLIDAY', holidayName: holiday.name }
+
+  // Active employee, but no roster covers this date.
+  if (!hasRoster) return { ...base, status: 'NA' }
 
   // Priority 5 — the roster pattern, or a manual override.
   const picked = override?.shift
@@ -233,6 +236,30 @@ export function resolveDailyStatus(employee: RosterEmployee, date: Dayjs, ctx: R
 
   const status: DailyStatus = weekend && shift === 'AM' ? 'AM_WEEKEND' : (shift as DailyStatus)
   return { ...base, status }
+}
+
+/**
+ * The shift an employee would be on if they were not on leave.
+ *
+ * Review feedback 1 — On Leave rows in the Edit Roster drawer show their shift
+ * disabled, so ops can see which shift the person was meant to cover. Resolving
+ * it by re-running the normal rules with that employee's leave removed keeps a
+ * single source of truth rather than a second copy of the priority chain.
+ */
+export function resolveShiftIgnoringLeave(
+  employee: RosterEmployee,
+  date: Dayjs,
+  ctx: RosterContext
+): ShiftSelection {
+  const withoutLeave: RosterContext = {
+    ...ctx,
+    leaves: ctx.leaves.filter((l) => l.employeeId !== employee.id),
+  }
+  const r = resolveDailyStatus(employee, date, withoutLeave)
+  if (r.status === 'AM' || r.status === 'AM_WEEKEND') return 'AM'
+  if (r.status === 'PM') return 'PM'
+  if (r.status === 'OFF' || r.status === 'PUBLIC_HOLIDAY') return 'OFF'
+  return 'NA'
 }
 
 /** Cells a user may select in Bulk Edit mode (MOVE-3658 §2). */

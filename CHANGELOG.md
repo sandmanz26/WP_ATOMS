@@ -14,6 +14,30 @@ minor).
 
 ## [Unreleased]
 
+### Changed — second review round
+
+- **Public holidays now override No Roster too** (feedback 5). Employees with no
+  roster rule used to keep a No Roster bar on a holiday; they now read Off Day
+  like everyone else, so 17 Aug went from `Standby (2) · Off Day (6) ·
+  No Roster (2)` to `Standby (2) · Off Day (8)`. This puts the holiday check
+  ahead of the No Roster check, the reverse of MOVE-3608's priority table —
+  nobody is working on a public holiday, rostered or not.
+- **The shift picker carries real contrast** (feedback 7). AntD's Segmented
+  rendered the selected option as a barely-distinguishable white tile, which lost
+  next to the bright blue Standby checkbox. Replaced with a small custom control
+  whose selected option is a solid blue fill. Available as **Variant 4** in the
+  switcher, with the original look kept as "Subtle".
+- **On Leave staff can sit in the main list** (feedback 1) with their shift shown
+  but disabled and an On Leave tag, so ops can see which shift the person was
+  meant to cover. Available as **Variant 5**, with the original separate
+  view-only section kept as "Separate section". `resolveShiftIgnoringLeave`
+  derives the underlying shift by re-running the normal rules with that
+  employee's leave removed, rather than duplicating the priority chain.
+
+### Removed
+
+- The edit-mode helper line above the calendar.
+
 ### Added — MOVE-3769 Edit Roster Calendar Drawer
 
 The drawer spec was split out of MOVE-3658 into its own ticket on 12 Aug and
