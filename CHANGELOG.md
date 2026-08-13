@@ -14,6 +14,41 @@ minor).
 
 ## [Unreleased]
 
+### Changed — third review round (Edit Roster drawer)
+
+All four items land in the drawer's employee rows.
+
+- **Each modifier's state now sits under its own checkbox** (feedback 2). The
+  row's checkboxes became a three-column grid — Extend / Standby / Absence — and
+  the detail belonging to each one is rendered directly beneath it: the
+  extension reads `4h · <reason>` under Extend, and "Standby from Rule" plus the
+  standby reason sit under Standby. Previously both were pooled into a shared
+  `Extension: … Standby: …` line at the end of the row, which meant reading the
+  label to work out which checkbox a value belonged to.
+- **The extension detail is grouped with the Extend checkbox** (feedback 6),
+  which is the same move as above seen from the other side: the `Extend 4h` tag
+  that used to trail the shift picker is gone, so the hours and the reason are
+  in one place rather than split across the row.
+- **The Absence tag moved next to the employee name** (feedback 5). It used to
+  sit beside the shift selector, where it read as a property of the shift.
+  Absence is a property of the person for that day, so it now reads with the
+  name. Marking someone absent also disables their Extend and Standby
+  checkboxes — an absent employee is not covering a shift, so they cannot be
+  extended or held on standby either.
+- **Re-ticking rule-assigned standby no longer asks for a reason** (feedback 5).
+  Unticking Standby for an employee the roster rule puts on standby and then
+  ticking it again used to open the reason modal, as if it were a manual
+  assignment. It now restores the rule's standby directly; only standby the user
+  is genuinely adding by hand goes through the modal.
+
+### Removed
+
+- **Placeholder text in the Extend and Standby modals** (feedback 3). Both
+  fields already carry a label and a required marker, and the placeholders
+  ("Why is this employee on standby?", "Why is this shift being extended?",
+  "e.g. 2") only restated them. The screenshot marked the standby one; the
+  Extend modal's two were removed with it so the pair stays consistent.
+
 ### Changed — second review round
 
 - **Public holidays now override No Roster too** (feedback 5). Employees with no

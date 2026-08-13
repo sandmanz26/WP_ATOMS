@@ -772,7 +772,11 @@ function EditDayDrawer({
 
           return (
             <div key={employee.id} style={{ padding: '12px 0', borderBottom: '1px solid #f5f5f5' }}>
-              <div style={{ fontSize: 13, marginBottom: 6 }}>{employee.name}</div>
+              {/* Feedback 5 — the Absence state reads next to the name. */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                <span style={{ fontSize: 13 }}>{employee.name}</span>
+                {absent && <Tag color="red" style={{ fontSize: 10, margin: 0 }}>Absence</Tag>}
+              </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                 <ShiftSelector
@@ -792,65 +796,76 @@ function EditDayDrawer({
                   onChange={(v) => stage(employee.id, { shift: v })}
                 />
                 {onLeaveRow && <Tag color="gold" style={{ fontSize: 10, margin: 0 }}>On Leave</Tag>}
-                {absent && <Tag color="red" style={{ fontSize: 10, margin: 0 }}>Absence</Tag>}
-                {extend && (
-                  <Tag color="purple" style={{ fontSize: 10, margin: 0 }}>
-                    Extend {extendHours}h
-                  </Tag>
-                )}
               </div>
 
-              {/* On Leave rows are view-only: no shift, standby, extend or absence. */}
+              {/* On Leave rows are view-only: no shift, standby, extend or absence.
+                  Each modifier keeps its own state directly underneath it
+                  (feedback 2 and 6), rather than trailing off in a shared block. */}
               {!onLeaveRow && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 8, flexWrap: 'wrap' }}>
-                <Checkbox
-                  checked={extend}
-                  onChange={(e) =>
-                    e.target.checked
-                      ? onOpenExtend(employee, { hours: extendHours ?? 0, reason: extendReason ?? '' })
-                      : stage(employee.id, { extend: false, extendHours: undefined, extendReason: undefined })
-                  }
-                  style={{ fontSize: 12 }}
-                >
-                  Extend
-                </Checkbox>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginTop: 8 }}>
+                  <div>
+                    <Checkbox
+                      checked={extend}
+                      // Feedback 5 — Absence locks Extend and Standby too.
+                      disabled={absent}
+                      onChange={(e) =>
+                        e.target.checked
+                          ? onOpenExtend(employee, { hours: extendHours ?? 0, reason: extendReason ?? '' })
+                          : stage(employee.id, { extend: false, extendHours: undefined, extendReason: undefined })
+                      }
+                      style={{ fontSize: 12 }}
+                    >
+                      Extend
+                    </Checkbox>
+                    {extend && (extendHours || extendReason) && (
+                      <div style={{ marginTop: 2 }}>
+                        <Text type="secondary" style={{ fontSize: 11 }}>
+                          {[extendHours ? `${extendHours}h` : null, extendReason].filter(Boolean).join(' · ')}
+                        </Text>
+                      </div>
+                    )}
+                  </div>
 
-                {/* Standby is independent of the shift above (MOVE-3608). */}
-                <Checkbox
-                  checked={standby}
-                  onChange={(e) =>
-                    e.target.checked
-                      ? onOpenStandby(employee, standbyReason)
-                      : stage(employee.id, { standby: false, standbyReason: undefined })
-                  }
-                  style={{ fontSize: 12 }}
-                >
-                  Standby
-                </Checkbox>
+                  <div>
+                    {/* Standby is independent of the shift above (MOVE-3608). */}
+                    <Checkbox
+                      checked={standby}
+                      disabled={absent}
+                      onChange={(e) =>
+                        e.target.checked
+                          ? // Feedback 2 — standby that came from the rule does not
+                            // ask for a reason when it is re-ticked.
+                            result.standbyFromRule
+                            ? stage(employee.id, { standby: true })
+                            : onOpenStandby(employee, standbyReason)
+                          : stage(employee.id, { standby: false, standbyReason: undefined })
+                      }
+                      style={{ fontSize: 12 }}
+                    >
+                      Standby
+                    </Checkbox>
+                    {/* MOVE-3769 §3 — stays visible even after the user unticks Standby. */}
+                    {result.standbyFromRule && (
+                      <div style={{ marginTop: 2 }}>
+                        <Text type="secondary" style={{ fontSize: 11 }}>Standby from Rule</Text>
+                      </div>
+                    )}
+                    {standbyReason && (
+                      <div style={{ marginTop: 2 }}>
+                        <Text type="secondary" style={{ fontSize: 11 }}>{standbyReason}</Text>
+                      </div>
+                    )}
+                  </div>
 
-                {/* MOVE-3769 §3 — stays visible even after the user unticks Standby. */}
-                {result.standbyFromRule && (
-                  <Text type="secondary" style={{ fontSize: 11 }}>Standby from Rule</Text>
-                )}
-
-                <Checkbox
-                  checked={absent}
-                  onChange={(e) => stage(employee.id, { absence: e.target.checked })}
-                  style={{ fontSize: 12 }}
-                >
-                  Absence
-                </Checkbox>
-              </div>
-              )}
-
-              {!onLeaveRow && (standbyReason || extendReason) && (
-                <div style={{ marginTop: 6 }}>
-                  {extendReason && (
-                    <div><Text type="secondary" style={{ fontSize: 11 }}>Extension: {extendReason}</Text></div>
-                  )}
-                  {standbyReason && (
-                    <div><Text type="secondary" style={{ fontSize: 11 }}>Standby: {standbyReason}</Text></div>
-                  )}
+                  <div>
+                    <Checkbox
+                      checked={absent}
+                      onChange={(e) => stage(employee.id, { absence: e.target.checked })}
+                      style={{ fontSize: 12 }}
+                    >
+                      Absence
+                    </Checkbox>
+                  </div>
                 </div>
               )}
             </div>

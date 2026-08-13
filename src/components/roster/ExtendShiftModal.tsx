@@ -66,7 +66,6 @@ export default function ExtendShiftModal({
           onChange={setHours}
           style={{ width: '100%' }}
           status={showErrors && hoursError ? 'error' : undefined}
-          placeholder="e.g. 2"
         />
         {showErrors && hoursError && (
           <Text type="danger" style={{ fontSize: 11 }}>{hoursError}</Text>
@@ -84,7 +83,6 @@ export default function ExtendShiftModal({
           value={reason}
           onChange={(e) => setReason(e.target.value)}
           status={showErrors && reasonError ? 'error' : undefined}
-          placeholder="Why is this shift being extended?"
         />
         {showErrors && reasonError && (
           <Text type="danger" style={{ fontSize: 11 }}>{reasonError}</Text>

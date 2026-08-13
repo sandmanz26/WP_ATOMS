@@ -55,7 +55,6 @@ export default function StandbyReasonModal({
         value={reason}
         onChange={(e) => setReason(e.target.value)}
         status={showErrors && reasonError ? 'error' : undefined}
-        placeholder="Why is this employee on standby?"
       />
       {showErrors && reasonError && (
         <Text type="danger" style={{ fontSize: 11 }}>{reasonError}</Text>
