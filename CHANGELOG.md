@@ -14,6 +14,34 @@ minor).
 
 ## [Unreleased]
 
+### Changed — group colours set to the design's "Final Selected" swatches
+
+| Group | Fill | Hover | Text |
+|---|---|---|---|
+| Standby | `#ffd59e` | `#ffc069` | `#1a1a1a` |
+| Off Day | `#d9d9d9` | `#bfbfbf` | `#1a1a1a` |
+| AM | `#7fe7d5` | `#4fd8c0` | `#1a1a1a` |
+| PM | `#aec2fa` | `#87a5f7` | `#1a1a1a` |
+| No Roster | `#fce588` | `#f7d94c` | `#1a1a1a` |
+| On Leave | `#ffa6c9` | `#ff7fb2` | `#1a1a1a` |
+
+Set once in `DAY_GROUP_STYLE`, so the calendar bars, the legend chips and the
+details card all move together. Two behavioural consequences, both intended by
+the swatches but worth recording:
+
+- **Fill no longer encodes severity.** Every group is a light pastel with black
+  text, so Standby lost the solid dark blue that made it the loudest bar. Being
+  first in `DAY_GROUP_ORDER` is now the only thing that makes it findable.
+- **No Roster is a real fill.** It was a transparent, dashed outline that read
+  as "nothing here"; it is now solid yellow and drops its border, so a day with
+  unrostered staff carries as much visual weight as one without.
+
+The On Leave chip in the drawer's "Separate section" variant now reads from the
+On Leave swatch instead of carrying its own red. The two older matrix variants
+(`RosterPage`, `Roster3Page`) keep their existing `STATUS_COLORS` palette — the
+swatches name the Roster 4.0 groups, and those pages are already flagged for
+retirement in Open items.
+
 ### Added — fourth review round: Edit Roster drawer layouts (feedback 1)
 
 The stacked list ran too long to scan — at 480px wide, nine staff overflowed the

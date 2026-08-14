@@ -354,26 +354,31 @@ export interface DayGroup {
  */
 export const DAY_GROUP_ORDER: DayGroupKey[] = ['STANDBY', 'OFF', 'AM', 'PM', 'NO_ROSTER', 'ON_LEAVE']
 
-// bgHover is one step darker on the same AntD colour ramp, so a hovered bar
-// reads as the same status rather than a different one.
+/**
+ * Group colours, set by the design's "Final Selected" swatches (14 Aug).
+ *
+ * Every swatch is a light pastel carrying black text, so the fill no longer
+ * encodes severity — Standby is not "louder" than On Leave any more, it simply
+ * has its own hue. Two consequences worth knowing:
+ *   - Standby lost its solid dark-blue treatment, so it no longer stands out
+ *     from the other bars on its own; DAY_GROUP_ORDER putting it first is what
+ *     keeps it findable.
+ *   - No Roster is a real fill now rather than a dashed transparent outline, so
+ *     it no longer reads as "nothing here". It drops its border entirely.
+ *
+ * bgHover is one step darker on the same hue, so a hovered bar reads as the
+ * same status rather than a different one.
+ */
 export const DAY_GROUP_STYLE: Record<
   DayGroupKey,
   { bg: string; bgHover: string; fg: string; border?: string; borderHover?: string; label: string }
 > = {
-  STANDBY: { bg: '#2f54eb', bgHover: '#1d39c4', fg: '#ffffff', label: 'Standby' },
-  ON_LEAVE: { bg: '#ffccc7', bgHover: '#ffa39e', fg: '#a8071a', label: 'On Leave' },
-  AM: { bg: '#d9f7be', bgHover: '#b7eb8f', fg: '#237804', label: 'AM' },
-  PM: { bg: '#fff1b8', bgHover: '#ffe58f', fg: '#ad6800', label: 'PM' },
-  OFF: { bg: '#d6e4ff', bgHover: '#adc6ff', fg: '#2f4a8c', label: 'Off Day' },
-  NO_ROSTER: {
-    bg: 'transparent',
-    // Transparent has nothing to darken, so this one fills in on hover instead.
-    bgHover: '#f0f0f0',
-    fg: '#bfbfbf',
-    border: '1px dashed #d9d9d9',
-    borderHover: '1px dashed #bfbfbf',
-    label: 'No Roster',
-  },
+  STANDBY: { bg: '#ffd59e', bgHover: '#ffc069', fg: '#1a1a1a', label: 'Standby' },
+  OFF: { bg: '#d9d9d9', bgHover: '#bfbfbf', fg: '#1a1a1a', label: 'Off Day' },
+  AM: { bg: '#7fe7d5', bgHover: '#4fd8c0', fg: '#1a1a1a', label: 'AM' },
+  PM: { bg: '#aec2fa', bgHover: '#87a5f7', fg: '#1a1a1a', label: 'PM' },
+  NO_ROSTER: { bg: '#fce588', bgHover: '#f7d94c', fg: '#1a1a1a', label: 'No Roster' },
+  ON_LEAVE: { bg: '#ffa6c9', bgHover: '#ff7fb2', fg: '#1a1a1a', label: 'On Leave' },
 }
 
 /**

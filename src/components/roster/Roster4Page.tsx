@@ -956,8 +956,9 @@ function EditDayDrawer({
                   fontSize: 12,
                   padding: '2px 10px',
                   borderRadius: 12,
-                  background: '#ffccc7',
-                  color: '#a8071a',
+                  // Follows the On Leave swatch rather than a second red.
+                  background: DAY_GROUP_STYLE.ON_LEAVE.bg,
+                  color: DAY_GROUP_STYLE.ON_LEAVE.fg,
                 }}
               >
                 {employee.name}
@@ -1105,7 +1106,7 @@ function LegendChip({
           width: 24,
           height: 24,
           borderRadius: '50%',
-          background: style.bg === 'transparent' ? '#fafafa' : style.bg,
+          background: style.bg,
           border: style.border,
           color: style.fg,
           fontSize: 11,
