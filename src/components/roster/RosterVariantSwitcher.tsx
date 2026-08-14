@@ -5,9 +5,10 @@
 // Lets a presenter try calendar display options live:
 //   variant 1 — calendar style (4 densities)
 //   variant 2 — freeze the weekday header row or let it scroll away
-//   variant 3 — make the legend chips act as filters on the calendar
+//   variant 3 — whether the legend shows at all, and whether it filters
 //   variant 4 — how much contrast the drawer's shift picker carries
 //   variant 5 — where On Leave staff appear in the drawer
+//   variant 6 — how the Edit Roster drawer lays its employees out
 
 import { useEffect, useRef, useState } from 'react'
 import { Segmented, Switch, Typography } from 'antd'
@@ -18,22 +19,41 @@ const { Text } = Typography
 export type CalendarStyle = 'comfortable' | 'compact' | 'chips' | 'detailed'
 export type ShiftContrast = 'strong' | 'subtle'
 export type OnLeaveDisplay = 'inline' | 'section'
+export type LegendMode = 'hidden' | 'filters' | 'plain'
+export type DrawerLayout = 'table' | 'grouped' | 'stacked'
 
 export interface RosterVariantState {
   calendarStyle: CalendarStyle
   freezeDayNames: boolean
-  legendFilters: boolean
+  legendMode: LegendMode
   shiftContrast: ShiftContrast
   onLeaveDisplay: OnLeaveDisplay
+  drawerLayout: DrawerLayout
 }
 
 export const DEFAULT_VARIANTS: RosterVariantState = {
   calendarStyle: 'comfortable',
   freezeDayNames: true,
-  legendFilters: true,
+  // Feedback 2 removed the legend from the page; the two older behaviours stay
+  // reachable here so they can still be compared.
+  legendMode: 'hidden',
   shiftContrast: 'strong',
   onLeaveDisplay: 'inline',
+  // Feedback 1 — the stacked drawer ran too long, so a table is the default now.
+  drawerLayout: 'table',
 }
+
+export const LEGEND_MODE_OPTIONS: { value: LegendMode; label: string; hint: string }[] = [
+  { value: 'hidden', label: 'Hidden', hint: 'No legend above the calendar — the bar colours carry their own labels.' },
+  { value: 'filters', label: 'Filters', hint: 'Legend is shown, and clicking a chip hides that group in every day cell.' },
+  { value: 'plain', label: 'Plain', hint: 'Legend is shown as a plain colour key, with no filtering.' },
+]
+
+export const DRAWER_LAYOUT_OPTIONS: { value: DrawerLayout; label: string; hint: string }[] = [
+  { value: 'table', label: 'Table', hint: 'One row per employee across fixed columns. Roughly half the height of the stacked list.' },
+  { value: 'grouped', label: 'Grouped table', hint: 'The same table, split into sections by shift with a count on each — for scanning who is on what.' },
+  { value: 'stacked', label: 'Stacked cards', hint: 'The original layout — each employee is a block with its controls underneath.' },
+]
 
 export const SHIFT_CONTRAST_OPTIONS: { value: ShiftContrast; label: string; hint: string }[] = [
   { value: 'strong', label: 'Strong', hint: 'Selected shift is a solid fill, so it holds up next to the Standby checkbox.' },
@@ -210,12 +230,17 @@ export default function RosterVariantSwitcher({
 
         {/* Variant 3 */}
         <Section title="Variant 3 · Legend">
-          <Row
-            label="Legend filters the calendar"
-            hint="Click a legend chip to show or hide that group in every day cell."
-            checked={value.legendFilters}
-            onChange={(v) => set('legendFilters', v)}
+          <Segmented
+            size="small"
+            block
+            vertical
+            value={value.legendMode}
+            onChange={(v) => set('legendMode', v as LegendMode)}
+            options={LEGEND_MODE_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
           />
+          <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 6 }}>
+            {LEGEND_MODE_OPTIONS.find((o) => o.value === value.legendMode)?.hint}
+          </Text>
         </Section>
 
         {/* Variant 4 */}
@@ -233,7 +258,7 @@ export default function RosterVariantSwitcher({
         </Section>
 
         {/* Variant 5 */}
-        <Section title="Variant 5 · On Leave staff" last>
+        <Section title="Variant 5 · On Leave staff">
           <Segmented
             size="small"
             block
@@ -244,6 +269,21 @@ export default function RosterVariantSwitcher({
           />
           <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 6 }}>
             {ON_LEAVE_DISPLAY_OPTIONS.find((o) => o.value === value.onLeaveDisplay)?.hint}
+          </Text>
+        </Section>
+
+        {/* Variant 6 */}
+        <Section title="Variant 6 · Edit drawer layout" last>
+          <Segmented
+            size="small"
+            block
+            vertical
+            value={value.drawerLayout}
+            onChange={(v) => set('drawerLayout', v as DrawerLayout)}
+            options={DRAWER_LAYOUT_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+          />
+          <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 6 }}>
+            {DRAWER_LAYOUT_OPTIONS.find((o) => o.value === value.drawerLayout)?.hint}
           </Text>
         </Section>
       </div>

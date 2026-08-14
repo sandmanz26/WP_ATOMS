@@ -14,6 +14,46 @@ minor).
 
 ## [Unreleased]
 
+### Added — fourth review round: Edit Roster drawer layouts (feedback 1)
+
+The stacked list ran too long to scan — at 480px wide, nine staff overflowed the
+drawer. Two table layouts were added and put on the switcher as **Variant 6**,
+with the stacked list kept as the third option. Measured on 20 Aug 2026 (nine
+staff): stacked 929px of content, table 513px, grouped table 621px. Table is now
+the default; only the stacked list still scrolls.
+
+- **Table** — one row per employee across fixed columns (Employee / Shift /
+  Extend / Standby / Absence), with a sticky header. Drawer widens to 760px for
+  the table layouts and stays at 480px for the stacked list.
+- **Grouped table** — the same rows split into sections by the shift each
+  employee is currently on, each with a count (`AM (5)`, `No Roster (3)`,
+  `On Leave (1)`), for reading coverage rather than individuals.
+
+All three layouts share one set of cell renderers, so a behaviour fix lands in
+every layout at once — the same reasoning that keeps the status rules in
+`rosterStatusLogic.tsx`.
+
+### Changed — fourth review round
+
+- **Calendar bar order is now Standby, Off Day, AM, PM, No Roster, On Leave**
+  (feedback 4), set in `DAY_GROUP_ORDER` so every variant follows. Previously
+  On Leave sat second, directly under Standby.
+- **Highlight pills reworded** (feedback 3) to `12 unassigned shift in next 60
+  days` and `13 unassigned roster in next 60 days`. **Flagged:** applied in the
+  order the two labels were written, which puts "unassigned shift" on the
+  standby-coverage count and "unassigned roster" on the AM/PM count — the
+  reverse of what each one measures. Left as written rather than silently
+  swapped; see Open items.
+
+### Removed
+
+- **The page subtitle** "Operations department — month grid with daily coverage"
+  and **the legend row** above the calendar (feedback 2). The legend's two
+  earlier behaviours stay reachable through **Variant 3**, which became a
+  three-way choice — Hidden (the new default), Filters, Plain — rather than the
+  on/off switch it was, so the removal ships without losing the filtering
+  behaviour built last round.
+
 ### Changed — third review round (Edit Roster drawer)
 
 All four items land in the drawer's employee rows.
@@ -261,6 +301,7 @@ Tracked here so they do not get lost between sessions.
 | **Roster Calendar and Roster 3.0 are off-spec** — MOVE-3608 no longer describes a matrix layout at all, and both still use the bulk-select edit model MOVE-3658 replaced. | Awaiting a call on whether to retire them |
 | **MOVE-3660 [Payroll] Standby Calculation** — ticket has no description. | Not implemented |
 | **MOVE-3759 Design - Roster** — placeholder with no description, attachments, links or comments. | Nothing to build from |
+| **Highlight pill wording is inverted** — the 14 Aug review asked for "x unassigned shift" and "x unassigned roster", in that order. Positionally that puts "unassigned shift" on the *standby-coverage* count and "unassigned roster" on the *AM/PM shift* count, which is backwards for both. Shipped as written; a one-line swap fixes it either way. | Awaiting PM confirmation |
 | **MOVE-3608 internal inconsistency** — the AC still says "3 leading and trailing read-only dates", "scrolled into view" and "employee ordering follows the defined employee status sequence", all leftovers from the matrix version the body no longer describes. Implementation follows the body. | Worth raising with the PM |
 
 ---

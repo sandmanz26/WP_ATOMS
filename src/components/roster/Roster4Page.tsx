@@ -60,6 +60,7 @@ import {
   resolveDailyStatus,
   resolveShiftIgnoringLeave,
   shiftOptionsForDay,
+  type DailyCellResult,
   type DayGroup,
   type DayGroupKey,
   type RosterContext,
@@ -72,6 +73,7 @@ import RosterVariantSwitcher, {
   CALENDAR_STYLE_METRICS,
   DEFAULT_VARIANTS,
   type CalendarStyle,
+  type DrawerLayout,
   type OnLeaveDisplay,
   type RosterVariantState,
   type ShiftContrast,
@@ -199,17 +201,21 @@ export default function Roster4Page() {
     <div style={{ padding: 24 }}>
       {/* Title row — highlights sit here as compact pills (feedback item 4). */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16, gap: 16, flexWrap: 'wrap' }}>
+        {/* Feedback 2 — the "Operations department — month grid…" subtitle is
+            gone; the sidebar and breadcrumb already say where you are. */}
         <div>
           <Title level={4} style={{ margin: 0 }}>Roster Calendar 4.0</Title>
-          <Text type="secondary" style={{ fontSize: 13 }}>
-            Operations department — month grid with daily coverage
-          </Text>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {/* Feedback 3 — wording set by the review, in the order the two pills
+              are listed there. Note that this reads the standby check as
+              "unassigned shift" and the AM/PM check as "unassigned roster",
+              which is the reverse of how the two counts are computed; raised as
+              an open item rather than silently swapped. */}
           <HighlightPill
             icon={<ExclamationCircleFilled />}
             count={highlights.noStandbyDays}
-            label="days with no standby coverage"
+            label="unassigned shift"
             windowDays={highlights.windowDays}
             tone="#d46b08"
             active={highlightFilter === 'noStandby'}
@@ -218,7 +224,7 @@ export default function Roster4Page() {
           <HighlightPill
             icon={<WarningFilled />}
             count={highlights.noShiftDays}
-            label="days with no AM/PM shift assigned"
+            label="unassigned roster"
             windowDays={highlights.windowDays}
             tone="#cf1322"
             active={highlightFilter === 'noShift'}
@@ -258,21 +264,25 @@ export default function Roster4Page() {
           )}
         </div>
 
-        {/* Legend above the calendar, Ops Calendar chip styling (feedback item 1). */}
-        <Legend
-          filtersEnabled={variants.legendFilters}
-          hiddenGroups={hiddenGroups}
-          onToggleGroup={(key) =>
-            setHiddenGroups((prev) => {
-              const next = new Set(prev)
-              if (next.has(key)) next.delete(key)
-              else next.add(key)
-              return next
-            })
-          }
-        />
-
-        <div style={{ height: 12 }} />
+        {/* Feedback 2 removed the legend row. The two earlier behaviours stay
+            available through Variant 3 so they can still be compared. */}
+        {variants.legendMode !== 'hidden' && (
+          <>
+            <Legend
+              filtersEnabled={variants.legendMode === 'filters'}
+              hiddenGroups={hiddenGroups}
+              onToggleGroup={(key) =>
+                setHiddenGroups((prev) => {
+                  const next = new Set(prev)
+                  if (next.has(key)) next.delete(key)
+                  else next.add(key)
+                  return next
+                })
+              }
+            />
+            <div style={{ height: 12 }} />
+          </>
+        )}
 
         {/* Weekday header — variant 2 pins it to the top of the viewport. */}
         <div
@@ -309,7 +319,7 @@ export default function Roster4Page() {
                 onBarOpenChange={setOpenBarKey}
                 onSelectForEdit={() => inSelectedMonth && setEditDate(date)}
                 calendarStyle={variants.calendarStyle}
-                hiddenGroups={variants.legendFilters ? hiddenGroups : EMPTY_HIDDEN}
+                hiddenGroups={variants.legendMode === 'filters' ? hiddenGroups : EMPTY_HIDDEN}
               />
             ))}
           </div>
@@ -322,6 +332,7 @@ export default function Roster4Page() {
           ctx={ctx}
           shiftContrast={variants.shiftContrast}
           onLeaveDisplay={variants.onLeaveDisplay}
+          layout={variants.drawerLayout}
           onClose={() => setEditDate(null)}
           onCommitDay={commitDay}
         />
@@ -378,7 +389,7 @@ function HighlightPill({
         <span style={{ fontSize: 14, color: clear ? '#52c41a' : tone, display: 'flex' }}>{icon}</span>
         <span style={{ fontSize: 13, color: '#1a1a1a', whiteSpace: 'nowrap' }}>
           <strong style={{ color: clear ? '#1a1a1a' : tone }}>{count}</strong> {label}{' '}
-          <Text type="secondary" style={{ fontSize: 12 }}>(next {windowDays} days)</Text>
+          <Text type="secondary" style={{ fontSize: 12 }}>in next {windowDays} days</Text>
         </span>
       </div>
     </Tooltip>
@@ -613,6 +624,7 @@ function EditDayDrawer({
   ctx,
   shiftContrast,
   onLeaveDisplay,
+  layout,
   onClose,
   onCommitDay,
 }: {
@@ -620,6 +632,7 @@ function EditDayDrawer({
   ctx: RosterContext
   shiftContrast: ShiftContrast
   onLeaveDisplay: OnLeaveDisplay
+  layout: DrawerLayout
   onClose: () => void
   onCommitDay: (overrides: RosterOverride[]) => void
 }) {
@@ -692,11 +705,210 @@ function EditDayDrawer({
 
   const dirty = Object.keys(pending).length > 0
 
+  // ---- Cells shared by all three layouts -----------------------------------
+  //
+  // Feedback 1 — the stacked list ran too long to scan, so the same controls are
+  // reused across a table and a grouped table. Keeping them as one set of cell
+  // renderers is what stops the layouts drifting apart in behaviour.
+
+  const rowModel = ({ employee, result }: { employee: RosterEmployee; result: DailyCellResult }) => ({
+    employee,
+    result,
+    onLeaveRow: result.status === 'ON_LEAVE',
+    absent: !!valueOf(employee.id, 'absence', result.absent),
+    standby: !!valueOf(employee.id, 'standby', result.standby),
+    standbyReason: valueOf(employee.id, 'standbyReason', result.standbyReason),
+    extend: !!valueOf(employee.id, 'extend', result.extend),
+    extendHours: valueOf(employee.id, 'extendHours', result.extendHours),
+    extendReason: valueOf(employee.id, 'extendReason', result.extendReason),
+  })
+  type Row = ReturnType<typeof rowModel>
+
+  const detail = (text: string) => (
+    <div style={{ marginTop: 2 }}>
+      <Text type="secondary" style={{ fontSize: 11 }}>{text}</Text>
+    </div>
+  )
+
+  const nameCell = (row: Row) => (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+      {/* Feedback 5 — the Absence state reads next to the name. */}
+      <span style={{ fontSize: 13 }}>{row.employee.name}</span>
+      {row.absent && <Tag color="red" style={{ fontSize: 10, margin: 0 }}>Absence</Tag>}
+      {row.onLeaveRow && <Tag color="gold" style={{ fontSize: 10, margin: 0 }}>On Leave</Tag>}
+    </div>
+  )
+
+  const shiftCell = (row: Row) => (
+    <ShiftSelector
+      contrast={shiftContrast}
+      // Locked on a public holiday, while the employee is marked absent
+      // (MOVE-3769 §3), and for On Leave rows, which are view-only.
+      disabled={!!dayHoliday || row.absent || row.onLeaveRow}
+      value={
+        row.onLeaveRow
+          ? resolveShiftIgnoringLeave(row.employee, date, ctx)
+          : dayHoliday
+            ? 'OFF'
+            : shiftOf(row.employee.id, row.result.status)
+      }
+      options={dayShiftOptions}
+      onChange={(v) => stage(row.employee.id, { shift: v })}
+    />
+  )
+
+  const extendCell = (row: Row) => (
+    <div>
+      <Checkbox
+        checked={row.extend}
+        // Feedback 5 — Absence locks Extend and Standby too.
+        disabled={row.absent}
+        onChange={(e) =>
+          e.target.checked
+            ? onOpenExtend(row.employee, { hours: row.extendHours ?? 0, reason: row.extendReason ?? '' })
+            : stage(row.employee.id, { extend: false, extendHours: undefined, extendReason: undefined })
+        }
+        style={{ fontSize: 12 }}
+      >
+        Extend
+      </Checkbox>
+      {/* Feedback 6 — the extension detail stays with its own checkbox. */}
+      {row.extend &&
+        (row.extendHours || row.extendReason) &&
+        detail([row.extendHours ? `${row.extendHours}h` : null, row.extendReason].filter(Boolean).join(' · '))}
+    </div>
+  )
+
+  const standbyCell = (row: Row) => (
+    <div>
+      {/* Standby is independent of the shift (MOVE-3608). */}
+      <Checkbox
+        checked={row.standby}
+        disabled={row.absent}
+        onChange={(e) =>
+          e.target.checked
+            ? // Feedback 2 — standby that came from the rule does not ask for a
+              // reason when it is re-ticked.
+              row.result.standbyFromRule
+              ? stage(row.employee.id, { standby: true })
+              : onOpenStandby(row.employee, row.standbyReason)
+            : stage(row.employee.id, { standby: false, standbyReason: undefined })
+        }
+        style={{ fontSize: 12 }}
+      >
+        Standby
+      </Checkbox>
+      {/* MOVE-3769 §3 — stays visible even after the user unticks Standby. */}
+      {row.result.standbyFromRule && detail('Standby from Rule')}
+      {row.standbyReason && detail(row.standbyReason)}
+    </div>
+  )
+
+  const absenceCell = (row: Row) => (
+    <Checkbox
+      checked={row.absent}
+      onChange={(e) => stage(row.employee.id, { absence: e.target.checked })}
+      style={{ fontSize: 12 }}
+    >
+      Absence
+    </Checkbox>
+  )
+
+  // ---- Layouts -------------------------------------------------------------
+
+  const TABLE_COLUMNS = '1.3fr 148px 1fr 1.15fr 96px'
+
+  const tableHeader = (
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: TABLE_COLUMNS,
+        gap: 10,
+        padding: '8px 10px',
+        background: '#fafafa',
+        border: '1px solid #f0f0f0',
+        borderRadius: '6px 6px 0 0',
+        position: 'sticky',
+        top: 0,
+        zIndex: 2,
+      }}
+    >
+      {['Employee', 'Shift', 'Extend', 'Standby', 'Absence'].map((h) => (
+        <Text key={h} type="secondary" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.4 }}>
+          {h}
+        </Text>
+      ))}
+    </div>
+  )
+
+  const tableRow = (row: Row) => (
+    <div
+      key={row.employee.id}
+      style={{
+        display: 'grid',
+        gridTemplateColumns: TABLE_COLUMNS,
+        gap: 10,
+        alignItems: 'start',
+        padding: '10px',
+        borderBottom: '1px solid #f5f5f5',
+        background: row.onLeaveRow ? '#fffbe6' : undefined,
+      }}
+    >
+      {nameCell(row)}
+      <div>{shiftCell(row)}</div>
+      {/* On Leave rows are view-only: no extend, standby or absence. */}
+      {row.onLeaveRow ? <span /> : extendCell(row)}
+      {row.onLeaveRow ? <span /> : standbyCell(row)}
+      {row.onLeaveRow ? <span /> : absenceCell(row)}
+    </div>
+  )
+
+  const stackedRow = (row: Row) => (
+    <div key={row.employee.id} style={{ padding: '12px 0', borderBottom: '1px solid #f5f5f5' }}>
+      <div style={{ marginBottom: 6 }}>{nameCell(row)}</div>
+      <div>{shiftCell(row)}</div>
+      {/* Each modifier keeps its own state directly underneath it (feedback 2
+          and 6), rather than trailing off in a shared block. */}
+      {!row.onLeaveRow && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginTop: 8 }}>
+          {extendCell(row)}
+          {standbyCell(row)}
+          <div>{absenceCell(row)}</div>
+        </div>
+      )}
+    </div>
+  )
+
+  /** Groups the table by the shift each employee is currently on. */
+  const groupedSections = () => {
+    const models = rows.map(rowModel)
+    const sections: { key: string; label: string; rows: Row[] }[] = [
+      { key: 'AM', label: 'AM', rows: [] },
+      { key: 'PM', label: 'PM', rows: [] },
+      { key: 'OFF', label: 'Off Day', rows: [] },
+      { key: 'NA', label: 'No Roster', rows: [] },
+      { key: 'ON_LEAVE', label: 'On Leave', rows: [] },
+    ]
+    const byKey = new Map(sections.map((s) => [s.key, s]))
+    for (const row of models) {
+      const key = row.onLeaveRow
+        ? 'ON_LEAVE'
+        : dayHoliday
+          ? 'OFF'
+          : shiftOf(row.employee.id, row.result.status)
+      byKey.get(key)?.rows.push(row)
+    }
+    return sections.filter((s) => s.rows.length > 0)
+  }
+
+  const isTable = layout !== 'stacked'
+
   return (
     <Drawer
       open
       onClose={onClose}
-      width={480}
+      // The table layouts need the width; the stacked list does not.
+      width={isTable ? 760 : 480}
       title={`Edit Roster — ${date.format('D MMM YYYY')}`}
       footer={
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
@@ -760,117 +972,26 @@ function EditDayDrawer({
 
       {rows.length === 0 ? (
         <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No employees to roster on this date." />
+      ) : layout === 'stacked' ? (
+        rows.map((r) => stackedRow(rowModel(r)))
+      ) : layout === 'table' ? (
+        <div style={{ marginTop: 8, border: '1px solid #f0f0f0', borderRadius: 6 }}>
+          {tableHeader}
+          {rows.map((r) => tableRow(rowModel(r)))}
+        </div>
       ) : (
-        rows.map(({ employee, result }) => {
-          const onLeaveRow = result.status === 'ON_LEAVE'
-          const absent = !!valueOf(employee.id, 'absence', result.absent)
-          const standby = !!valueOf(employee.id, 'standby', result.standby)
-          const standbyReason = valueOf(employee.id, 'standbyReason', result.standbyReason)
-          const extend = !!valueOf(employee.id, 'extend', result.extend)
-          const extendHours = valueOf(employee.id, 'extendHours', result.extendHours)
-          const extendReason = valueOf(employee.id, 'extendReason', result.extendReason)
-
-          return (
-            <div key={employee.id} style={{ padding: '12px 0', borderBottom: '1px solid #f5f5f5' }}>
-              {/* Feedback 5 — the Absence state reads next to the name. */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                <span style={{ fontSize: 13 }}>{employee.name}</span>
-                {absent && <Tag color="red" style={{ fontSize: 10, margin: 0 }}>Absence</Tag>}
+        <div style={{ marginTop: 8 }}>
+          {groupedSections().map((section) => (
+            <div key={section.key} style={{ marginBottom: 16, border: '1px solid #f0f0f0', borderRadius: 6 }}>
+              <div style={{ padding: '8px 10px', background: '#fafafa', borderBottom: '1px solid #f0f0f0' }}>
+                <Text strong style={{ fontSize: 12 }}>
+                  {section.label} <Text type="secondary" style={{ fontSize: 12 }}>({section.rows.length})</Text>
+                </Text>
               </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                <ShiftSelector
-                  contrast={shiftContrast}
-                  // Locked on a public holiday, while the employee is marked
-                  // absent (MOVE-3769 §3), and for On Leave rows, which are
-                  // view-only.
-                  disabled={!!dayHoliday || absent || onLeaveRow}
-                  value={
-                    onLeaveRow
-                      ? resolveShiftIgnoringLeave(employee, date, ctx)
-                      : dayHoliday
-                        ? 'OFF'
-                        : shiftOf(employee.id, result.status)
-                  }
-                  options={dayShiftOptions}
-                  onChange={(v) => stage(employee.id, { shift: v })}
-                />
-                {onLeaveRow && <Tag color="gold" style={{ fontSize: 10, margin: 0 }}>On Leave</Tag>}
-              </div>
-
-              {/* On Leave rows are view-only: no shift, standby, extend or absence.
-                  Each modifier keeps its own state directly underneath it
-                  (feedback 2 and 6), rather than trailing off in a shared block. */}
-              {!onLeaveRow && (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginTop: 8 }}>
-                  <div>
-                    <Checkbox
-                      checked={extend}
-                      // Feedback 5 — Absence locks Extend and Standby too.
-                      disabled={absent}
-                      onChange={(e) =>
-                        e.target.checked
-                          ? onOpenExtend(employee, { hours: extendHours ?? 0, reason: extendReason ?? '' })
-                          : stage(employee.id, { extend: false, extendHours: undefined, extendReason: undefined })
-                      }
-                      style={{ fontSize: 12 }}
-                    >
-                      Extend
-                    </Checkbox>
-                    {extend && (extendHours || extendReason) && (
-                      <div style={{ marginTop: 2 }}>
-                        <Text type="secondary" style={{ fontSize: 11 }}>
-                          {[extendHours ? `${extendHours}h` : null, extendReason].filter(Boolean).join(' · ')}
-                        </Text>
-                      </div>
-                    )}
-                  </div>
-
-                  <div>
-                    {/* Standby is independent of the shift above (MOVE-3608). */}
-                    <Checkbox
-                      checked={standby}
-                      disabled={absent}
-                      onChange={(e) =>
-                        e.target.checked
-                          ? // Feedback 2 — standby that came from the rule does not
-                            // ask for a reason when it is re-ticked.
-                            result.standbyFromRule
-                            ? stage(employee.id, { standby: true })
-                            : onOpenStandby(employee, standbyReason)
-                          : stage(employee.id, { standby: false, standbyReason: undefined })
-                      }
-                      style={{ fontSize: 12 }}
-                    >
-                      Standby
-                    </Checkbox>
-                    {/* MOVE-3769 §3 — stays visible even after the user unticks Standby. */}
-                    {result.standbyFromRule && (
-                      <div style={{ marginTop: 2 }}>
-                        <Text type="secondary" style={{ fontSize: 11 }}>Standby from Rule</Text>
-                      </div>
-                    )}
-                    {standbyReason && (
-                      <div style={{ marginTop: 2 }}>
-                        <Text type="secondary" style={{ fontSize: 11 }}>{standbyReason}</Text>
-                      </div>
-                    )}
-                  </div>
-
-                  <div>
-                    <Checkbox
-                      checked={absent}
-                      onChange={(e) => stage(employee.id, { absence: e.target.checked })}
-                      style={{ fontSize: 12 }}
-                    >
-                      Absence
-                    </Checkbox>
-                  </div>
-                </div>
-              )}
+              {section.rows.map(tableRow)}
             </div>
-          )
-        })
+          ))}
+        </div>
       )}
 
       <ExtendShiftModal

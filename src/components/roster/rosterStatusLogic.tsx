@@ -346,8 +346,13 @@ export interface DayGroup {
   members: DayGroupMember[]
 }
 
-/** Bar order inside a day cell. */
-export const DAY_GROUP_ORDER: DayGroupKey[] = ['STANDBY', 'ON_LEAVE', 'AM', 'PM', 'OFF', 'NO_ROSTER']
+/**
+ * Bar order inside a day cell, fixed by the 14 Aug review (feedback 4):
+ * Standby, Off Day, AM, PM, No Roster, On Leave. Standby leads because it is
+ * the coverage question ops scans for first; On Leave drops to the bottom
+ * because nobody in it is working that day.
+ */
+export const DAY_GROUP_ORDER: DayGroupKey[] = ['STANDBY', 'OFF', 'AM', 'PM', 'NO_ROSTER', 'ON_LEAVE']
 
 // bgHover is one step darker on the same AntD colour ramp, so a hovered bar
 // reads as the same status rather than a different one.
