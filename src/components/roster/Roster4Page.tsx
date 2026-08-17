@@ -735,7 +735,21 @@ function EditDayDrawer({
       {/* Feedback 5 — the Absence state reads next to the name. */}
       <span style={{ fontSize: 13 }}>{row.employee.name}</span>
       {row.absent && <Tag color="red" style={{ fontSize: 10, margin: 0 }}>Absence</Tag>}
-      {row.onLeaveRow && <Tag color="gold" style={{ fontSize: 10, margin: 0 }}>On Leave</Tag>}
+      {/* The tag carries the calendar's On Leave swatch, so the same status
+          reads the same colour in the grid and in the drawer. */}
+      {row.onLeaveRow && (
+        <Tag
+          style={{
+            fontSize: 10,
+            margin: 0,
+            background: DAY_GROUP_STYLE.ON_LEAVE.bg,
+            color: DAY_GROUP_STYLE.ON_LEAVE.fg,
+            border: 'none',
+          }}
+        >
+          On Leave
+        </Tag>
+      )}
     </div>
   )
 
@@ -761,8 +775,9 @@ function EditDayDrawer({
     <div>
       <Checkbox
         checked={row.extend}
-        // Feedback 5 — Absence locks Extend and Standby too.
-        disabled={row.absent}
+        // Feedback 5 — Absence locks Extend and Standby too. An On Leave row is
+        // view-only, and says so by disabling its fields the same way.
+        disabled={row.absent || row.onLeaveRow}
         onChange={(e) =>
           e.target.checked
             ? onOpenExtend(row.employee, { hours: row.extendHours ?? 0, reason: row.extendReason ?? '' })
@@ -773,7 +788,8 @@ function EditDayDrawer({
         Extend
       </Checkbox>
       {/* Feedback 6 — the extension detail stays with its own checkbox. */}
-      {row.extend &&
+      {!row.onLeaveRow &&
+        row.extend &&
         (row.extendHours || row.extendReason) &&
         detail([row.extendHours ? `${row.extendHours}h` : null, row.extendReason].filter(Boolean).join(' · '))}
     </div>
@@ -784,7 +800,7 @@ function EditDayDrawer({
       {/* Standby is independent of the shift (MOVE-3608). */}
       <Checkbox
         checked={row.standby}
-        disabled={row.absent}
+        disabled={row.absent || row.onLeaveRow}
         onChange={(e) =>
           e.target.checked
             ? // Feedback 2 — standby that came from the rule does not ask for a
@@ -798,15 +814,19 @@ function EditDayDrawer({
       >
         Standby
       </Checkbox>
-      {/* MOVE-3769 §3 — stays visible even after the user unticks Standby. */}
-      {row.result.standbyFromRule && detail('Standby from Rule')}
-      {row.standbyReason && detail(row.standbyReason)}
+      {/* MOVE-3769 §3 — stays visible even after the user unticks Standby, but
+          not on an On Leave row: standby is cleared by leave (MOVE-3608), so
+          "Standby from Rule" under an empty box would claim a shift that is not
+          actually assigned. */}
+      {!row.onLeaveRow && row.result.standbyFromRule && detail('Standby from Rule')}
+      {!row.onLeaveRow && row.standbyReason && detail(row.standbyReason)}
     </div>
   )
 
   const absenceCell = (row: Row) => (
     <Checkbox
       checked={row.absent}
+      disabled={row.onLeaveRow}
       onChange={(e) => stage(row.employee.id, { absence: e.target.checked })}
       style={{ fontSize: 12 }}
     >
@@ -853,15 +873,16 @@ function EditDayDrawer({
         alignItems: 'start',
         padding: '10px',
         borderBottom: '1px solid #f5f5f5',
-        background: row.onLeaveRow ? '#fffbe6' : undefined,
       }}
     >
       {nameCell(row)}
       <div>{shiftCell(row)}</div>
-      {/* On Leave rows are view-only: no extend, standby or absence. */}
-      {row.onLeaveRow ? <span /> : extendCell(row)}
-      {row.onLeaveRow ? <span /> : standbyCell(row)}
-      {row.onLeaveRow ? <span /> : absenceCell(row)}
+      {/* On Leave rows stay view-only, but say so through their own disabled
+          fields rather than a highlighted row — the highlight pulled the eye to
+          the one row that cannot be edited. */}
+      {extendCell(row)}
+      {standbyCell(row)}
+      {absenceCell(row)}
     </div>
   )
 
@@ -870,14 +891,13 @@ function EditDayDrawer({
       <div style={{ marginBottom: 6 }}>{nameCell(row)}</div>
       <div>{shiftCell(row)}</div>
       {/* Each modifier keeps its own state directly underneath it (feedback 2
-          and 6), rather than trailing off in a shared block. */}
-      {!row.onLeaveRow && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginTop: 8 }}>
-          {extendCell(row)}
-          {standbyCell(row)}
-          <div>{absenceCell(row)}</div>
-        </div>
-      )}
+          and 6), rather than trailing off in a shared block. On Leave rows keep
+          the fields and disable them, matching the table layouts. */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginTop: 8 }}>
+        {extendCell(row)}
+        {standbyCell(row)}
+        <div>{absenceCell(row)}</div>
+      </div>
     </div>
   )
 

@@ -14,6 +14,21 @@ minor).
 
 ## [Unreleased]
 
+### Changed — On Leave rows in the Edit Roster drawer (feedback 2)
+
+- **The On Leave tag now carries the calendar's On Leave swatch** (`#ffa6c9` on
+  black) instead of AntD's gold, so the same status reads the same colour in the
+  grid and in the drawer.
+- **The row highlight is gone.** An On Leave row had a yellow background on top
+  of its tag and disabled controls, which made the one row nobody can edit the
+  loudest thing in the drawer. It now looks like every other row and says
+  view-only the way an Absence row does — through its own disabled fields.
+- **On Leave rows keep their Extend / Standby / Absence checkboxes, disabled**,
+  rather than leaving three empty cells in the table. Their sub-text is
+  suppressed though: leave clears standby (MOVE-3608), so "Standby from Rule"
+  under an unticked, disabled box would claim an assignment that does not exist
+  that day.
+
 ### Fixed
 
 - **"Off Day" wrapped to two lines in the shift picker**, so weekend and holiday
