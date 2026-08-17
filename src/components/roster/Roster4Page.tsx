@@ -661,12 +661,12 @@ function EditDayDrawer({
   const rows = onLeaveDisplay === 'inline' ? resolved : editable
 
   // MOVE-3769 §3 — weekdays offer AM/PM/NA, weekends AM/Off Day/NA. On a public
-  // holiday the shift is fixed to Off Day and the control is read-only, so Off
-  // Day is added to the option list purely so the row still renders.
+  // holiday the shift is fixed to Off Day and the control is read-only, so the
+  // picker shows that one option rather than greying out choices nobody can
+  // take — appending it to the weekday set gave a four-option row that
+  // overflowed the Shift column.
   const dayHoliday = PUBLIC_HOLIDAYS.find((h) => h.date === dateStr)
-  const dayShiftOptions: ShiftSelection[] = dayHoliday
-    ? Array.from(new Set<ShiftSelection>([...shiftOptionsForDay(date), 'OFF']))
-    : shiftOptionsForDay(date)
+  const dayShiftOptions: ShiftSelection[] = dayHoliday ? ['OFF'] : shiftOptionsForDay(date)
 
   const resolvedShift = (status: string): ShiftSelection => {
     if (status === 'AM' || status === 'AM_WEEKEND') return 'AM'
@@ -816,7 +816,9 @@ function EditDayDrawer({
 
   // ---- Layouts -------------------------------------------------------------
 
-  const TABLE_COLUMNS = '1.3fr 148px 1fr 1.15fr 96px'
+  // The Shift column is sized for its widest content — AM / Off Day / NA on a
+  // weekend or holiday — so the buttons never have to wrap.
+  const TABLE_COLUMNS = '1.25fr 180px 1fr 1.15fr 96px'
 
   const tableHeader = (
     <div

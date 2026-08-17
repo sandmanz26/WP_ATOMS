@@ -14,6 +14,20 @@ minor).
 
 ## [Unreleased]
 
+### Fixed
+
+- **"Off Day" wrapped to two lines in the shift picker**, so weekend and holiday
+  rows in the Edit Roster drawer stood ~25px taller than weekday rows. The
+  buttons no longer wrap and the table's Shift column widened from 148px to
+  180px to fit the longest option set. Measured on 15 Aug (weekend) and 20 Aug
+  (weekday): row heights and total content height are now identical at 513px.
+- **Public holidays overflowed the Shift column.** The picker was built by
+  appending Off Day to the day's normal options, which on a weekday holiday gave
+  a four-option row (AM/PM/NA/Off Day) too wide for the column — the label was
+  clipped into the Extend column. Since the shift is fixed and read-only that
+  day, the picker now shows Off Day alone; the banner above already explains
+  why. Found while verifying the wrapping fix, not reported.
+
 ### Changed — group colours set to the design's "Final Selected" swatches
 
 | Group | Fill | Hover | Text |
