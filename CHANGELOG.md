@@ -92,9 +92,13 @@ every layout at once — the same reasoning that keeps the status rules in
 
 ### Changed — fourth review round
 
-- **Calendar bar order is now Standby, Off Day, AM, PM, No Roster, On Leave**
-  (feedback 4), set in `DAY_GROUP_ORDER` so every variant follows. Previously
-  On Leave sat second, directly under Standby.
+- **Calendar bar order is now Standby, AM, PM, Off Day, No Roster, On Leave**,
+  set in `DAY_GROUP_ORDER` so every variant follows. Previously On Leave sat
+  second, directly under Standby. The 14 Aug review first placed Off Day ahead
+  of AM; the 17 Aug review corrected it to sit after PM, because putting Off Day
+  second made weekend cells — where most staff are off — read in a different
+  sequence from weekday cells. Verified across all 31 populated day cells of
+  August 2026, weekends and the 17 Aug public holiday included.
 - **Highlight pills reworded** (feedback 3) to `12 unassigned shift in next 60
   days` and `13 unassigned roster in next 60 days`. **Flagged:** applied in the
   order the two labels were written, which puts "unassigned shift" on the

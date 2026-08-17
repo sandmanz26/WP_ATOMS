@@ -347,12 +347,17 @@ export interface DayGroup {
 }
 
 /**
- * Bar order inside a day cell, fixed by the 14 Aug review (feedback 4):
- * Standby, Off Day, AM, PM, No Roster, On Leave. Standby leads because it is
- * the coverage question ops scans for first; On Leave drops to the bottom
- * because nobody in it is working that day.
+ * Bar order inside a day cell: Standby, AM, PM, Off Day, No Roster, On Leave.
+ *
+ * Standby leads because it is the coverage question ops scans for first, then
+ * the worked shifts in order, then the not-working groups. On Leave sits last
+ * because nobody in it is available that day.
+ *
+ * Corrected on 17 Aug — the 14 Aug review had put Off Day ahead of AM, which
+ * made weekend cells (where most staff are off) read differently from weekday
+ * cells. Off Day now follows PM so every day reads the same way.
  */
-export const DAY_GROUP_ORDER: DayGroupKey[] = ['STANDBY', 'OFF', 'AM', 'PM', 'NO_ROSTER', 'ON_LEAVE']
+export const DAY_GROUP_ORDER: DayGroupKey[] = ['STANDBY', 'AM', 'PM', 'OFF', 'NO_ROSTER', 'ON_LEAVE']
 
 /**
  * Group colours, set by the design's "Final Selected" swatches (14 Aug).
