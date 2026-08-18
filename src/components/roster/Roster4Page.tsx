@@ -13,7 +13,7 @@
 //     Standby, public holiday indicator, 12-month forward navigation, legend.
 //     Standby is an independent assignment: an employee rostered AM and put on
 //     standby appears in both bars.
-//   MOVE-3607 — the two highlight badges, here as pills that also filter.
+//   MOVE-3607 — the two highlight badges, here as stat cards that also filter.
 //   MOVE-3659 — clicking a bar opens the view-only Details Card, staff A–Z.
 //   MOVE-3609/3610/3611/3705 — via the shared Manage Roster drawer.
 //   MOVE-3658 — edit mode: pick a day, edit it in a drawer with its own
@@ -31,8 +31,6 @@ import {
   CalendarOutlined,
   SettingOutlined,
   EditOutlined,
-  ExclamationCircleFilled,
-  WarningFilled,
   FlagFilled,
   CloseOutlined,
 } from '@ant-design/icons'
@@ -199,38 +197,34 @@ export default function Roster4Page() {
 
   return (
     <div style={{ padding: 24 }}>
-      {/* Title row — highlights sit here as compact pills (feedback item 4). */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16, gap: 16, flexWrap: 'wrap' }}>
-        {/* Feedback 2 — the "Operations department — month grid…" subtitle is
-            gone; the sidebar and breadcrumb already say where you are. */}
-        <div>
-          <Title level={4} style={{ margin: 0 }}>Roster Calendar 4.0</Title>
-        </div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {/* Feedback 3 — wording set by the review, in the order the two pills
-              are listed there. Note that this reads the standby check as
-              "unassigned shift" and the AM/PM check as "unassigned roster",
-              which is the reverse of how the two counts are computed; raised as
-              an open item rather than silently swapped. */}
-          <HighlightPill
-            icon={<ExclamationCircleFilled />}
-            count={highlights.noStandbyDays}
-            label="unassigned shift"
-            windowDays={highlights.windowDays}
-            tone="#d46b08"
-            active={highlightFilter === 'noStandby'}
-            onClick={() => setHighlightFilter((f) => (f === 'noStandby' ? 'none' : 'noStandby'))}
-          />
-          <HighlightPill
-            icon={<WarningFilled />}
-            count={highlights.noShiftDays}
-            label="unassigned roster"
-            windowDays={highlights.windowDays}
-            tone="#cf1322"
-            active={highlightFilter === 'noShift'}
-            onClick={() => setHighlightFilter((f) => (f === 'noShift' ? 'none' : 'noShift'))}
-          />
-        </div>
+      {/* Feedback 2 — the "Operations department — month grid…" subtitle is
+          gone; the sidebar and breadcrumb already say where you are. The page
+          is titled plainly "Roster": the 4.0 is a prototype variant number, not
+          something the product should say out loud. */}
+      <Title level={3} style={{ margin: '0 0 16px', fontWeight: 700 }}>Roster</Title>
+
+      {/* Highlights sit under the title as stat cards, on their own row above
+          the calendar. They are still clickable filters. */}
+      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
+        {/* Wording set by the review, in the order the two were listed there.
+            Note that this reads the standby check as "unassigned shift" and the
+            AM/PM check as "unassigned roster", which is the reverse of how the
+            two counts are computed; raised as an open item rather than silently
+            swapped. */}
+        <HighlightCard
+          count={highlights.noStandbyDays}
+          label="unassigned shift"
+          windowDays={highlights.windowDays}
+          active={highlightFilter === 'noStandby'}
+          onClick={() => setHighlightFilter((f) => (f === 'noStandby' ? 'none' : 'noStandby'))}
+        />
+        <HighlightCard
+          count={highlights.noShiftDays}
+          label="unassigned roster"
+          windowDays={highlights.windowDays}
+          active={highlightFilter === 'noShift'}
+          onClick={() => setHighlightFilter((f) => (f === 'noShift' ? 'none' : 'noShift'))}
+        />
       </div>
 
       <div style={{ border: '1px solid #f0f0f0', borderRadius: 10, background: '#fff', padding: 16 }}>
@@ -352,20 +346,26 @@ export default function Roster4Page() {
 /** Stable empty set so DayCell's props don't change identity every render. */
 const EMPTY_HIDDEN: Set<DayGroupKey> = new Set()
 
-function HighlightPill({
-  icon,
+/**
+ * One highlight as a stat card: the count reads large, with what it counts
+ * underneath. Replaces the old inline pill (17 Aug design).
+ *
+ * The count appears once, as the number — the design mock repeated it inside
+ * the label too, which would have shown two different figures on one card.
+ *
+ * Still a filter: clicking narrows the calendar to the affected days, and the
+ * active card carries a blue border so the filtered state is visible.
+ */
+function HighlightCard({
   count,
   label,
   windowDays,
-  tone,
   active,
   onClick,
 }: {
-  icon: React.ReactNode
   count: number
   label: string
   windowDays: number
-  tone: string
   active: boolean
   onClick: () => void
 }) {
@@ -375,22 +375,21 @@ function HighlightPill({
       <div
         onClick={() => !clear && onClick()}
         style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 8,
-          padding: '6px 14px',
-          borderRadius: 18,
-          border: `1px solid ${clear ? '#f0f0f0' : `${tone}66`}`,
-          background: active ? `${tone}1a` : clear ? '#fff' : `${tone}0d`,
+          minWidth: 230,
+          padding: '14px 18px',
+          borderRadius: 10,
+          background: '#fff',
+          border: `1px solid ${active ? '#1677ff' : '#f0f0f0'}`,
+          boxShadow: active ? '0 0 0 2px #1677ff26' : undefined,
           cursor: clear ? 'default' : 'pointer',
-          boxShadow: active ? `0 0 0 2px ${tone}33` : undefined,
+          transition: 'border-color 0.12s ease, box-shadow 0.12s ease',
         }}
       >
-        <span style={{ fontSize: 14, color: clear ? '#52c41a' : tone, display: 'flex' }}>{icon}</span>
-        <span style={{ fontSize: 13, color: '#1a1a1a', whiteSpace: 'nowrap' }}>
-          <strong style={{ color: clear ? '#1a1a1a' : tone }}>{count}</strong> {label}{' '}
-          <Text type="secondary" style={{ fontSize: 12 }}>in next {windowDays} days</Text>
-        </span>
+        <div style={{ fontSize: 26, fontWeight: 700, lineHeight: 1.2, color: '#1a1a1a' }}>{count}</div>
+        <div style={{ marginTop: 2, fontSize: 12, whiteSpace: 'nowrap' }}>
+          <span style={{ fontWeight: 600, color: '#595959' }}>{label}</span>{' '}
+          <Text type="secondary" style={{ fontSize: 12 }}>(in next {windowDays} days)</Text>
+        </div>
       </div>
     </Tooltip>
   )

@@ -14,6 +14,25 @@ minor).
 
 ## [Unreleased]
 
+### Changed — page header reworked to the target design (17 Aug)
+
+- **Breadcrumb is rooted in a home icon** and the Roster 4.0 route now reads
+  `/ Roster`. The icon is added in `AppLayout`, so every page in the prototype
+  picks it up, not just this one.
+- **Page title is plainly "Roster"** (`Roster Calendar 4.0` before), larger and
+  bolder. The 4.0 is a prototype variant number and does not belong in product
+  copy; the sidebar still names the variant so the three can be told apart.
+- **Highlights became stat cards** on their own row between the title and the
+  calendar, rather than inline pills floated right of the title. The count reads
+  large with what it counts underneath. They remain clickable filters: the
+  active card carries a blue border, replacing the old tinted-pill treatment
+  that leaned on a per-highlight tone colour.
+
+  The design mock showed a large number *and* a second number inside the label
+  (`14` above `12 unassigned shift`). The count is rendered once, as the number —
+  showing two different figures on one card would only raise the question of
+  which one is real.
+
 ### Changed — On Leave rows in the Edit Roster drawer (feedback 2)
 
 - **The On Leave tag now carries the calendar's On Leave swatch** (`#ffa6c9` on

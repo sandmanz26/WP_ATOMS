@@ -4,6 +4,7 @@ import {
   AppstoreOutlined,
   CalendarOutlined,
   DownOutlined,
+  HomeOutlined,
   RightOutlined,
 } from '@ant-design/icons'
 import type { AppPage } from '@/App'
@@ -212,12 +213,14 @@ export default function AppLayout({
             zIndex: 10,
           }}
         >
-          <Text style={{ fontSize: 13, color: '#8c8c8c' }}>
+          {/* The trail is rooted in a home icon, matching the target design. */}
+          <Text style={{ fontSize: 13, color: '#8c8c8c', display: 'inline-flex', alignItems: 'center' }}>
+            <HomeOutlined style={{ marginRight: 4 }} />
             {breadcrumbItems
               ? breadcrumbItems.map((item, i) => (
-                  <span key={i}>{i === 0 ? '/ ' : ' / '}{item}</span>
+                  <span key={i}>{i === 0 ? ' / ' : ' / '}{item}</span>
                 ))
-              : `/ ${breadcrumbLabel}`}
+              : ` / ${breadcrumbLabel}`}
           </Text>
           {topBarRight ?? <Text style={{ fontSize: 12, color: '#bfbfbf' }}>v{appVersion}</Text>}
         </div>

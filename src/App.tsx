@@ -234,7 +234,7 @@ export default function App() {
 
   if (page.type === 'roster-4') {
     return (
-      <AppLayout activeKey="roster-4" breadcrumbLabel="Roster 4.0" onNavigate={navigate}>
+      <AppLayout activeKey="roster-4" breadcrumbLabel="Roster" onNavigate={navigate}>
         <Roster4Page />
       </AppLayout>
     )
