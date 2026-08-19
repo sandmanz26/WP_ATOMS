@@ -14,6 +14,18 @@ minor).
 
 ## [Unreleased]
 
+### Added — Variant 7: shift pattern card style
+
+The rule card's weekly headcounts can now be drawn two ways, on request:
+
+- **Plain** (default, unchanged) — an open grid with no rules or fills.
+- **Table** — bordered cells with a shaded header row, and the standby lines
+  boxed to match, which is how the design sketch draws it.
+
+Both render from the same `rule.weeks` data; only the chrome differs. The older
+matrix variants share the drawer but have no switcher, so the prop defaults to
+Plain there.
+
 ### Removed — Off Day (18 Aug review §5)
 
 Off Day is gone as a concept. "Rostered but not working today" and "not in any

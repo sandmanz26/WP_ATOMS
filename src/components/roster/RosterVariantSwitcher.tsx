@@ -9,6 +9,7 @@
 //   variant 4 — how much contrast the drawer's shift picker carries
 //   variant 5 — where On Leave staff appear in the drawer
 //   variant 6 — how the Edit Roster drawer lays its employees out
+//   variant 7 — how a shift-pattern card draws its weekly headcounts
 
 import { useEffect, useRef, useState } from 'react'
 import { Segmented, Switch, Typography } from 'antd'
@@ -21,6 +22,7 @@ export type ShiftContrast = 'strong' | 'subtle'
 export type OnLeaveDisplay = 'inline' | 'section'
 export type LegendMode = 'hidden' | 'filters' | 'plain'
 export type DrawerLayout = 'table' | 'grouped' | 'stacked'
+export type PatternCardStyle = 'plain' | 'table'
 
 export interface RosterVariantState {
   calendarStyle: CalendarStyle
@@ -29,6 +31,7 @@ export interface RosterVariantState {
   shiftContrast: ShiftContrast
   onLeaveDisplay: OnLeaveDisplay
   drawerLayout: DrawerLayout
+  patternCardStyle: PatternCardStyle
 }
 
 export const DEFAULT_VARIANTS: RosterVariantState = {
@@ -41,7 +44,13 @@ export const DEFAULT_VARIANTS: RosterVariantState = {
   onLeaveDisplay: 'inline',
   // Feedback 1 — the stacked drawer ran too long, so a table is the default now.
   drawerLayout: 'table',
+  patternCardStyle: 'plain',
 }
+
+export const PATTERN_CARD_STYLE_OPTIONS: { value: PatternCardStyle; label: string; hint: string }[] = [
+  { value: 'plain', label: 'Plain', hint: 'Headcounts on an open grid, no rules or fills — the current look.' },
+  { value: 'table', label: 'Table', hint: 'Bordered cells with a shaded header, as the design sketch draws it.' },
+]
 
 export const LEGEND_MODE_OPTIONS: { value: LegendMode; label: string; hint: string }[] = [
   { value: 'hidden', label: 'Hidden', hint: 'No legend above the calendar — the bar colours carry their own labels.' },
@@ -273,7 +282,7 @@ export default function RosterVariantSwitcher({
         </Section>
 
         {/* Variant 6 */}
-        <Section title="Variant 6 · Edit drawer layout" last>
+        <Section title="Variant 6 · Edit drawer layout">
           <Segmented
             size="small"
             block
@@ -284,6 +293,20 @@ export default function RosterVariantSwitcher({
           />
           <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 6 }}>
             {DRAWER_LAYOUT_OPTIONS.find((o) => o.value === value.drawerLayout)?.hint}
+          </Text>
+        </Section>
+
+        {/* Variant 7 */}
+        <Section title="Variant 7 · Shift pattern card" last>
+          <Segmented
+            size="small"
+            block
+            value={value.patternCardStyle}
+            onChange={(v) => set('patternCardStyle', v as PatternCardStyle)}
+            options={PATTERN_CARD_STYLE_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+          />
+          <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 6 }}>
+            {PATTERN_CARD_STYLE_OPTIONS.find((o) => o.value === value.patternCardStyle)?.hint}
           </Text>
         </Section>
       </div>

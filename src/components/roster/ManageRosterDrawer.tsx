@@ -8,7 +8,7 @@
 // standby summarised per person underneath. A rule now covers the whole team,
 // so naming every employee in every cell would not fit and would not be read.
 
-import { useMemo, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import dayjs from 'dayjs'
 import { Button, Drawer, Empty, Modal, Tabs, Typography, message } from 'antd'
 import { DeleteOutlined, EditOutlined, PlusOutlined, ExclamationCircleFilled } from '@ant-design/icons'
@@ -22,6 +22,7 @@ import {
 } from './rosterData'
 import { ruleBucket, type RuleBucket } from './rosterStatusLogic'
 import RosterRuleModal from './RosterRuleModal'
+import type { PatternCardStyle } from './RosterVariantSwitcher'
 
 const { Text } = Typography
 
@@ -73,33 +74,96 @@ function standbySummary(week: RuleWeek): string {
     .join('  |  ')
 }
 
-function CountRow({ label, counts }: { label: string; counts: number[] }) {
+/** Plain mode: an open grid, no rules or fills. */
+function PlainCounts({ rule }: { rule: RosterRule }) {
   return (
-    <>
-      <Text style={{ fontSize: 12 }}>{label}</Text>
-      {counts.map((count, dayIndex) => (
+    <div style={{ display: 'grid', gridTemplateColumns: GRID_COLUMNS, gap: '6px 4px', marginTop: 14, alignItems: 'center' }}>
+      <span />
+      {DAY_LABELS.map((label, dayIndex) => (
         <Text
           key={dayIndex}
-          style={{ fontSize: 12, textAlign: 'center', color: count ? '#1a1a1a' : '#d9d9d9' }}
+          strong
+          style={{ fontSize: 12, textAlign: 'center', color: dayIndex >= 5 ? '#cf1322' : '#595959' }}
         >
-          {count || '–'}
+          {label}
         </Text>
       ))}
-    </>
+      {rule.weeks.flatMap((week, weekIndex) =>
+        (['am', 'pm'] as const).map((row) => (
+          <Fragment key={`${row}-${weekIndex}`}>
+            <Text style={{ fontSize: 12 }}>{`Week ${weekIndex + 1} - ${row.toUpperCase()}`}</Text>
+            {week[row].map((day, dayIndex) => (
+              <Text
+                key={dayIndex}
+                style={{ fontSize: 12, textAlign: 'center', color: day.length ? '#1a1a1a' : '#d9d9d9' }}
+              >
+                {day.length || '–'}
+              </Text>
+            ))}
+          </Fragment>
+        ))
+      )}
+    </div>
+  )
+}
+
+/** Table mode: bordered cells with a shaded header, as the design sketch draws it. */
+function TableCounts({ rule }: { rule: RosterRule }) {
+  const cell: React.CSSProperties = {
+    border: '1px solid #e8e8e8',
+    padding: '6px 8px',
+    fontSize: 12,
+    textAlign: 'center',
+  }
+  const headCell: React.CSSProperties = { ...cell, background: '#fafafa', fontWeight: 600 }
+  const rowLabelCell: React.CSSProperties = { ...cell, textAlign: 'left', whiteSpace: 'nowrap' }
+
+  return (
+    <div style={{ overflowX: 'auto', marginTop: 14 }}>
+      <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: 420 }}>
+        <thead>
+          <tr>
+            <th style={{ ...headCell, textAlign: 'left', minWidth: 120 }} />
+            {DAY_LABELS.map((label, dayIndex) => (
+              <th key={dayIndex} style={{ ...headCell, color: dayIndex >= 5 ? '#cf1322' : '#595959' }}>
+                {label}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rule.weeks.flatMap((week, weekIndex) =>
+            (['am', 'pm'] as const).map((row) => (
+              <tr key={`${row}-${weekIndex}`}>
+                <td style={rowLabelCell}>{`Week ${weekIndex + 1} - ${row.toUpperCase()}`}</td>
+                {week[row].map((day, dayIndex) => (
+                  <td key={dayIndex} style={{ ...cell, color: day.length ? '#1a1a1a' : '#d9d9d9' }}>
+                    {day.length || '–'}
+                  </td>
+                ))}
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
+    </div>
   )
 }
 
 function RuleCard({
   rule,
   bucket,
+  cardStyle,
   onEdit,
   onDelete,
 }: {
   rule: RosterRule
   bucket: RuleBucket
+  cardStyle: PatternCardStyle
   onEdit: () => void
   onDelete: () => void
 }) {
+  const table = cardStyle === 'table'
   return (
     <div style={{ border: '1px solid #f0f0f0', borderRadius: 8, padding: 16, marginBottom: 12 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
@@ -120,27 +184,26 @@ function RuleCard({
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: GRID_COLUMNS, gap: '6px 4px', marginTop: 14, alignItems: 'center' }}>
-        <span />
-        {DAY_LABELS.map((label, dayIndex) => (
-          <Text
-            key={dayIndex}
-            strong
-            style={{ fontSize: 12, textAlign: 'center', color: dayIndex >= 5 ? '#cf1322' : '#595959' }}
-          >
-            {label}
-          </Text>
-        ))}
+      {table ? <TableCounts rule={rule} /> : <PlainCounts rule={rule} />}
 
-        {rule.weeks.flatMap((week, weekIndex) => [
-          <CountRow key={`am-${weekIndex}`} label={`Week ${weekIndex + 1} - AM`} counts={week.am.map((d) => d.length)} />,
-          <CountRow key={`pm-${weekIndex}`} label={`Week ${weekIndex + 1} - PM`} counts={week.pm.map((d) => d.length)} />,
-        ])}
-      </div>
-
-      <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid #fafafa' }}>
+      {/* In table mode the standby lines are boxed to match the grid above; in
+          plain mode a hairline is enough to separate them. */}
+      <div
+        style={
+          table
+            ? { marginTop: 8, border: '1px solid #e8e8e8', borderRadius: 2 }
+            : { marginTop: 12, paddingTop: 10, borderTop: '1px solid #fafafa' }
+        }
+      >
         {rule.weeks.map((week, weekIndex) => (
-          <div key={weekIndex} style={{ marginTop: weekIndex ? 4 : 0 }}>
+          <div
+            key={weekIndex}
+            style={
+              table
+                ? { padding: '6px 8px', borderTop: weekIndex ? '1px solid #e8e8e8' : undefined }
+                : { marginTop: weekIndex ? 4 : 0 }
+            }
+          >
             <Text type="secondary" style={{ fontSize: 11 }}>Week {weekIndex + 1} Standby: </Text>
             <Text style={{ fontSize: 11 }}>{standbySummary(week)}</Text>
           </div>
@@ -152,10 +215,13 @@ function RuleCard({
 
 export default function ManageRosterDrawer({
   open,
+  cardStyle = 'plain',
   onClose,
   onRulesChanged,
 }: {
   open: boolean
+  /** Demo variant 7 — the older page variants do not offer the switcher. */
+  cardStyle?: PatternCardStyle
   onClose: () => void
   onRulesChanged: () => void
 }) {
@@ -224,6 +290,7 @@ export default function ManageRosterDrawer({
         key={rule.id}
         rule={rule}
         bucket={bucket}
+        cardStyle={cardStyle}
         onEdit={() => setModal({ open: true, rule, locked: bucket === 'Current' })}
         onDelete={() => handleDelete(rule)}
       />

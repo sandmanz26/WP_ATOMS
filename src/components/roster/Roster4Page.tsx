@@ -335,6 +335,7 @@ export default function Roster4Page() {
 
       <ManageRosterDrawer
         open={manageOpen}
+        cardStyle={variants.patternCardStyle}
         onClose={() => setManageOpen(false)}
         onRulesChanged={() => setRevision((r) => r + 1)}
       />
