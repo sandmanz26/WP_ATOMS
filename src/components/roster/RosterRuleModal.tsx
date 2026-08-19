@@ -100,6 +100,9 @@ export default function RosterRuleModal({
     []
   )
 
+  /** Names come from the full roster, not just the assignable subset. */
+  const nameOf = (id: string) => OPERATIONS_EMPLOYEES.find((e) => e.id === id)?.name ?? id
+
   const handleRepeatChange = (value: number | null) => {
     const count = Math.max(1, Math.min(8, value ?? 1))
     setRepeatEvery(count)
@@ -113,10 +116,6 @@ export default function RosterRuleModal({
         if (wi !== weekIndex) return week
         const next = cloneWeek(week)
         next[row][dayIndex] = ids
-        // MOVE-3769 §3 — one shift per employee per day, so taking a shift
-        // releases the other one rather than letting both hold the same person.
-        if (row === 'am') next.pm[dayIndex] = next.pm[dayIndex].filter((id) => !ids.includes(id))
-        if (row === 'pm') next.am[dayIndex] = next.am[dayIndex].filter((id) => !ids.includes(id))
         return next
       })
     )
@@ -167,16 +166,46 @@ export default function RosterRuleModal({
     onSave(candidate)
   }
 
-  const employeeOptions = assignableEmployees.map((e) => ({ value: e.id, label: e.name }))
+  /**
+   * MOVE-3769 §3 — one shift per employee per day. Somebody already on AM is
+   * disabled in that day's PM list and vice versa, rather than being moved
+   * silently when picked (18 Aug feedback 4). Standby is independent of the
+   * shift (MOVE-3608), so it never restricts anything.
+   *
+   * The clash test skips anyone already in this cell, so a person who somehow
+   * ended up in both lists can still be taken out of either one.
+   */
+  const optionsFor = (weekIndex: number, row: keyof RuleWeek, dayIndex: number) => {
+    const other: keyof RuleWeek | null = row === 'am' ? 'pm' : row === 'pm' ? 'am' : null
+    const taken = other ? weeks[weekIndex][other][dayIndex] : []
+    const here = weeks[weekIndex][row][dayIndex]
+
+    const options = assignableEmployees.map((e) => {
+      const clash = taken.includes(e.id) && !here.includes(e.id)
+      return {
+        value: e.id,
+        label: clash ? `${e.name} — on ${other!.toUpperCase()}` : e.name,
+        disabled: clash,
+      }
+    })
+
+    // MOVE-3610 offers only Active employees, but a stored pattern can still
+    // name someone who has since been suspended or whose contract ended. They
+    // are listed so the cell shows a name rather than a raw id, and so they can
+    // be taken out — they just cannot be added anywhere new.
+    for (const id of here) {
+      if (assignableEmployees.some((e) => e.id === id)) continue
+      options.push({ value: id, label: `${nameOf(id)} — inactive`, disabled: false })
+    }
+    return options
+  }
 
   const daySelect = (weekIndex: number, row: keyof RuleWeek, dayIndex: number) => {
     // PM is not permitted on a weekend (MOVE-3608 weekend rules), so the cell is
     // disabled rather than silently dropping whatever is put in it.
     const blocked = row === 'pm' && WEEKEND_INDEXES.includes(dayIndex)
     const value = weeks[weekIndex][row][dayIndex]
-    const names = value
-      .map((id) => assignableEmployees.find((e) => e.id === id)?.name ?? id)
-      .sort((a, b) => a.localeCompare(b))
+    const names = value.map(nameOf).sort((a, b) => a.localeCompare(b))
     return (
       <div>
         <Select
@@ -187,7 +216,7 @@ export default function RosterRuleModal({
           placeholder={blocked ? '—' : 'Assign'}
           value={value}
           onChange={(ids: string[]) => setSlot(weekIndex, row, dayIndex, ids)}
-          options={employeeOptions}
+          options={optionsFor(weekIndex, row, dayIndex)}
           // A day cell is far too narrow for three name tags, so the control
           // carries the headcount and the names read underneath it — the way
           // the design sketch shows them.

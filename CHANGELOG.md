@@ -14,6 +14,29 @@ minor).
 
 ## [Unreleased]
 
+### Changed — AM and PM are mutually exclusive per day again (feedback 4)
+
+Picking someone for AM used to silently pull them out of that day's PM list.
+The old per-pattern editor disabled an employee already assigned elsewhere, and
+that is the behaviour the review asks for: somebody on AM is now **disabled** in
+the same day's PM dropdown, labelled `— on AM` so the reason is visible, and
+vice versa. The silent-release code is gone; nothing moves without being asked.
+
+The clash test skips anyone already in the cell being edited, so a person who
+somehow ended up in both lists can still be taken out of either.
+
+Standby is unrestricted — it is independent of the shift (MOVE-3608), so an
+employee can hold Shift + Standby on the same day.
+
+### Fixed — raw employee ids in the pattern editor
+
+Cells listed `emp-10, emp-12, emp-7…` instead of names. MOVE-3610 limits the
+dropdown to Active employees, but a stored pattern can still name someone since
+suspended or whose contract ended, and those ids had no entry to resolve
+against. Names now come from the full roster, and already-assigned inactive
+staff appear in the list tagged `— inactive`: they can be removed, but not
+added anywhere new. Surfaced while verifying feedback 4, not reported.
+
 ### Changed — edit mode strips every group colour
 
 Entering Edit Roster now turns all calendar bars a single neutral grey, so the
