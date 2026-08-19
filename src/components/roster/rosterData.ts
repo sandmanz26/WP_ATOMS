@@ -153,8 +153,25 @@ function weekFrom(spec: {
   return week
 }
 
-const WEEKDAYS_AM: ShiftSelection[] = ['AM', 'AM', 'AM', 'AM', 'AM', 'NA', 'NA']
-const WEEKDAYS_PM: ShiftSelection[] = ['PM', 'PM', 'PM', 'PM', 'PM', 'NA', 'NA']
+// A weekday is always a working day for Operations, so every employee sits in
+// AM or PM Monday–Friday and nobody falls into Not Assigned. Saturday runs a
+// skeleton AM crew; Sunday nobody works. (18 Aug feedback — the fixtures were
+// leaving several people unrostered on weekdays, which does not happen in real
+// operations.)
+const NA: ShiftSelection = 'NA'
+const wk = (a: ShiftSelection, sat: ShiftSelection = NA): ShiftSelection[] => [a, a, a, a, a, sat, NA]
+
+/** Everyone in Operations, split into the two shift teams. */
+const AM_TEAM = ['emp-1', 'emp-3', 'emp-5', 'emp-7', 'emp-10', 'emp-12', 'emp-13']
+const PM_TEAM = ['emp-2', 'emp-4', 'emp-6', 'emp-8', 'emp-9', 'emp-11']
+
+/** Builds one week's shift map: the two teams swap between week 1 and week 2. */
+function teamShifts(amFirst: boolean, satCrew: string[]): Record<string, ShiftSelection[]> {
+  const shifts: Record<string, ShiftSelection[]> = {}
+  for (const id of AM_TEAM) shifts[id] = wk(amFirst ? 'AM' : 'PM', satCrew.includes(id) ? 'AM' : NA)
+  for (const id of PM_TEAM) shifts[id] = wk(amFirst ? 'PM' : 'AM', satCrew.includes(id) ? 'AM' : NA)
+  return shifts
+}
 
 // Rules never overlap — MOVE-3609 §5 forbids two rules covering the same period.
 export const ROSTER_RULES: RosterRule[] = [
@@ -166,19 +183,12 @@ export const ROSTER_RULES: RosterRule[] = [
     repeatEveryWeeks: 1,
     weeks: [
       weekFrom({
-        shifts: {
-          'emp-1': WEEKDAYS_AM,
-          'emp-2': WEEKDAYS_AM,
-          'emp-4': WEEKDAYS_AM,
-          'emp-6': WEEKDAYS_AM,
-          'emp-3': ['PM', 'PM', 'PM', 'PM', 'NA', 'NA', 'AM'],
-          'emp-13': ['PM', 'PM', 'PM', 'PM', 'NA', 'NA', 'AM'],
-        },
+        shifts: teamShifts(true, ['emp-1', 'emp-2']),
+        standby: { 'emp-1': [0, 1, 2, 3, 4, 5, 6] },
       }),
     ],
   },
-  // Current rule. Standby is spread across the week per employee, which is what
-  // the new per-day model exists to express.
+  // Current rule. Two-week cycle: the AM and PM teams swap each week.
   {
     id: 'rule-2',
     effectiveDate: '2026-08-01',
@@ -186,29 +196,15 @@ export const ROSTER_RULES: RosterRule[] = [
     repeatEveryWeeks: 2,
     weeks: [
       weekFrom({
-        shifts: {
-          'emp-1': WEEKDAYS_AM,
-          'emp-6': WEEKDAYS_AM,
-          'emp-2': ['AM', 'AM', 'PM', 'PM', 'AM', 'NA', 'NA'],
-          'emp-5': ['AM', 'AM', 'PM', 'PM', 'AM', 'NA', 'NA'],
-          'emp-3': ['PM', 'PM', 'PM', 'PM', 'NA', 'NA', 'AM'],
-          'emp-13': ['PM', 'PM', 'PM', 'PM', 'NA', 'NA', 'AM'],
-        },
-        standby: { 'emp-2': [0, 1, 2, 5], 'emp-5': [3, 4, 6] },
+        shifts: teamShifts(true, ['emp-1', 'emp-2', 'emp-3']),
+        // Standby rotates through the week rather than sitting on one person.
+        standby: { 'emp-5': [0, 1, 2], 'emp-2': [3, 4], 'emp-1': [5], 'emp-3': [6] },
       }),
       weekFrom({
-        shifts: {
-          'emp-1': WEEKDAYS_AM,
-          'emp-6': WEEKDAYS_AM,
-          'emp-2': ['PM', 'PM', 'AM', 'AM', 'PM', 'NA', 'NA'],
-          'emp-5': ['PM', 'PM', 'AM', 'AM', 'PM', 'NA', 'NA'],
-          'emp-3': ['PM', 'PM', 'NA', 'AM', 'AM', 'NA', 'AM'],
-          'emp-13': ['PM', 'PM', 'NA', 'AM', 'AM', 'NA', 'AM'],
-        },
-        standby: { 'emp-5': [0, 1, 2, 3, 4, 5] },
+        shifts: teamShifts(false, ['emp-4', 'emp-5', 'emp-6']),
+        standby: { 'emp-13': [0, 1, 2, 3], 'emp-4': [4, 5], 'emp-6': [6] },
       }),
     ],
-    // emp-4 (Dedi) and emp-7 (Gita) are intentionally absent -> Not Assigned cells.
   },
   // Upcoming: shows in the Upcoming tab, fully editable and deletable.
   {
@@ -218,14 +214,8 @@ export const ROSTER_RULES: RosterRule[] = [
     repeatEveryWeeks: 1,
     weeks: [
       weekFrom({
-        shifts: {
-          'emp-1': WEEKDAYS_AM,
-          'emp-3': WEEKDAYS_AM,
-          'emp-13': WEEKDAYS_AM,
-          'emp-2': WEEKDAYS_PM,
-          'emp-5': WEEKDAYS_PM,
-        },
-        standby: { 'emp-1': [0, 1, 2, 3, 4] },
+        shifts: teamShifts(true, ['emp-2', 'emp-13']),
+        standby: { 'emp-1': [0, 1, 2], 'emp-13': [3, 4], 'emp-5': [5, 6] },
       }),
     ],
   },
@@ -234,14 +224,25 @@ export const ROSTER_RULES: RosterRule[] = [
 /** Manual cell/standby edits saved from Bulk Edit Roster. Session-only. */
 export const ROSTER_OVERRIDES: RosterOverride[] = []
 
+// Scattered across the month so On Leave turns up on a variety of days rather
+// than clustering. lv-4 deliberately lands on a standby day (Eka is the week-1
+// Mon-Wed standby), which is how a red "Standby (0)" arises in real life:
+// somebody was rostered to cover and then went on leave.
 export const LEAVES: LeaveRecord[] = [
-  { id: 'lv-1', employeeId: 'emp-1', startDate: '2026-08-06', endDate: '2026-08-07', type: 'Annual Leave', approved: true },
-  { id: 'lv-2', employeeId: 'emp-2', startDate: '2026-08-12', endDate: '2026-08-12', type: 'Medical Leave', timing: 'Half Day (AM)', approved: true },
-  { id: 'lv-3', employeeId: 'emp-3', startDate: '2026-08-20', endDate: '2026-08-21', type: 'Annual Leave', approved: true },
-  { id: 'lv-4', employeeId: 'emp-5', startDate: '2026-08-14', endDate: '2026-08-14', type: 'Emergency Leave', timing: 'Half Day (PM)', approved: true },
-  { id: 'lv-5', employeeId: 'emp-13', startDate: '2026-09-02', endDate: '2026-09-04', type: 'Annual Leave', approved: true },
+  { id: 'lv-1', employeeId: 'emp-10', startDate: '2026-08-03', endDate: '2026-08-03', type: 'Annual Leave', approved: true },
+  { id: 'lv-2', employeeId: 'emp-12', startDate: '2026-08-04', endDate: '2026-08-05', type: 'Medical Leave', approved: true },
+  { id: 'lv-3', employeeId: 'emp-1', startDate: '2026-08-06', endDate: '2026-08-07', type: 'Annual Leave', approved: true },
+  { id: 'lv-4', employeeId: 'emp-5', startDate: '2026-08-10', endDate: '2026-08-11', type: 'Medical Leave', approved: true },
+  { id: 'lv-5', employeeId: 'emp-2', startDate: '2026-08-12', endDate: '2026-08-12', type: 'Medical Leave', timing: 'Half Day (AM)', approved: true },
+  { id: 'lv-6', employeeId: 'emp-4', startDate: '2026-08-13', endDate: '2026-08-14', type: 'Annual Leave', approved: true },
+  { id: 'lv-7', employeeId: 'emp-7', startDate: '2026-08-18', endDate: '2026-08-19', type: 'Emergency Leave', approved: true },
+  { id: 'lv-8', employeeId: 'emp-3', startDate: '2026-08-20', endDate: '2026-08-21', type: 'Annual Leave', approved: true },
+  { id: 'lv-9', employeeId: 'emp-8', startDate: '2026-08-24', endDate: '2026-08-24', type: 'Annual Leave', approved: true },
+  { id: 'lv-10', employeeId: 'emp-13', startDate: '2026-08-26', endDate: '2026-08-27', type: 'Annual Leave', approved: true },
+  { id: 'lv-11', employeeId: 'emp-6', startDate: '2026-08-28', endDate: '2026-08-28', type: 'Emergency Leave', approved: true },
+  { id: 'lv-12', employeeId: 'emp-9', startDate: '2026-09-02', endDate: '2026-09-04', type: 'Annual Leave', approved: true },
   // Not approved — must be ignored by the calendar.
-  { id: 'lv-6', employeeId: 'emp-6', startDate: '2026-08-25', endDate: '2026-08-25', type: 'Annual Leave', approved: false },
+  { id: 'lv-13', employeeId: 'emp-6', startDate: '2026-08-25', endDate: '2026-08-25', type: 'Annual Leave', approved: false },
 ]
 
 export const PUBLIC_HOLIDAYS: PublicHoliday[] = [

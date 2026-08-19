@@ -14,6 +14,36 @@ minor).
 
 ## [Unreleased]
 
+### Changed — mock roster data made realistic (Daniel, 18 Aug)
+
+The fixtures left several Operations staff unrostered on weekdays, which does
+not happen in real operations. Rewritten so each day type carries only the
+groups it should:
+
+| Day | Groups |
+|---|---|
+| Mon–Fri | Standby, AM, PM |
+| Sat | Standby, AM, Not Assigned |
+| Sun | Standby, Not Assigned |
+
+- All 13 Operations employees now sit in AM or PM every weekday, split into two
+  teams that swap between week 1 and week 2 of the cycle. Saturday runs a
+  three-person AM crew; Sunday nobody works.
+- Standby rotates through the week per person instead of resting on one name.
+- Leave is spread across 18 days of August rather than clustering. `lv-4` lands
+  deliberately on a standby day (Eka is the week-1 Mon–Wed standby), so the red
+  `Standby (0)` state still arises the way it does in real life — somebody was
+  rostered to cover and then went on leave. That surfaces on 10–11 Aug.
+
+Verified across all 31 days of August 2026: no day carries a group outside its
+allowed set. The one apparent exception is **17 Aug**, a public holiday, where
+MOVE-3608 requires every roster to become NA — a rule, not a data problem.
+
+**Worth raising:** with Sunday now a proper rest day, the "unassigned roster"
+highlight counts 9 days in the next 60 — 8 Sundays plus Malaysia Day. The badge
+is behaving as MOVE-3607 defines it, but flagging intentional non-working days
+as a coverage gap may not be what the badge is for.
+
 ### Added — Variant 7: shift pattern card style
 
 The rule card's weekly headcounts can now be drawn two ways, on request:
