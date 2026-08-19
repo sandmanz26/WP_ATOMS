@@ -30,16 +30,20 @@ export interface RosterEmployee {
 
 export type ShiftCode = 'AM' | 'PM' | 'OFF'
 
-/** One week of a pattern: Monday..Sunday, plus the week's standby flag. */
-export interface PatternWeek {
-  days: ShiftCode[] // exactly 7 entries, Monday(0)..Sunday(6)
-  standby: boolean
-}
-
-export interface RosterRulePattern {
-  id: string
-  weeks: PatternWeek[] // length === rule.repeatEveryWeeks
-  employeeIds: string[]
+/**
+ * One week of a rule, stored per day rather than per employee.
+ *
+ * The 18 Aug review replaced the old "pattern" shape (an employee group owning
+ * a weekly grid) with this one: the week is grouped by shift, and each day of
+ * each shift names the employees working it. Standby moved the same way — it
+ * used to be one flag for the whole week, and is now assigned per day.
+ *
+ * Every array has exactly 7 entries, Monday(0)..Sunday(6).
+ */
+export interface RuleWeek {
+  am: string[][]
+  pm: string[][]
+  standby: string[][]
 }
 
 export interface RosterRule {
@@ -47,7 +51,24 @@ export interface RosterRule {
   effectiveDate: string // ISO date
   endDate?: string // ISO date; undefined = ongoing
   repeatEveryWeeks: number
-  patterns: RosterRulePattern[]
+  weeks: RuleWeek[] // length === repeatEveryWeeks
+}
+
+/** Everyone the rule touches, in any shift or standby slot of any week. */
+export function ruleEmployeeIds(rule: RosterRule): Set<string> {
+  const ids = new Set<string>()
+  for (const week of rule.weeks)
+    for (const slots of [week.am, week.pm, week.standby])
+      for (const day of slots) for (const id of day) ids.add(id)
+  return ids
+}
+
+export function emptyRuleWeek(): RuleWeek {
+  return {
+    am: Array.from({ length: 7 }, () => []),
+    pm: Array.from({ length: 7 }, () => []),
+    standby: Array.from({ length: 7 }, () => []),
+  }
 }
 
 /**
@@ -106,77 +127,103 @@ export const OPERATIONS_EMPLOYEES: RosterEmployee[] = [
   { id: 'emp-14', name: 'Nadia Putri', department: 'Finance', status: 'Active', contractStartDate: '2022-01-01' },
 ]
 
-const AM: ShiftCode = 'AM'
-const PM: ShiftCode = 'PM'
-const OFF: ShiftCode = 'OFF'
+/**
+ * Mock-data helper. Describes a week the way a human reads it — employee by
+ * employee — and inverts it into the stored per-day shape. 'OFF' simply means
+ * the employee is not in any shift list that day.
+ */
+function weekFrom(spec: {
+  shifts: Record<string, ShiftCode[]>
+  /** employee id -> the day indexes they are on standby (Monday = 0). */
+  standby?: Record<string, number[]>
+}): RuleWeek {
+  const week = emptyRuleWeek()
+  for (const [id, days] of Object.entries(spec.shifts)) {
+    days.forEach((shift, day) => {
+      if (shift === 'AM') week.am[day].push(id)
+      else if (shift === 'PM') week.pm[day].push(id)
+    })
+  }
+  for (const [id, days] of Object.entries(spec.standby ?? {})) {
+    for (const day of days) week.standby[day].push(id)
+  }
+  return week
+}
 
-const week = (days: ShiftCode[], standby = false): PatternWeek => ({ days, standby })
+const WEEKDAYS_AM: ShiftCode[] = ['AM', 'AM', 'AM', 'AM', 'AM', 'OFF', 'OFF']
+const WEEKDAYS_PM: ShiftCode[] = ['PM', 'PM', 'PM', 'PM', 'PM', 'OFF', 'OFF']
 
 // Rules never overlap — MOVE-3609 §5 forbids two rules covering the same period.
 export const ROSTER_RULES: RosterRule[] = [
-  // Ended: retained for history, deliberately hidden from the Manage Roster drawer.
+  // Ended: retained for history, deliberately hidden from the drawer.
   {
     id: 'rule-1',
     effectiveDate: '2026-01-01',
     endDate: '2026-07-31',
     repeatEveryWeeks: 1,
-    patterns: [
-      {
-        id: 'rule-1-p1',
-        weeks: [week([AM, AM, AM, AM, AM, OFF, OFF])],
-        employeeIds: ['emp-1', 'emp-2', 'emp-4', 'emp-6'],
-      },
-      {
-        id: 'rule-1-p2',
-        weeks: [week([PM, PM, PM, PM, OFF, OFF, AM])],
-        employeeIds: ['emp-3', 'emp-13'],
-      },
+    weeks: [
+      weekFrom({
+        shifts: {
+          'emp-1': WEEKDAYS_AM,
+          'emp-2': WEEKDAYS_AM,
+          'emp-4': WEEKDAYS_AM,
+          'emp-6': WEEKDAYS_AM,
+          'emp-3': ['PM', 'PM', 'PM', 'PM', 'OFF', 'OFF', 'AM'],
+          'emp-13': ['PM', 'PM', 'PM', 'PM', 'OFF', 'OFF', 'AM'],
+        },
+      }),
     ],
   },
-  // Current rule.
+  // Current rule. Standby is spread across the week per employee, which is what
+  // the new per-day model exists to express.
   {
     id: 'rule-2',
     effectiveDate: '2026-08-01',
     endDate: '2026-09-30',
     repeatEveryWeeks: 2,
-    patterns: [
-      {
-        id: 'rule-2-p1',
-        weeks: [week([AM, AM, AM, AM, AM, OFF, OFF]), week([AM, AM, AM, AM, AM, OFF, OFF])],
-        employeeIds: ['emp-1', 'emp-6'],
-      },
-      {
-        // Standby-bearing pattern — drives the Coverage Gap demo where these
-        // employees' approved leave lands on a standby week.
-        id: 'rule-2-p2',
-        weeks: [week([AM, AM, PM, PM, AM, OFF, OFF], true), week([PM, PM, AM, AM, PM, OFF, OFF], true)],
-        employeeIds: ['emp-2', 'emp-5'],
-      },
-      {
-        id: 'rule-2-p3',
-        weeks: [week([PM, PM, PM, PM, OFF, OFF, AM]), week([PM, PM, OFF, AM, AM, OFF, AM])],
-        employeeIds: ['emp-3', 'emp-13'],
-      },
-      // emp-4 (Dedi) and emp-7 (Gita) are intentionally unassigned -> NA cells.
+    weeks: [
+      weekFrom({
+        shifts: {
+          'emp-1': WEEKDAYS_AM,
+          'emp-6': WEEKDAYS_AM,
+          'emp-2': ['AM', 'AM', 'PM', 'PM', 'AM', 'OFF', 'OFF'],
+          'emp-5': ['AM', 'AM', 'PM', 'PM', 'AM', 'OFF', 'OFF'],
+          'emp-3': ['PM', 'PM', 'PM', 'PM', 'OFF', 'OFF', 'AM'],
+          'emp-13': ['PM', 'PM', 'PM', 'PM', 'OFF', 'OFF', 'AM'],
+        },
+        standby: { 'emp-2': [0, 1, 2, 5], 'emp-5': [3, 4, 6] },
+      }),
+      weekFrom({
+        shifts: {
+          'emp-1': WEEKDAYS_AM,
+          'emp-6': WEEKDAYS_AM,
+          'emp-2': ['PM', 'PM', 'AM', 'AM', 'PM', 'OFF', 'OFF'],
+          'emp-5': ['PM', 'PM', 'AM', 'AM', 'PM', 'OFF', 'OFF'],
+          'emp-3': ['PM', 'PM', 'OFF', 'AM', 'AM', 'OFF', 'AM'],
+          'emp-13': ['PM', 'PM', 'OFF', 'AM', 'AM', 'OFF', 'AM'],
+        },
+        standby: { 'emp-5': [0, 1, 2, 3, 4, 5] },
+      }),
     ],
+    // emp-4 (Dedi) and emp-7 (Gita) are intentionally absent -> No Roster cells.
   },
-  // Upcoming: shows in the drawer's Upcoming tab, fully editable and deletable.
+  // Upcoming: shows in the Upcoming tab, fully editable and deletable.
   {
     id: 'rule-3',
     effectiveDate: '2026-10-01',
     endDate: '2026-12-31',
     repeatEveryWeeks: 1,
-    patterns: [
-      {
-        id: 'rule-3-p1',
-        weeks: [week([AM, AM, AM, AM, AM, OFF, OFF])],
-        employeeIds: ['emp-1', 'emp-3', 'emp-13'],
-      },
-      {
-        id: 'rule-3-p2',
-        weeks: [week([PM, PM, PM, PM, PM, OFF, OFF])],
-        employeeIds: ['emp-2', 'emp-5'],
-      },
+    weeks: [
+      weekFrom({
+        shifts: {
+          'emp-1': WEEKDAYS_AM,
+          'emp-3': WEEKDAYS_AM,
+          'emp-13': WEEKDAYS_AM,
+          'emp-2': WEEKDAYS_PM,
+          'emp-5': WEEKDAYS_PM,
+        },
+        standby: { 'emp-1': [0, 1, 2, 3, 4] },
+      }),
     ],
   },
 ]

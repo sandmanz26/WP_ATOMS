@@ -14,6 +14,52 @@ minor).
 
 ## [Unreleased]
 
+### Changed — shift patterns reshaped to the ADR-style grid (18 Aug review)
+
+The three items in the review land together, because the first two change the
+same data model.
+
+**1. Button copy.** "Manage Roster" → **Manage Shift Patterns** (the button on
+the calendar and the drawer's own title), and the drawer's "+ Add Rule" →
+**Add Shift Patterns**. The modal, toasts, delete confirmation and empty states
+follow the same vocabulary, so "rule" no longer appears in user-facing copy.
+The two older matrix variants share the drawer and were updated with it.
+
+**2. How patterns are added.** The editor is now grouped by week, split by
+shift, with each day assigning employees from a dropdown — replacing the
+per-employee pattern cards. The old editor asked "which days does this group
+work?"; this one asks "who works this shift on this day?".
+
+This required reshaping the stored model. `RosterRulePattern`/`PatternWeek` are
+gone; a rule now holds `RuleWeek[]`, where each week carries `am`, `pm` and
+`standby` as seven per-day arrays of employee ids. Consequences:
+
+- **Standby moved from per-week to per-day.** It was one checkbox covering the
+  whole week; it is now assigned day by day, which is what the sketch's separate
+  "Standby week 1" row and the view's "Hity (Mon–Wed, Sat)" summary both need.
+- **PM is disabled on Sat/Sun** in the grid rather than accepted and silently
+  corrected later, matching MOVE-3608's weekend rule.
+- **One shift per employee per day** is enforced as you type: putting someone in
+  AM removes them from PM on that day.
+- **Off Day vs No Roster is now a membership question.** An employee in the rule
+  but not in either shift list that day reads Off Day; an employee absent from
+  the rule entirely reads No Roster. `ruleAssignmentFor` in the shared logic
+  answers both, so all three page variants moved together.
+  **Note:** the new shape has no way to say "in the rule but off for the entire
+  cycle" — such an employee simply does not appear, and reads as No Roster.
+- Day cells are too narrow for name tags, so each control shows a headcount with
+  the names listed underneath, as the sketch draws them.
+
+**3. How patterns are viewed.** The rule card now shows a headcount per shift
+per day (`Week 1 - AM  3 3 3 3 3 3 3`) with standby summarised per person below
+(`Week 1 Standby: Bella Santoso (Mon–Wed, Sat) | Eka Wijaya (Thu–Fri, Sun)`),
+consecutive days collapsed into ranges. Edit and Delete keep exactly the
+behaviour MOVE-3609/3705 specify — Edit on every card, Delete on Upcoming only,
+and a Current rule still locks everything but its End Date.
+
+Mock data was rewritten into the new shape. Calendar output is unchanged except
+for standby counts, which now vary by day instead of applying to a whole week.
+
 ### Changed — page header reworked to the target design (17 Aug)
 
 - **Breadcrumb is rooted in a home icon** and the Roster 4.0 route now reads

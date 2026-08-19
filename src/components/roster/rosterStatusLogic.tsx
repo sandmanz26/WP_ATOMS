@@ -11,7 +11,7 @@ import {
   RosterEmployee,
   RosterOverride,
   RosterRule,
-  RosterRulePattern,
+  ruleEmployeeIds,
   ShiftCode,
   ShiftSelection,
 } from './rosterData'
@@ -105,8 +105,32 @@ export function findRuleForDate(rules: RosterRule[], dateStr: string): RosterRul
   return rules.find((r) => r.effectiveDate <= dateStr && (!r.endDate || r.endDate >= dateStr))
 }
 
-export function findPatternForEmployee(rule: RosterRule, employeeId: string): RosterRulePattern | undefined {
-  return rule.patterns.find((p) => p.employeeIds.includes(employeeId))
+/**
+ * What the rule assigns an employee on one date.
+ *
+ * `covered` is the rule-membership question — is this person scheduled by the
+ * rule at all? It is what separates Off Day (rostered, not working today) from
+ * No Roster (not in the rule). Because the 18 Aug model stores employees per
+ * day rather than per employee, membership is "appears anywhere in the rule",
+ * scanned across every week of the cycle.
+ */
+export function ruleAssignmentFor(
+  rule: RosterRule,
+  employeeId: string,
+  date: Dayjs
+): { shift?: ShiftCode; standby: boolean; covered: boolean } {
+  const week = rule.weeks[weekIndexInCycle(rule, date)]
+  const day = isoDayIndex(date)
+  const covered = ruleEmployeeIds(rule).has(employeeId)
+  if (!week) return { standby: false, covered }
+  const shift: ShiftCode | undefined = week.am[day]?.includes(employeeId)
+    ? 'AM'
+    : week.pm[day]?.includes(employeeId)
+      ? 'PM'
+      : covered
+        ? 'OFF' // in the rule, but not working this day
+        : undefined
+  return { shift, standby: week.standby[day]?.includes(employeeId) ?? false, covered }
 }
 
 export type RuleBucket = 'Current' | 'Upcoming' | 'Ended'
@@ -186,16 +210,15 @@ export function resolveDailyStatus(employee: RosterEmployee, date: Dayjs, ctx: R
   if (!isUnderContract(employee, dateStr)) return { ...empty, status: 'DASH' }
 
   const rule = findRuleForDate(ctx.rules, dateStr)
-  const pattern = rule ? findPatternForEmployee(rule, employee.id) : undefined
+  const assignment = rule ? ruleAssignmentFor(rule, employee.id, date) : undefined
   const override = ctx.overrides.find((o) => o.employeeId === employee.id && o.date === dateStr)
 
-  const patternWeek = rule && pattern ? pattern.weeks[weekIndexInCycle(rule, date)] : undefined
   // An explicit "NA" pick means the user declared this employee unrostered,
-  // which is different from having no pattern at all.
+  // which is different from the rule simply not covering them.
   const explicitNA = override?.shift === 'NA'
-  const hasRoster = !explicitNA && (!!patternWeek || override?.shift !== undefined)
+  const hasRoster = !explicitNA && (!!assignment?.covered || override?.shift !== undefined)
 
-  const standbyFromRule = patternWeek?.standby ?? false
+  const standbyFromRule = assignment?.standby ?? false
   const base = {
     standby: override?.standby ?? standbyFromRule,
     standbyFromRule,
@@ -228,7 +251,7 @@ export function resolveDailyStatus(employee: RosterEmployee, date: Dayjs, ctx: R
 
   // Priority 5 — the roster pattern, or a manual override.
   const picked = override?.shift
-  let shift: ShiftCode = (picked && picked !== 'NA' ? picked : undefined) ?? patternWeek!.days[isoDayIndex(date)]
+  let shift: ShiftCode = (picked && picked !== 'NA' ? picked : undefined) ?? assignment?.shift ?? 'OFF'
 
   // Priority 6 — weekends may only show AM or Off Day; PM is not permitted.
   const weekend = isWeekend(date)

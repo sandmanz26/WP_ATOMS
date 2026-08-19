@@ -1,11 +1,16 @@
-// MOVE-3609 (Manage Roster Drawer) + MOVE-3705 (Delete Roster Rule).
+// MOVE-3609 (Manage Shift Patterns drawer) + MOVE-3705 (Delete).
 //
 // Ended rules are deliberately absent from both tabs: MOVE-3609 §3 keeps them
 // in the backend for history but hides them here.
+//
+// The 18 Aug review reshaped the card: instead of listing each pattern's weekly
+// grid and its assigned employees, it shows a headcount per shift per day, with
+// standby summarised per person underneath. A rule now covers the whole team,
+// so naming every employee in every cell would not fit and would not be read.
 
 import { useMemo, useState } from 'react'
 import dayjs from 'dayjs'
-import { Button, Drawer, Empty, Modal, Tabs, Tag, Typography, message } from 'antd'
+import { Button, Drawer, Empty, Modal, Tabs, Typography, message } from 'antd'
 import { DeleteOutlined, EditOutlined, PlusOutlined, ExclamationCircleFilled } from '@ant-design/icons'
 import {
   OPERATIONS_EMPLOYEES,
@@ -13,30 +18,75 @@ import {
   deleteRosterRule,
   upsertRosterRule,
   type RosterRule,
+  type RuleWeek,
 } from './rosterData'
-import { SHIFT_LABEL, ruleBucket, type RuleBucket } from './rosterStatusLogic'
+import { ruleBucket, type RuleBucket } from './rosterStatusLogic'
 import RosterRuleModal from './RosterRuleModal'
 
 const { Text } = Typography
 
-const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-const SHIFT_STYLE = {
-  AM: { bg: '#e6f4ff', fg: '#0958d9' },
-  PM: { bg: '#f6ffed', fg: '#389e0d' },
-  OFF: { bg: '#f5f5f5', fg: '#8c8c8c' },
-} as const
+const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
+const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+const GRID_COLUMNS = '120px repeat(7, minmax(30px, 1fr))'
 
 function formatEffective(rule: RosterRule): string {
   const start = dayjs(rule.effectiveDate).format('D MMM YYYY')
   return rule.endDate ? `${start} – ${dayjs(rule.endDate).format('D MMM YYYY')}` : `${start} – Ongoing`
 }
 
-function employeeNames(ids: string[]): string {
-  if (ids.length === 0) return 'No employees assigned'
-  return ids
-    .map((id) => OPERATIONS_EMPLOYEES.find((e) => e.id === id)?.name ?? id)
-    .sort((a, b) => a.localeCompare(b))
-    .join(', ')
+function employeeName(id: string): string {
+  return OPERATIONS_EMPLOYEES.find((e) => e.id === id)?.name ?? id
+}
+
+/**
+ * "Mon–Wed, Sat" from [0,1,2,5]. Consecutive days collapse into a range so a
+ * full week reads as one span rather than seven names.
+ */
+export function formatDayRanges(days: number[]): string {
+  const sorted = [...new Set(days)].sort((a, b) => a - b)
+  const spans: string[] = []
+  let i = 0
+  while (i < sorted.length) {
+    let j = i
+    while (j + 1 < sorted.length && sorted[j + 1] === sorted[j] + 1) j++
+    spans.push(i === j ? DAY_NAMES[sorted[i]] : `${DAY_NAMES[sorted[i]]}–${DAY_NAMES[sorted[j]]}`)
+    i = j + 1
+  }
+  return spans.join(', ')
+}
+
+/** One line per person: "Hity (Mon–Wed, Sat) | Mus (Thu–Fri)". */
+function standbySummary(week: RuleWeek): string {
+  const byEmployee = new Map<string, number[]>()
+  week.standby.forEach((ids, day) => {
+    for (const id of ids) {
+      const days = byEmployee.get(id) ?? []
+      days.push(day)
+      byEmployee.set(id, days)
+    }
+  })
+  if (byEmployee.size === 0) return 'No standby assigned'
+  return [...byEmployee.entries()]
+    .map(([id, days]) => [employeeName(id), days] as const)
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([name, days]) => `${name} (${formatDayRanges(days)})`)
+    .join('  |  ')
+}
+
+function CountRow({ label, counts }: { label: string; counts: number[] }) {
+  return (
+    <>
+      <Text style={{ fontSize: 12 }}>{label}</Text>
+      {counts.map((count, dayIndex) => (
+        <Text
+          key={dayIndex}
+          style={{ fontSize: 12, textAlign: 'center', color: count ? '#1a1a1a' : '#d9d9d9' }}
+        >
+          {count || '–'}
+        </Text>
+      ))}
+    </>
+  )
 }
 
 function RuleCard({
@@ -57,7 +107,7 @@ function RuleCard({
           <Text strong style={{ fontSize: 13 }}>Effective: {formatEffective(rule)}</Text>
           <div>
             <Text type="secondary" style={{ fontSize: 12 }}>
-              {rule.patterns.length} pattern{rule.patterns.length === 1 ? '' : 's'} · Repeat every {rule.repeatEveryWeeks} week(s)
+              Repeat every {rule.repeatEveryWeeks} week(s)
             </Text>
           </div>
         </div>
@@ -70,59 +120,32 @@ function RuleCard({
         </div>
       </div>
 
-      {rule.patterns.map((pattern, index) => (
-        <div key={pattern.id} style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid #fafafa' }}>
-          <Text style={{ fontSize: 12, color: '#595959' }}>
-            Pattern {index + 1} · Repeat every {rule.repeatEveryWeeks} week(s)
+      <div style={{ display: 'grid', gridTemplateColumns: GRID_COLUMNS, gap: '6px 4px', marginTop: 14, alignItems: 'center' }}>
+        <span />
+        {DAY_LABELS.map((label, dayIndex) => (
+          <Text
+            key={dayIndex}
+            strong
+            style={{ fontSize: 12, textAlign: 'center', color: dayIndex >= 5 ? '#cf1322' : '#595959' }}
+          >
+            {label}
           </Text>
+        ))}
 
-          {pattern.weeks.map((week, weekIndex) => (
-            <div key={weekIndex} style={{ marginTop: 8 }}>
-              {pattern.weeks.length > 1 && (
-                <Text type="secondary" style={{ fontSize: 10 }}>Week {weekIndex + 1}</Text>
-              )}
-              <div style={{ display: 'flex', gap: 4, marginTop: 4, flexWrap: 'wrap' }}>
-                {week.days.map((shift, dayIndex) => {
-                  const style = SHIFT_STYLE[shift]
-                  return (
-                    <div
-                      key={dayIndex}
-                      style={{
-                        // 52px so the "Off Day" label fits on one line.
-                        width: 52,
-                        borderRadius: 5,
-                        padding: '4px 0',
-                        textAlign: 'center',
-                        background: style.bg,
-                      }}
-                    >
-                      <div style={{ fontSize: 9, color: '#8c8c8c' }}>{DAY_LABELS[dayIndex]}</div>
-                      <div style={{ fontSize: 11, fontWeight: 600, color: style.fg }}>
-                        {SHIFT_LABEL[shift]}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-              <div style={{ marginTop: 4 }}>
-                <Tag
-                  color={week.standby ? 'gold' : undefined}
-                  style={{ fontSize: 10, margin: 0 }}
-                >
-                  {week.standby ? 'Standby for this week' : 'No standby'}
-                </Tag>
-              </div>
-            </div>
-          ))}
+        {rule.weeks.flatMap((week, weekIndex) => [
+          <CountRow key={`am-${weekIndex}`} label={`Week ${weekIndex + 1} - AM`} counts={week.am.map((d) => d.length)} />,
+          <CountRow key={`pm-${weekIndex}`} label={`Week ${weekIndex + 1} - PM`} counts={week.pm.map((d) => d.length)} />,
+        ])}
+      </div>
 
-          <div style={{ marginTop: 8 }}>
-            <Text type="secondary" style={{ fontSize: 11 }}>Assigned Employees: </Text>
-            <Text style={{ fontSize: 11, color: pattern.employeeIds.length ? '#1a1a1a' : '#bfbfbf' }}>
-              {employeeNames(pattern.employeeIds)}
-            </Text>
+      <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid #fafafa' }}>
+        {rule.weeks.map((week, weekIndex) => (
+          <div key={weekIndex} style={{ marginTop: weekIndex ? 4 : 0 }}>
+            <Text type="secondary" style={{ fontSize: 11 }}>Week {weekIndex + 1} Standby: </Text>
+            <Text style={{ fontSize: 11 }}>{standbySummary(week)}</Text>
           </div>
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   )
 }
@@ -158,16 +181,16 @@ export default function ManageRosterDrawer({
 
   const handleDelete = (rule: RosterRule) => {
     Modal.confirm({
-      title: 'Delete this roster rule?',
+      title: 'Delete these shift patterns?',
       icon: <ExclamationCircleFilled style={{ color: '#cf1322' }} />,
-      content: `The rule effective ${formatEffective(rule)} will be removed from the roster calendar and can no longer be viewed in Manage Roster. This cannot be undone.`,
+      content: `The shift patterns effective ${formatEffective(rule)} will be removed from the roster calendar and can no longer be viewed here. This cannot be undone.`,
       okText: 'Delete',
       okButtonProps: { danger: true },
       cancelText: 'Cancel',
       onOk: () => {
         deleteRosterRule(rule.id)
         refresh()
-        message.success('Roster rule deleted.')
+        message.success('Shift patterns deleted.')
       },
     })
   }
@@ -177,7 +200,7 @@ export default function ManageRosterDrawer({
     upsertRosterRule(rule)
     setModal({ open: false })
     refresh()
-    message.success(creating ? 'Roster rule created.' : 'Roster rule saved.')
+    message.success(creating ? 'Shift patterns created.' : 'Shift patterns saved.')
     // MOVE-3610 §3 — the rule lands in the tab its Effective Date implies.
     setTab(ruleBucket(rule, today) === 'Upcoming' ? 'Upcoming' : 'Current')
   }
@@ -190,8 +213,8 @@ export default function ManageRosterDrawer({
           image={Empty.PRESENTED_IMAGE_SIMPLE}
           description={
             bucket === 'Current'
-              ? 'No roster rule is currently in effect. Add a rule to start scheduling shifts.'
-              : 'No upcoming roster rules. Add a rule to schedule a future roster.'
+              ? 'No shift patterns are currently in effect. Add shift patterns to start scheduling.'
+              : 'No upcoming shift patterns. Add shift patterns to schedule a future roster.'
           }
         />
       )
@@ -212,11 +235,11 @@ export default function ManageRosterDrawer({
       <Drawer
         open={open}
         onClose={onClose}
-        title="Manage Roster"
+        title="Manage Shift Patterns"
         width={640}
         extra={
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setModal({ open: true })}>
-            Add Rule
+            Add Shift Patterns
           </Button>
         }
       >

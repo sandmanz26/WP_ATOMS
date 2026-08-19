@@ -179,7 +179,7 @@ export default function Roster3Page() {
         </div>
         {!edit.editing && (
           <Space>
-            <Button icon={<SettingOutlined />} onClick={() => setDrawerOpen(true)}>Manage Roster</Button>
+            <Button icon={<SettingOutlined />} onClick={() => setDrawerOpen(true)}>Manage Shift Patterns</Button>
             <Tooltip title={editableMonth ? undefined : PAST_MONTH_TOOLTIP}>
               <Button icon={<EditOutlined />} disabled={!editableMonth} onClick={edit.start}>
                 Edit Roster

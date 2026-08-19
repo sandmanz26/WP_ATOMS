@@ -1,66 +1,46 @@
-// MOVE-3610 (Create Roster Rule) + MOVE-3611 (Edit Roster Rule).
+// MOVE-3610 (Create) + MOVE-3611 (Edit), reshaped by the 18 Aug review.
 //
 // One modal serves both, because MOVE-3611 §2 is defined as "same field
 // validations as Create" plus a lock-down: a rule that has already taken effect
-// (Current) exposes only its End Date, hides + Add Repeating Pattern, and hides
-// the per-pattern Delete action.
+// (Current) exposes only its End Date.
+//
+// The 18 Aug review replaced the per-employee pattern editor with an ADR-style
+// grid: group by week, split by shift, then assign each day by employee. The
+// old editor asked "which days does this group work?"; this one asks "who works
+// this shift on this day?", which is how ops actually fills a roster in.
 
 import { useEffect, useMemo, useState } from 'react'
 import dayjs, { type Dayjs } from 'dayjs'
-import { Button, Checkbox, DatePicker, InputNumber, Modal, Tag, Tooltip, Typography, message } from 'antd'
-import { DeleteOutlined, PlusOutlined } from '@ant-design/icons'
+import { DatePicker, InputNumber, Modal, Select, Typography, message } from 'antd'
 import {
   OPERATIONS_EMPLOYEES,
   ROSTER_RULES,
-  type PatternWeek,
+  emptyRuleWeek,
   type RosterRule,
-  type RosterRulePattern,
-  type ShiftCode,
+  type RuleWeek,
 } from './rosterData'
 import { ISO, defaultNextEffectiveDate, findOverlappingRule } from './rosterStatusLogic'
 
 const { Text } = Typography
 
-const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
 const WEEKEND_INDEXES = [5, 6] // Saturday, Sunday within a Monday-first week
 
-const SHIFT_STYLE: Record<ShiftCode, { bg: string; fg: string }> = {
-  AM: { bg: '#e6f4ff', fg: '#0958d9' },
-  PM: { bg: '#f6ffed', fg: '#389e0d' },
-  OFF: { bg: '#f5f5f5', fg: '#8c8c8c' },
-}
+const GRID_COLUMNS = '92px repeat(7, minmax(112px, 1fr))'
 
-/**
- * MOVE-3610: weekdays cycle AM → PM → AM; weekends cycle AM → Off Day → AM.
- *
- * Off Day is no longer part of the weekday cycle — weekdays are Operations
- * working days. A weekday cell that already holds Off Day (from older data)
- * still resolves back to AM so it is never stuck outside the cycle.
- */
-function nextShift(current: ShiftCode, weekend: boolean): ShiftCode {
-  if (weekend) return current === 'AM' ? 'OFF' : 'AM'
-  return current === 'AM' ? 'PM' : 'AM'
-}
-
-function defaultWeek(): PatternWeek {
-  return { days: ['AM', 'AM', 'AM', 'AM', 'AM', 'OFF', 'OFF'], standby: false }
-}
-
-function newPattern(weekCount: number): RosterRulePattern {
+function cloneWeek(week: RuleWeek): RuleWeek {
   return {
-    id: `pattern-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-    weeks: Array.from({ length: weekCount }, defaultWeek),
-    employeeIds: [],
+    am: week.am.map((d) => [...d]),
+    pm: week.pm.map((d) => [...d]),
+    standby: week.standby.map((d) => [...d]),
   }
 }
 
-/** Grow or shrink every pattern's week list, preserving existing weeks. */
-function resizeWeeks(patterns: RosterRulePattern[], weekCount: number): RosterRulePattern[] {
-  return patterns.map((p) => {
-    const weeks = p.weeks.slice(0, weekCount)
-    while (weeks.length < weekCount) weeks.push(defaultWeek())
-    return { ...p, weeks }
-  })
+/** Grow or shrink the week list, preserving the weeks already filled in. */
+function resizeWeeks(weeks: RuleWeek[], count: number): RuleWeek[] {
+  const next = weeks.slice(0, count).map(cloneWeek)
+  while (next.length < count) next.push(emptyRuleWeek())
+  return next
 }
 
 export interface RosterRuleModalProps {
@@ -86,7 +66,7 @@ export default function RosterRuleModal({
   const [effectiveDate, setEffectiveDate] = useState<Dayjs>(today)
   const [endDate, setEndDate] = useState<Dayjs | null>(null)
   const [repeatEvery, setRepeatEvery] = useState(1)
-  const [patterns, setPatterns] = useState<RosterRulePattern[]>([newPattern(1)])
+  const [weeks, setWeeks] = useState<RuleWeek[]>([emptyRuleWeek()])
   const [showErrors, setShowErrors] = useState(false)
 
   useEffect(() => {
@@ -96,84 +76,51 @@ export default function RosterRuleModal({
       setEffectiveDate(dayjs(rule.effectiveDate))
       setEndDate(rule.endDate ? dayjs(rule.endDate) : null)
       setRepeatEvery(rule.repeatEveryWeeks)
-      setPatterns(rule.patterns.map((p) => ({ ...p, weeks: p.weeks.map((w) => ({ ...w, days: [...w.days] })) })))
+      setWeeks(rule.weeks.map(cloneWeek))
     } else {
       // MOVE-3610: default to the day after the latest existing rule's End Date,
-      // and pre-fill the patterns of the most recently created rule.
-      const nextEffective = defaultNextEffectiveDate(ROSTER_RULES, today)
-      const sortedRules = [...ROSTER_RULES].sort((a, b) => a.effectiveDate.localeCompare(b.effectiveDate))
-      const latest: RosterRule | undefined = sortedRules[sortedRules.length - 1]
-      setEffectiveDate(nextEffective)
-      setEndDate(null) // End Date is deliberately not copied.
+      // and pre-fill from the most recently created rule. The End Date is not
+      // copied.
+      const sorted = [...ROSTER_RULES].sort((a, b) => a.effectiveDate.localeCompare(b.effectiveDate))
+      const latest: RosterRule | undefined = sorted[sorted.length - 1]
+      setEffectiveDate(defaultNextEffectiveDate(ROSTER_RULES, today))
+      setEndDate(null)
       setRepeatEvery(latest?.repeatEveryWeeks ?? 1)
-      setPatterns(
-        latest
-          ? latest.patterns.map((p, i) => ({
-              ...p,
-              id: `pattern-${Date.now()}-${i}`,
-              weeks: p.weeks.map((w) => ({ ...w, days: [...w.days] })),
-              employeeIds: [...p.employeeIds],
-            }))
-          : [newPattern(1)]
-      )
+      setWeeks(latest ? latest.weeks.map(cloneWeek) : [emptyRuleWeek()])
     }
   }, [open, rule, today])
 
   const readOnly = lockedToEndDateOnly
 
   const assignableEmployees = useMemo(
-    () => OPERATIONS_EMPLOYEES.filter((e) => e.department === 'Operations' && e.status === 'Active'),
+    () =>
+      OPERATIONS_EMPLOYEES.filter((e) => e.department === 'Operations' && e.status === 'Active').sort((a, b) =>
+        a.name.localeCompare(b.name)
+      ),
     []
   )
 
   const handleRepeatChange = (value: number | null) => {
-    const weeks = Math.max(1, Math.min(8, value ?? 1))
-    setRepeatEvery(weeks)
-    setPatterns((prev) => resizeWeeks(prev, weeks))
+    const count = Math.max(1, Math.min(8, value ?? 1))
+    setRepeatEvery(count)
+    setWeeks((prev) => resizeWeeks(prev, count))
   }
 
-  const cycleCell = (patternId: string, weekIndex: number, dayIndex: number) => {
+  const setSlot = (weekIndex: number, row: keyof RuleWeek, dayIndex: number, ids: string[]) => {
     if (readOnly) return
-    setPatterns((prev) =>
-      prev.map((p) => {
-        if (p.id !== patternId) return p
-        const weeks = p.weeks.map((w, wi) => {
-          if (wi !== weekIndex) return w
-          const days = [...w.days]
-          days[dayIndex] = nextShift(days[dayIndex], WEEKEND_INDEXES.includes(dayIndex))
-          return { ...w, days }
-        })
-        return { ...p, weeks }
+    setWeeks((prev) =>
+      prev.map((week, wi) => {
+        if (wi !== weekIndex) return week
+        const next = cloneWeek(week)
+        next[row][dayIndex] = ids
+        // MOVE-3769 §3 — one shift per employee per day, so taking a shift
+        // releases the other one rather than letting both hold the same person.
+        if (row === 'am') next.pm[dayIndex] = next.pm[dayIndex].filter((id) => !ids.includes(id))
+        if (row === 'pm') next.am[dayIndex] = next.am[dayIndex].filter((id) => !ids.includes(id))
+        return next
       })
     )
   }
-
-  const toggleStandby = (patternId: string, weekIndex: number, checked: boolean) => {
-    setPatterns((prev) =>
-      prev.map((p) =>
-        p.id === patternId
-          ? { ...p, weeks: p.weeks.map((w, wi) => (wi === weekIndex ? { ...w, standby: checked } : w)) }
-          : p
-      )
-    )
-  }
-
-  const toggleEmployee = (patternId: string, employeeId: string) => {
-    if (readOnly) return
-    setPatterns((prev) =>
-      prev.map((p) => {
-        if (p.id !== patternId) return p
-        const assigned = p.employeeIds.includes(employeeId)
-        return {
-          ...p,
-          employeeIds: assigned ? p.employeeIds.filter((id) => id !== employeeId) : [...p.employeeIds, employeeId],
-        }
-      })
-    )
-  }
-
-  const assignedElsewhere = (patternId: string, employeeId: string) =>
-    patterns.some((p) => p.id !== patternId && p.employeeIds.includes(employeeId))
 
   const endDateError = (() => {
     if (!endDate) return 'End Date is required'
@@ -182,7 +129,11 @@ export default function RosterRuleModal({
     return null
   })()
 
-  const emptyPatterns = patterns.filter((p) => p.employeeIds.length === 0)
+  const assignedCount = weeks.reduce(
+    (total, week) =>
+      total + [week.am, week.pm, week.standby].reduce((n, row) => n + row.reduce((m, day) => m + day.length, 0), 0),
+    0
+  )
 
   const handleSave = () => {
     setShowErrors(true)
@@ -191,8 +142,8 @@ export default function RosterRuleModal({
       message.error('Unable to save. Please review the highlighted fields.')
       return
     }
-    if (!readOnly && emptyPatterns.length > 0) {
-      message.error('Unable to save. Every pattern needs at least one assigned employee.')
+    if (!readOnly && assignedCount === 0) {
+      message.error('Unable to save. Assign at least one employee to a shift.')
       return
     }
 
@@ -201,14 +152,14 @@ export default function RosterRuleModal({
       effectiveDate: effectiveDate.format(ISO),
       endDate: endDate!.format(ISO),
       repeatEveryWeeks: repeatEvery,
-      patterns,
+      weeks,
     }
 
     // MOVE-3609 §5 — rules may not overlap.
     const clash = findOverlappingRule(ROSTER_RULES, candidate)
     if (clash) {
       message.error(
-        `Unable to save. This period overlaps the rule effective ${dayjs(clash.effectiveDate).format('D MMM YYYY')}. Edit that rule instead.`
+        `Unable to save. This period overlaps the shift patterns effective ${dayjs(clash.effectiveDate).format('D MMM YYYY')}. Edit those instead.`
       )
       return
     }
@@ -216,27 +167,71 @@ export default function RosterRuleModal({
     onSave(candidate)
   }
 
+  const employeeOptions = assignableEmployees.map((e) => ({ value: e.id, label: e.name }))
+
+  const daySelect = (weekIndex: number, row: keyof RuleWeek, dayIndex: number) => {
+    // PM is not permitted on a weekend (MOVE-3608 weekend rules), so the cell is
+    // disabled rather than silently dropping whatever is put in it.
+    const blocked = row === 'pm' && WEEKEND_INDEXES.includes(dayIndex)
+    const value = weeks[weekIndex][row][dayIndex]
+    const names = value
+      .map((id) => assignableEmployees.find((e) => e.id === id)?.name ?? id)
+      .sort((a, b) => a.localeCompare(b))
+    return (
+      <div>
+        <Select
+          mode="multiple"
+          size="small"
+          allowClear
+          disabled={readOnly || blocked}
+          placeholder={blocked ? '—' : 'Assign'}
+          value={value}
+          onChange={(ids: string[]) => setSlot(weekIndex, row, dayIndex, ids)}
+          options={employeeOptions}
+          // A day cell is far too narrow for three name tags, so the control
+          // carries the headcount and the names read underneath it — the way
+          // the design sketch shows them.
+          maxTagCount={0}
+          maxTagPlaceholder={(omitted) => `${omitted.length} staff`}
+          style={{ width: '100%' }}
+          optionFilterProp="label"
+        />
+        {names.length > 0 && (
+          <div style={{ marginTop: 2 }}>
+            <Text type="secondary" style={{ fontSize: 10, lineHeight: 1.3 }}>{names.join(', ')}</Text>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  const rowLabel = (text: string, tone?: string) => (
+    <div style={{ display: 'flex', alignItems: 'center' }}>
+      <Text strong style={{ fontSize: 12, color: tone }}>{text}</Text>
+    </div>
+  )
+
   return (
     <Modal
       open={open}
-      title={isEdit ? 'Edit Roster Rule' : 'Create Roster Rule'}
+      title={isEdit ? 'Edit Shift Patterns' : 'Add Shift Patterns'}
       onCancel={onCancel}
       onOk={handleSave}
       okText={isEdit ? 'Save' : 'Create'}
-      width={860}
-      styles={{ body: { maxHeight: '65vh', overflowY: 'auto', paddingRight: 8 } }}
+      width={1180}
+      styles={{ body: { maxHeight: '68vh', overflowY: 'auto', paddingRight: 8 } }}
     >
       {readOnly && (
         <div style={{ background: '#fffbe6', border: '1px solid #ffe58f', borderRadius: 6, padding: '8px 12px', marginBottom: 16 }}>
           <Text style={{ fontSize: 12 }}>
-            This rule has already taken effect. Only the End Date can be changed.
+            These shift patterns have already taken effect. Only the End Date can be changed.
           </Text>
         </div>
       )}
 
       <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 20 }}>
         <Field label="Effective Date" required>
-          {/* View-only per MOVE-3610 — the system derives it from the previous rule. */}
+          {/* View-only per MOVE-3610 — derived from the previous rule. */}
           <DatePicker value={effectiveDate} disabled style={{ width: 180 }} format="D MMM YYYY" />
         </Field>
         <Field label="End Date" required error={showErrors ? endDateError : null}>
@@ -257,120 +252,48 @@ export default function RosterRuleModal({
         </Field>
       </div>
 
-      {patterns.map((pattern, index) => (
-        <div
-          key={pattern.id}
-          style={{ border: '1px solid #f0f0f0', borderRadius: 8, padding: 16, marginBottom: 12 }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-            <Text strong style={{ fontSize: 13 }}>Pattern {index + 1}</Text>
-            {!readOnly && patterns.length > 1 && (
-              <Button
-                size="small"
-                type="text"
-                danger
-                icon={<DeleteOutlined />}
-                onClick={() => setPatterns((prev) => prev.filter((p) => p.id !== pattern.id))}
-              >
-                Remove
-              </Button>
-            )}
-          </div>
+      {/* The grid is wider than the modal on small screens, so it scrolls in its
+          own container rather than making the whole page scroll sideways. */}
+      <div style={{ overflowX: 'auto' }}>
+        <div style={{ minWidth: 900 }}>
+          {weeks.map((_, weekIndex) => (
+            <div key={weekIndex} style={{ border: '1px solid #f0f0f0', borderRadius: 8, padding: 12, marginBottom: 12 }}>
+              <Text strong style={{ fontSize: 13 }}>Week {weekIndex + 1}</Text>
 
-          {pattern.weeks.map((weekData, weekIndex) => (
-            <div key={weekIndex} style={{ marginBottom: 12 }}>
-              <Text type="secondary" style={{ fontSize: 11 }}>Week {weekIndex + 1}</Text>
-              <div style={{ display: 'flex', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
-                {weekData.days.map((shift, dayIndex) => {
-                  const weekend = WEEKEND_INDEXES.includes(dayIndex)
-                  const style = SHIFT_STYLE[shift]
-                  return (
-                    <div
-                      key={dayIndex}
-                      onClick={() => cycleCell(pattern.id, weekIndex, dayIndex)}
-                      style={{
-                        width: 66,
-                        borderRadius: 6,
-                        border: '1px solid #f0f0f0',
-                        padding: '6px 0',
-                        textAlign: 'center',
-                        cursor: readOnly ? 'default' : 'pointer',
-                        background: style.bg,
-                        userSelect: 'none',
-                      }}
-                    >
-                      <div style={{ fontSize: 10, color: weekend ? '#cf1322' : '#8c8c8c' }}>{DAY_LABELS[dayIndex]}</div>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: style.fg }}>
-                        {shift === 'OFF' ? 'Off Day' : shift}
-                      </div>
-                    </div>
-                  )
-                })}
+              <div style={{ display: 'grid', gridTemplateColumns: GRID_COLUMNS, gap: 8, marginTop: 10, alignItems: 'start' }}>
+                <span />
+                {DAY_LABELS.map((label, dayIndex) => (
+                  <Text
+                    key={dayIndex}
+                    strong
+                    style={{ fontSize: 12, color: WEEKEND_INDEXES.includes(dayIndex) ? '#cf1322' : '#595959' }}
+                  >
+                    {label}
+                  </Text>
+                ))}
+
+                {rowLabel('AM')}
+                {DAY_LABELS.map((_, dayIndex) => (
+                  <div key={`am-${dayIndex}`}>{daySelect(weekIndex, 'am', dayIndex)}</div>
+                ))}
+
+                {rowLabel('PM')}
+                {DAY_LABELS.map((_, dayIndex) => (
+                  <div key={`pm-${dayIndex}`}>{daySelect(weekIndex, 'pm', dayIndex)}</div>
+                ))}
+
+                {rowLabel('Standby', '#8c8c8c')}
+                {DAY_LABELS.map((_, dayIndex) => (
+                  <div key={`sb-${dayIndex}`}>{daySelect(weekIndex, 'standby', dayIndex)}</div>
+                ))}
               </div>
-              <Checkbox
-                checked={weekData.standby}
-                disabled={readOnly}
-                onChange={(e) => toggleStandby(pattern.id, weekIndex, e.target.checked)}
-                style={{ marginTop: 8, fontSize: 12 }}
-              >
-                Standby for this week
-              </Checkbox>
             </div>
           ))}
-
-          <div style={{ marginTop: 8 }}>
-            <Text type="secondary" style={{ fontSize: 11 }}>
-              Assigned Employees {!readOnly && <span style={{ color: '#cf1322' }}>*</span>}
-            </Text>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
-              {assignableEmployees.map((employee) => {
-                const selected = pattern.employeeIds.includes(employee.id)
-                const takenElsewhere = assignedElsewhere(pattern.id, employee.id)
-                const disabled = readOnly || takenElsewhere
-                const chip = (
-                  <Tag.CheckableTag
-                    key={employee.id}
-                    checked={selected}
-                    onChange={() => !disabled && toggleEmployee(pattern.id, employee.id)}
-                    style={{
-                      fontSize: 12,
-                      padding: '2px 10px',
-                      borderRadius: 12,
-                      border: '1px solid #f0f0f0',
-                      cursor: disabled ? 'not-allowed' : 'pointer',
-                      opacity: disabled && !selected ? 0.45 : 1,
-                    }}
-                  >
-                    {employee.name}
-                  </Tag.CheckableTag>
-                )
-                return takenElsewhere ? (
-                  <Tooltip key={employee.id} title="Already assigned to another pattern in this rule">
-                    <span>{chip}</span>
-                  </Tooltip>
-                ) : (
-                  chip
-                )
-              })}
-            </div>
-            {showErrors && !readOnly && pattern.employeeIds.length === 0 && (
-              <div style={{ marginTop: 6 }}>
-                <Text type="danger" style={{ fontSize: 11 }}>Assign at least one employee to this pattern</Text>
-              </div>
-            )}
-          </div>
         </div>
-      ))}
+      </div>
 
-      {!readOnly && (
-        <Button
-          type="dashed"
-          icon={<PlusOutlined />}
-          onClick={() => setPatterns((prev) => [...prev, newPattern(repeatEvery)])}
-          block
-        >
-          Add Repeating Pattern
-        </Button>
+      {showErrors && !readOnly && assignedCount === 0 && (
+        <Text type="danger" style={{ fontSize: 11 }}>Assign at least one employee to a shift</Text>
       )}
     </Modal>
   )

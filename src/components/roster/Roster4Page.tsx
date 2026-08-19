@@ -15,7 +15,7 @@
 //     standby appears in both bars.
 //   MOVE-3607 — the two highlight badges, here as stat cards that also filter.
 //   MOVE-3659 — clicking a bar opens the view-only Details Card, staff A–Z.
-//   MOVE-3609/3610/3611/3705 — via the shared Manage Roster drawer.
+//   MOVE-3609/3610/3611/3705 — via the shared Manage Shift Patterns drawer.
 //   MOVE-3658 — edit mode: pick a day, edit it in a drawer with its own
 //     Save/Cancel, then commit or discard the whole session.
 //
@@ -135,7 +135,7 @@ export default function Roster4Page() {
       holidays: PUBLIC_HOLIDAYS,
       overrides: editing ? [...ROSTER_OVERRIDES, ...draft] : ROSTER_OVERRIDES,
     }),
-    // The rules array is mutated in place by the Manage Roster drawer.
+    // The rules array is mutated in place by the Manage Shift Patterns drawer.
     [revision, editing, draft]
   )
 
@@ -248,7 +248,7 @@ export default function Roster4Page() {
             </Space>
           ) : (
             <Space>
-              <Button icon={<SettingOutlined />} onClick={() => setManageOpen(true)}>Manage Roster</Button>
+              <Button icon={<SettingOutlined />} onClick={() => setManageOpen(true)}>Manage Shift Patterns</Button>
               <Tooltip title={editableMonth ? undefined : PAST_MONTH_TOOLTIP}>
                 <Button type="primary" icon={<EditOutlined />} disabled={!editableMonth} onClick={startEdit}>
                   Edit Roster
