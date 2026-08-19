@@ -14,6 +14,63 @@ minor).
 
 ## [Unreleased]
 
+### Removed — Off Day (18 Aug review §5)
+
+Off Day is gone as a concept. "Rostered but not working today" and "not in any
+rule" were always the same thing to an ops user, and the review collapsed them
+into a single **Not Assigned** (NA). This confirms the direction MOVE-3608 and
+MOVE-3769 took on 18 Aug, which had been held pending the contradiction with
+MOVE-3610.
+
+- `ShiftCode` is now `'AM' | 'PM'`; `DailyStatus` loses `'OFF'`; the `OFF` and
+  `NO_ROSTER` calendar groups merge into `NOT_ASSIGNED`.
+- **Public holidays resolve to NA**, not Off Day. The edit drawer's picker shows
+  NA alone that day, and the banner was reworded.
+- **Weekends offer AM or NA**; a PM assignment on a weekend resolves to NA
+  rather than being rewritten to Off Day.
+- `ruleAssignmentFor` no longer needs rule membership: with both states collapsed
+  the only question is whether the employee is in a shift list for that day.
+- `DailyCoverage.off` dropped; public holidays now count under `na`.
+- The two older matrix variants lost their Off Day cell colour, legend entry and
+  bulk action, so their weekend bulk bar now offers AM only.
+
+### Changed — fixed group order and the 18 Aug colours (§5, §6)
+
+Order is now **Standby, AM, PM, Not Assigned, On Leave**, and the palette moved
+to the review's swatches:
+
+| Group | Fill | Text |
+|---|---|---|
+| Standby | `#2563eb` | white |
+| Standby, count 0 | `#ef4444` | white |
+| AM | `#a5a0f5` | black |
+| PM | `#aec2fa` | black |
+| Not Assigned | `#d4d4d4` | black |
+| On Leave | `#fbdc8a` | black |
+
+- **A group with a count of zero is dropped from the calendar — except Standby**,
+  which stays and turns red. Zero is the thing worth seeing there: a day with no
+  standby cover is a gap, and hiding the bar would hide the gap. In August 2026
+  that surfaces four such days (9, 12, 14, 23 Aug).
+- Standby regains a solid dark fill, so it no longer depends on being first in
+  the order to stand out — the concern noted when the 14 Aug pastel palette
+  landed.
+
+### Changed — details card contents (18 Aug review §4)
+
+`DayGroup` now carries `count` separately from `members`, because the two
+deliberately disagree.
+
+- **Absent staff are listed but not counted.** They used to be dropped from the
+  group entirely, which meant the card could not show who was meant to be
+  covering. They now appear with an **Absent** tag while the bar's headcount
+  excludes them — verified on 20 Aug: marking one AM employee absent moved the
+  bar from `AM (5)` to `AM (4)` with the name still in the card.
+- **Extended staff are counted and tagged** `Extended`.
+- **Reasons are confined to the Standby card.** The extension reason used to
+  ride along in the shift group's card; the review keeps reasons to standby
+  only, so a shift card now lists names and tags alone.
+
 ### Changed — shift patterns reshaped to the ADR-style grid (18 Aug review)
 
 The three items in the review land together, because the first two change the
@@ -41,12 +98,11 @@ gone; a rule now holds `RuleWeek[]`, where each week carries `am`, `pm` and
   corrected later, matching MOVE-3608's weekend rule.
 - **One shift per employee per day** is enforced as you type: putting someone in
   AM removes them from PM on that day.
-- **Off Day vs No Roster is now a membership question.** An employee in the rule
-  but not in either shift list that day reads Off Day; an employee absent from
-  the rule entirely reads No Roster. `ruleAssignmentFor` in the shared logic
-  answers both, so all three page variants moved together.
-  **Note:** the new shape has no way to say "in the rule but off for the entire
-  cycle" — such an employee simply does not appear, and reads as No Roster.
+- **Not being in a shift list is the whole answer.** An employee not named in
+  the AM or PM list for a day is Not Assigned, resolved by `ruleAssignmentFor`
+  in the shared logic so all three page variants move together. (This landed
+  first as an Off Day / No Roster distinction based on rule membership; §5 of
+  the same review then removed Off Day, so the distinction went with it.)
 - Day cells are too narrow for name tags, so each control shows a headcount with
   the names listed underneath, as the sketch draws them.
 
@@ -427,6 +483,7 @@ Tracked here so they do not get lost between sessions.
 | **Roster Calendar and Roster 3.0 are off-spec** — MOVE-3608 no longer describes a matrix layout at all, and both still use the bulk-select edit model MOVE-3658 replaced. | Awaiting a call on whether to retire them |
 | **MOVE-3660 [Payroll] Standby Calculation** — ticket has no description. | Not implemented |
 | **MOVE-3759 Design - Roster** — placeholder with no description, attachments, links or comments. | Nothing to build from |
+| **"No Roster" vs "Not Assigned"** — resolved by the 18 Aug review: Off Day is removed and both states collapse into Not Assigned. | Resolved |
 | **Highlight pill wording is inverted** — the 14 Aug review asked for "x unassigned shift" and "x unassigned roster", in that order. Positionally that puts "unassigned shift" on the *standby-coverage* count and "unassigned roster" on the *AM/PM shift* count, which is backwards for both. Shipped as written; a one-line swap fixes it either way. | Awaiting PM confirmation |
 | **MOVE-3608 internal inconsistency** — the AC still says "3 leading and trailing read-only dates", "scrolled into view" and "employee ordering follows the defined employee status sequence", all leftovers from the matrix version the body no longer describes. Implementation follows the body. | Worth raising with the PM |
 

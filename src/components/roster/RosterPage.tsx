@@ -414,8 +414,8 @@ function shortLabel(status: DailyStatus): string {
     case 'AM_WEEKEND':
       return 'AM'
     case 'PUBLIC_HOLIDAY':
-    case 'OFF':
-      return 'Off'
+    case 'NA':
+      return 'Not Assigned'
     default:
       return status
   }
@@ -432,8 +432,8 @@ function BulkActionBar({
 }: {
   count: number
   weekend: boolean
-  shiftOptions: readonly ('AM' | 'PM' | 'OFF')[]
-  onApply: (shift: 'AM' | 'PM' | 'OFF') => void
+  shiftOptions: readonly ('AM' | 'PM')[]
+  onApply: (shift: 'AM' | 'PM') => void
   onClearSelection: () => void
   onSave: () => void
   onCancel: () => void
@@ -476,7 +476,7 @@ function BulkActionBar({
         </>
       ) : (
         <Text type="secondary" style={{ fontSize: 13 }}>
-          Select AM, PM or Off Day cells to apply a bulk change. Use + on a cell to manage standby.
+          Select AM or PM cells to apply a bulk change. Use + on a cell to manage standby.
         </Text>
       )}
       <div style={{ flex: 1 }} />
@@ -489,7 +489,7 @@ function BulkActionBar({
 }
 
 function RosterLegend() {
-  const entries: DailyStatus[] = ['AM', 'AM_WEEKEND', 'PM', 'OFF', 'ON_LEAVE', 'PUBLIC_HOLIDAY', 'NA', 'DASH']
+  const entries: DailyStatus[] = ['AM', 'AM_WEEKEND', 'PM', 'ON_LEAVE', 'PUBLIC_HOLIDAY', 'NA', 'DASH']
   return (
     <div style={{ marginTop: 16, display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'center' }}>
       {entries.map((status) => {

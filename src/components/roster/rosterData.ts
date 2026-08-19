@@ -28,7 +28,11 @@ export interface RosterEmployee {
   contractEndDate?: string // ISO date; undefined = open-ended
 }
 
-export type ShiftCode = 'AM' | 'PM' | 'OFF'
+/**
+ * A working shift. Off Day was removed by the 18 Aug review — an employee who
+ * is not on a shift is simply Not Assigned, so there is no third code.
+ */
+export type ShiftCode = 'AM' | 'PM'
 
 /**
  * One week of a rule, stored per day rather than per employee.
@@ -72,9 +76,8 @@ export function emptyRuleWeek(): RuleWeek {
 }
 
 /**
- * A shift a user can pick in the Edit Roster drawer. "NA" is an explicit
- * choice meaning "no roster rule applies to this employee" (MOVE-3769 §3),
- * distinct from simply having no pattern.
+ * A shift a user can pick in the Edit Roster drawer. "NA" (Not Assigned) is
+ * both the explicit pick and the resting state — MOVE-3769 §3.
  */
 export type ShiftSelection = ShiftCode | 'NA'
 
@@ -129,11 +132,11 @@ export const OPERATIONS_EMPLOYEES: RosterEmployee[] = [
 
 /**
  * Mock-data helper. Describes a week the way a human reads it — employee by
- * employee — and inverts it into the stored per-day shape. 'OFF' simply means
+ * employee — and inverts it into the stored per-day shape. 'NA' simply means
  * the employee is not in any shift list that day.
  */
 function weekFrom(spec: {
-  shifts: Record<string, ShiftCode[]>
+  shifts: Record<string, ShiftSelection[]>
   /** employee id -> the day indexes they are on standby (Monday = 0). */
   standby?: Record<string, number[]>
 }): RuleWeek {
@@ -150,8 +153,8 @@ function weekFrom(spec: {
   return week
 }
 
-const WEEKDAYS_AM: ShiftCode[] = ['AM', 'AM', 'AM', 'AM', 'AM', 'OFF', 'OFF']
-const WEEKDAYS_PM: ShiftCode[] = ['PM', 'PM', 'PM', 'PM', 'PM', 'OFF', 'OFF']
+const WEEKDAYS_AM: ShiftSelection[] = ['AM', 'AM', 'AM', 'AM', 'AM', 'NA', 'NA']
+const WEEKDAYS_PM: ShiftSelection[] = ['PM', 'PM', 'PM', 'PM', 'PM', 'NA', 'NA']
 
 // Rules never overlap — MOVE-3609 §5 forbids two rules covering the same period.
 export const ROSTER_RULES: RosterRule[] = [
@@ -168,8 +171,8 @@ export const ROSTER_RULES: RosterRule[] = [
           'emp-2': WEEKDAYS_AM,
           'emp-4': WEEKDAYS_AM,
           'emp-6': WEEKDAYS_AM,
-          'emp-3': ['PM', 'PM', 'PM', 'PM', 'OFF', 'OFF', 'AM'],
-          'emp-13': ['PM', 'PM', 'PM', 'PM', 'OFF', 'OFF', 'AM'],
+          'emp-3': ['PM', 'PM', 'PM', 'PM', 'NA', 'NA', 'AM'],
+          'emp-13': ['PM', 'PM', 'PM', 'PM', 'NA', 'NA', 'AM'],
         },
       }),
     ],
@@ -186,10 +189,10 @@ export const ROSTER_RULES: RosterRule[] = [
         shifts: {
           'emp-1': WEEKDAYS_AM,
           'emp-6': WEEKDAYS_AM,
-          'emp-2': ['AM', 'AM', 'PM', 'PM', 'AM', 'OFF', 'OFF'],
-          'emp-5': ['AM', 'AM', 'PM', 'PM', 'AM', 'OFF', 'OFF'],
-          'emp-3': ['PM', 'PM', 'PM', 'PM', 'OFF', 'OFF', 'AM'],
-          'emp-13': ['PM', 'PM', 'PM', 'PM', 'OFF', 'OFF', 'AM'],
+          'emp-2': ['AM', 'AM', 'PM', 'PM', 'AM', 'NA', 'NA'],
+          'emp-5': ['AM', 'AM', 'PM', 'PM', 'AM', 'NA', 'NA'],
+          'emp-3': ['PM', 'PM', 'PM', 'PM', 'NA', 'NA', 'AM'],
+          'emp-13': ['PM', 'PM', 'PM', 'PM', 'NA', 'NA', 'AM'],
         },
         standby: { 'emp-2': [0, 1, 2, 5], 'emp-5': [3, 4, 6] },
       }),
@@ -197,15 +200,15 @@ export const ROSTER_RULES: RosterRule[] = [
         shifts: {
           'emp-1': WEEKDAYS_AM,
           'emp-6': WEEKDAYS_AM,
-          'emp-2': ['PM', 'PM', 'AM', 'AM', 'PM', 'OFF', 'OFF'],
-          'emp-5': ['PM', 'PM', 'AM', 'AM', 'PM', 'OFF', 'OFF'],
-          'emp-3': ['PM', 'PM', 'OFF', 'AM', 'AM', 'OFF', 'AM'],
-          'emp-13': ['PM', 'PM', 'OFF', 'AM', 'AM', 'OFF', 'AM'],
+          'emp-2': ['PM', 'PM', 'AM', 'AM', 'PM', 'NA', 'NA'],
+          'emp-5': ['PM', 'PM', 'AM', 'AM', 'PM', 'NA', 'NA'],
+          'emp-3': ['PM', 'PM', 'NA', 'AM', 'AM', 'NA', 'AM'],
+          'emp-13': ['PM', 'PM', 'NA', 'AM', 'AM', 'NA', 'AM'],
         },
         standby: { 'emp-5': [0, 1, 2, 3, 4, 5] },
       }),
     ],
-    // emp-4 (Dedi) and emp-7 (Gita) are intentionally absent -> No Roster cells.
+    // emp-4 (Dedi) and emp-7 (Gita) are intentionally absent -> Not Assigned cells.
   },
   // Upcoming: shows in the Upcoming tab, fully editable and deletable.
   {

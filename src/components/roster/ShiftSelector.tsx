@@ -48,8 +48,8 @@ export default function ShiftSelector({
               padding: '2px 10px',
               fontSize: 12,
               lineHeight: '20px',
-              // "Off Day" is the only two-word label; letting it wrap made the
-              // whole drawer row twice as tall on weekends and holidays.
+              // Labels never wrap: a wrapped one used to make the whole drawer
+              // row twice as tall.
               whiteSpace: 'nowrap',
               borderRadius: strong ? 6 : 4,
               cursor: disabled ? 'not-allowed' : 'pointer',

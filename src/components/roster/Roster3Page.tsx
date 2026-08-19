@@ -66,7 +66,6 @@ const CHIP: Record<DailyStatus, { bg: string; fg: string; border?: string; short
   AM: { bg: '#1677ff', fg: '#fff', short: 'AM' },
   AM_WEEKEND: { bg: '#722ed1', fg: '#fff', short: 'AM' },
   PM: { bg: '#52c41a', fg: '#fff', short: 'PM' },
-  OFF: { bg: '#f0f0f0', fg: '#8c8c8c', short: 'Off' },
   ON_LEAVE: { bg: '#fa8c16', fg: '#fff', short: 'Lv' },
   PUBLIC_HOLIDAY: { bg: '#52c41a', fg: '#fff', short: 'PH' },
   NA: { bg: 'transparent', fg: '#bfbfbf', border: '1px dashed #d9d9d9', short: 'NA' },
@@ -277,7 +276,7 @@ export default function Roster3Page() {
                 return (
                   <Tooltip
                     key={key}
-                    title={`${date.format('ddd, D MMM')} — AM ${c.am}, PM ${c.pm}, Off ${c.off}, Leave ${c.leave}, Standby ${c.standby}`}
+                    title={`${date.format('ddd, D MMM')} — AM ${c.am}, PM ${c.pm}, Not Assigned ${c.na}, Leave ${c.leave}, Standby ${c.standby}`}
                   >
                     <div
                       style={{
@@ -607,8 +606,8 @@ function BulkActionBar({
 }: {
   count: number
   weekend: boolean
-  shiftOptions: readonly ('AM' | 'PM' | 'OFF')[]
-  onApply: (shift: 'AM' | 'PM' | 'OFF') => void
+  shiftOptions: readonly ('AM' | 'PM')[]
+  onApply: (shift: 'AM' | 'PM') => void
   onClearSelection: () => void
   onSave: () => void
   onCancel: () => void
@@ -645,7 +644,7 @@ function BulkActionBar({
         </>
       ) : (
         <Text type="secondary" style={{ fontSize: 13 }}>
-          Select AM, PM or Off Day cells to apply a bulk change. Use + on a cell to manage standby.
+          Select AM or PM cells to apply a bulk change. Use + on a cell to manage standby.
         </Text>
       )}
       <div style={{ flex: 1 }} />
@@ -658,7 +657,7 @@ function BulkActionBar({
 }
 
 function Legend() {
-  const entries: DailyStatus[] = ['AM', 'AM_WEEKEND', 'PM', 'OFF', 'ON_LEAVE', 'PUBLIC_HOLIDAY', 'NA', 'DASH']
+  const entries: DailyStatus[] = ['AM', 'AM_WEEKEND', 'PM', 'ON_LEAVE', 'PUBLIC_HOLIDAY', 'NA', 'DASH']
   return (
     <div style={{ marginTop: 16, display: 'flex', flexWrap: 'wrap', gap: 14, alignItems: 'center' }}>
       {entries.map((status) => {

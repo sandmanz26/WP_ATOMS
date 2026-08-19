@@ -9,8 +9,8 @@
 //
 // What this page implements:
 //   MOVE-3608 — month grid, greyed adjacent-month days, today highlighted,
-//     grouped bars "Group (n)" for On Leave / AM / PM / Off / No Roster /
-//     Standby, public holiday indicator, 12-month forward navigation, legend.
+//     grouped bars "Group (n)" for Standby / AM / PM / Not Assigned /
+//     On Leave, public holiday indicator, 12-month forward navigation, legend.
 //     Standby is an independent assignment: an employee rostered AM and put on
 //     standby appears in both bars.
 //   MOVE-3607 — the two highlight badges, here as stat cards that also filter.
@@ -48,6 +48,7 @@ import {
 import {
   DAY_GROUP_ORDER,
   DAY_GROUP_STYLE,
+  EMPTY_STANDBY_STYLE,
   HIGHLIGHT_WINDOW_DAYS,
   ISO,
   computeDayGroups,
@@ -528,7 +529,12 @@ function GroupBar({
   metrics: (typeof CALENDAR_STYLE_METRICS)[CalendarStyle]
   chip?: boolean
 }) {
-  const style = DAY_GROUP_STYLE[group.key]
+  // 18 Aug review §6 — an empty Standby bar is the one zero worth showing, and
+  // it gets its own colour so a day with no standby cover reads as a gap.
+  const style =
+    group.key === 'STANDBY' && group.count === 0
+      ? { ...DAY_GROUP_STYLE.STANDBY, ...EMPTY_STANDBY_STYLE }
+      : DAY_GROUP_STYLE[group.key]
   const [hovered, setHovered] = useState(false)
 
   // Only clickable bars darken — in edit mode the day cell is the target, so a
@@ -537,12 +543,12 @@ function GroupBar({
 
   // In chip mode the label shrinks to its initial so a whole day fits on one line.
   const text = chip
-    ? `${group.label === 'No Roster' ? 'NR' : group.label === 'On Leave' ? 'L' : group.label.charAt(0)}${group.members.length}`
-    : `${group.label} (${group.members.length})`
+    ? `${group.label === 'Not Assigned' ? 'NA' : group.label === 'On Leave' ? 'L' : group.label.charAt(0)}${group.count}`
+    : `${group.label} (${group.count})`
 
   const bar = (
     <div
-      title={chip ? `${group.label} (${group.members.length})` : undefined}
+      title={chip ? `${group.label} (${group.count})` : undefined}
       onMouseEnter={() => interactive && setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
@@ -593,15 +599,25 @@ function GroupBar({
       }
       content={
         <div style={{ minWidth: 190, maxWidth: 280 }}>
-          {group.members.map(({ employee, reason }) => (
-            <div key={employee.id} style={{ padding: '6px 0', borderBottom: '1px solid #f5f5f5', fontSize: 12 }}>
-              {employee.name}
-              {/* MOVE-3659 §1 — show the reason where one was captured. */}
-              {reason && (
-                <div style={{ fontSize: 11, color: '#8c8c8c', whiteSpace: 'normal' }}>{reason}</div>
-              )}
-            </div>
-          ))}
+          {group.members.length === 0 ? (
+            <Text type="secondary" style={{ fontSize: 12 }}>Nobody is on standby this day.</Text>
+          ) : (
+            group.members.map(({ employee, reason, absent, extended }) => (
+              <div key={employee.id} style={{ padding: '6px 0', borderBottom: '1px solid #f5f5f5', fontSize: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                  <span>{employee.name}</span>
+                  {/* 18 Aug review §4 — absent staff are listed but not counted;
+                      extended staff are counted and flagged. */}
+                  {absent && <Tag color="red" style={{ fontSize: 10, margin: 0 }}>Absent</Tag>}
+                  {extended && <Tag color="blue" style={{ fontSize: 10, margin: 0 }}>Extended</Tag>}
+                </div>
+                {/* Reasons belong to the Standby card only (18 Aug review §4). */}
+                {reason && (
+                  <div style={{ fontSize: 11, color: '#8c8c8c', whiteSpace: 'normal', marginTop: 2 }}>{reason}</div>
+                )}
+              </div>
+            ))
+          )}
         </div>
       }
     >
@@ -659,19 +675,16 @@ function EditDayDrawer({
   // shown but disabled, so ops can see which shift they were meant to be on.
   const rows = onLeaveDisplay === 'inline' ? resolved : editable
 
-  // MOVE-3769 §3 — weekdays offer AM/PM/NA, weekends AM/Off Day/NA. On a public
-  // holiday the shift is fixed to Off Day and the control is read-only, so the
-  // picker shows that one option rather than greying out choices nobody can
-  // take — appending it to the weekday set gave a four-option row that
-  // overflowed the Shift column.
+  // MOVE-3769 §3 — weekdays offer AM/PM/NA, weekends AM/NA. On a public holiday
+  // every roster becomes NA and the control is read-only, so the picker shows
+  // that one option rather than greying out choices nobody can take.
   const dayHoliday = PUBLIC_HOLIDAYS.find((h) => h.date === dateStr)
-  const dayShiftOptions: ShiftSelection[] = dayHoliday ? ['OFF'] : shiftOptionsForDay(date)
+  const dayShiftOptions: ShiftSelection[] = dayHoliday ? ['NA'] : shiftOptionsForDay(date)
 
   const resolvedShift = (status: string): ShiftSelection => {
     if (status === 'AM' || status === 'AM_WEEKEND') return 'AM'
     if (status === 'PM') return 'PM'
-    if (status === 'OFF' || status === 'PUBLIC_HOLIDAY') return 'OFF'
-    return 'NA' // No Roster — an explicit choice now, not an empty control
+    return 'NA' // Not Assigned — the resting state, and an explicit pick
   }
 
   const shiftOf = (employeeId: string, status: string) =>
@@ -762,7 +775,7 @@ function EditDayDrawer({
         row.onLeaveRow
           ? resolveShiftIgnoringLeave(row.employee, date, ctx)
           : dayHoliday
-            ? 'OFF'
+            ? 'NA'
             : shiftOf(row.employee.id, row.result.status)
       }
       options={dayShiftOptions}
@@ -835,8 +848,8 @@ function EditDayDrawer({
 
   // ---- Layouts -------------------------------------------------------------
 
-  // The Shift column is sized for its widest content — AM / Off Day / NA on a
-  // weekend or holiday — so the buttons never have to wrap.
+  // The Shift column is sized for its widest option set (AM / PM / NA), so
+  // the buttons never have to wrap.
   const TABLE_COLUMNS = '1.25fr 180px 1fr 1.15fr 96px'
 
   const tableHeader = (
@@ -906,8 +919,7 @@ function EditDayDrawer({
     const sections: { key: string; label: string; rows: Row[] }[] = [
       { key: 'AM', label: 'AM', rows: [] },
       { key: 'PM', label: 'PM', rows: [] },
-      { key: 'OFF', label: 'Off Day', rows: [] },
-      { key: 'NA', label: 'No Roster', rows: [] },
+      { key: 'NA', label: 'Not Assigned', rows: [] },
       { key: 'ON_LEAVE', label: 'On Leave', rows: [] },
     ]
     const byKey = new Map(sections.map((s) => [s.key, s]))
@@ -915,7 +927,7 @@ function EditDayDrawer({
       const key = row.onLeaveRow
         ? 'ON_LEAVE'
         : dayHoliday
-          ? 'OFF'
+          ? 'NA'
           : shiftOf(row.employee.id, row.result.status)
       byKey.get(key)?.rows.push(row)
     }
@@ -941,7 +953,7 @@ function EditDayDrawer({
       {dayHoliday && (
         <div style={{ background: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: 6, padding: '8px 12px', marginBottom: 16 }}>
           <Text style={{ fontSize: 12, color: '#237804' }}>
-            Public Holiday — {dayHoliday.name}. Every shift is fixed to Off Day and cannot be changed; standby can still be assigned.
+            Public Holiday — {dayHoliday.name}. Every roster is Not Assigned and cannot be changed; standby can still be assigned.
           </Text>
         </div>
       )}
