@@ -14,6 +14,25 @@ minor).
 
 ## [Unreleased]
 
+### Changed — edit mode strips every group colour
+
+Entering Edit Roster now turns all calendar bars a single neutral grey, so the
+calendar itself says which mode you are in rather than leaving it to the
+Save/Cancel buttons. This is also MOVE-3658 §2, "All group color to be remove",
+which had not been picked up yet.
+
+**One consequence worth watching:** the red `Standby (0)` gap indicator greys out
+with everything else, so while editing you cannot see which days lack standby
+cover — arguably the moment you would most want to. The instruction is explicit
+in both the review and the ticket, so it ships as asked; say the word if that
+one should stay red.
+
+### Removed — repeated checkbox labels in the drawer's table layouts
+
+Each row spelled out "Extend", "Standby" and "Absence" under column headers that
+already said EXTEND / STANDBY / ABSENCE. The rows now carry bare checkboxes.
+The stacked layout keeps its labels — it has no column headers to lean on.
+
 ### Changed — mock roster data made realistic (Daniel, 18 Aug)
 
 The fixtures left several Operations staff unrostered on weekdays, which does

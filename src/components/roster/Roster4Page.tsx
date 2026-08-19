@@ -48,6 +48,7 @@ import {
 import {
   DAY_GROUP_ORDER,
   DAY_GROUP_STYLE,
+  EDIT_MODE_GROUP_STYLE,
   EMPTY_STANDBY_STYLE,
   HIGHLIGHT_WINDOW_DAYS,
   ISO,
@@ -488,6 +489,7 @@ function DayCell({
               openBarKey={openBarKey}
               onOpenChange={onBarOpenChange}
               interactive={!editing}
+              editing={editing}
               metrics={metrics}
               chip
             />
@@ -503,6 +505,7 @@ function DayCell({
             openBarKey={openBarKey}
             onOpenChange={onBarOpenChange}
             interactive={!editing}
+            editing={editing}
             metrics={metrics}
           />
         ))
@@ -518,6 +521,7 @@ function GroupBar({
   openBarKey,
   onOpenChange,
   interactive,
+  editing,
   metrics,
   chip = false,
 }: {
@@ -527,13 +531,17 @@ function GroupBar({
   openBarKey: string | null
   onOpenChange: (key: string | null) => void
   interactive: boolean
+  editing: boolean
   metrics: (typeof CALENDAR_STYLE_METRICS)[CalendarStyle]
   chip?: boolean
 }) {
-  // 18 Aug review §6 — an empty Standby bar is the one zero worth showing, and
-  // it gets its own colour so a day with no standby cover reads as a gap.
-  const style =
-    group.key === 'STANDBY' && group.count === 0
+  // In edit mode every group goes grey, so the calendar itself signals the mode
+  // (MOVE-3658 §2 + 18 Aug feedback). Otherwise: 18 Aug review §6 — an empty
+  // Standby bar is the one zero worth showing, and it gets its own colour so a
+  // day with no standby cover reads as a gap.
+  const style = editing
+    ? { ...DAY_GROUP_STYLE[group.key], ...EDIT_MODE_GROUP_STYLE }
+    : group.key === 'STANDBY' && group.count === 0
       ? { ...DAY_GROUP_STYLE.STANDBY, ...EMPTY_STANDBY_STYLE }
       : DAY_GROUP_STYLE[group.key]
   const [hovered, setHovered] = useState(false)
@@ -784,7 +792,10 @@ function EditDayDrawer({
     />
   )
 
-  const extendCell = (row: Row) => (
+  // `labelled` — the table layouts carry a column header for each modifier, so
+  // repeating "Extend" on every row is noise (18 Aug feedback 1). The stacked
+  // layout has no headers, so it keeps them.
+  const extendCell = (row: Row, labelled: boolean) => (
     <div>
       <Checkbox
         checked={row.extend}
@@ -798,7 +809,7 @@ function EditDayDrawer({
         }
         style={{ fontSize: 12 }}
       >
-        Extend
+        {labelled ? 'Extend' : null}
       </Checkbox>
       {/* Feedback 6 — the extension detail stays with its own checkbox. */}
       {!row.onLeaveRow &&
@@ -808,7 +819,7 @@ function EditDayDrawer({
     </div>
   )
 
-  const standbyCell = (row: Row) => (
+  const standbyCell = (row: Row, labelled: boolean) => (
     <div>
       {/* Standby is independent of the shift (MOVE-3608). */}
       <Checkbox
@@ -825,7 +836,7 @@ function EditDayDrawer({
         }
         style={{ fontSize: 12 }}
       >
-        Standby
+        {labelled ? 'Standby' : null}
       </Checkbox>
       {/* MOVE-3769 §3 — stays visible even after the user unticks Standby, but
           not on an On Leave row: standby is cleared by leave (MOVE-3608), so
@@ -836,14 +847,14 @@ function EditDayDrawer({
     </div>
   )
 
-  const absenceCell = (row: Row) => (
+  const absenceCell = (row: Row, labelled: boolean) => (
     <Checkbox
       checked={row.absent}
       disabled={row.onLeaveRow}
       onChange={(e) => stage(row.employee.id, { absence: e.target.checked })}
       style={{ fontSize: 12 }}
     >
-      Absence
+      {labelled ? 'Absence' : null}
     </Checkbox>
   )
 
@@ -893,9 +904,9 @@ function EditDayDrawer({
       {/* On Leave rows stay view-only, but say so through their own disabled
           fields rather than a highlighted row — the highlight pulled the eye to
           the one row that cannot be edited. */}
-      {extendCell(row)}
-      {standbyCell(row)}
-      {absenceCell(row)}
+      {extendCell(row, false)}
+      {standbyCell(row, false)}
+      {absenceCell(row, false)}
     </div>
   )
 
@@ -907,9 +918,9 @@ function EditDayDrawer({
           and 6), rather than trailing off in a shared block. On Leave rows keep
           the fields and disable them, matching the table layouts. */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginTop: 8 }}>
-        {extendCell(row)}
-        {standbyCell(row)}
-        <div>{absenceCell(row)}</div>
+        {extendCell(row, true)}
+        {standbyCell(row, true)}
+        <div>{absenceCell(row, true)}</div>
       </div>
     </div>
   )

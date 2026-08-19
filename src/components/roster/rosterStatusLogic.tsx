@@ -398,6 +398,15 @@ export const DAY_GROUP_STYLE: Record<
 export const EMPTY_STANDBY_STYLE = { bg: '#ef4444', bgHover: '#dc2626', fg: '#ffffff' }
 
 /**
+ * Edit mode strips every group colour (MOVE-3658 §2, "All group color to be
+ * remove"), so the calendar reads as a different mode at a glance rather than
+ * relying on the Save/Cancel buttons to say so. One neutral grey for all
+ * groups: the labels still name them, and the point is that nothing competes
+ * with the day cell the user is picking.
+ */
+export const EDIT_MODE_GROUP_STYLE = { bg: '#f0f0f0', bgHover: '#e6e6e6', fg: '#8c8c8c' }
+
+/**
  * Buckets a day's on-duty employees into the bars shown in one calendar cell.
  *
  * MOVE-3608: Standby is an *independent* assignment, not a replacement for the
