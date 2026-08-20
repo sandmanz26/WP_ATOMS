@@ -14,6 +14,26 @@ minor).
 
 ## [Unreleased]
 
+### Changed — public holidays name themselves in the cell (feedback 6)
+
+The flag icon is gone and so is the green cell wash. A holiday now prints its
+name on the date row — `17 Independence Day` — in small green text.
+
+- The flag meant nothing until hovered; the name says what the day is on sight.
+- Removing the tint also removes a competing signal: with the group colours
+  already carrying meaning, a green background made holidays look like a status
+  rather than a label. Verified 17 Aug and 18 Aug now share the same white
+  background, and no flag icon remains anywhere.
+- The name sits on the existing date row rather than a new line, so cell height
+  is unchanged in every calendar density; it truncates with an ellipsis and
+  keeps the full text in a title tooltip for the compact styles.
+- The legend's **Public Holiday chip is dropped**. It keyed the flag and the
+  green wash, neither of which is drawn any more, and a holiday is not one of
+  the group bars the legend exists to explain.
+
+The green *text* is a judgment call — it keeps the holiday association the wash
+used to carry without tinting the day. Say the word if it should be neutral.
+
 ### Changed — 19 Aug review: pattern editor and drawer legibility
 
 **Pattern editor**

@@ -10,7 +10,8 @@
 // What this page implements:
 //   MOVE-3608 — month grid, greyed adjacent-month days, today highlighted,
 //     grouped bars "Group (n)" for Standby / AM / PM / Not Assigned /
-//     On Leave, public holiday indicator, 12-month forward navigation, legend.
+//     On Leave, public holiday named in the cell, 12-month forward
+//     navigation, legend.
 //     Standby is an independent assignment: an employee rostered AM and put on
 //     standby appears in both bars.
 //   MOVE-3607 — the two highlight badges, here as stat cards that also filter.
@@ -31,7 +32,6 @@ import {
   CalendarOutlined,
   SettingOutlined,
   EditOutlined,
-  FlagFilled,
   CloseOutlined,
 } from '@ant-design/icons'
 import {
@@ -433,13 +433,9 @@ function DayCell({
   const holiday = PUBLIC_HOLIDAYS.find((h) => h.date === dateStr)
   const weekend = isWeekend(date)
 
-  const background = isToday
-    ? '#e6f4ff'
-    : holiday
-      ? '#f6ffed' // feedback item 3 — holidays read green
-      : weekend
-        ? '#fafafa'
-        : '#fff'
+  // Feedback 6 — a public holiday no longer tints the whole cell; naming it on
+  // the date row says the same thing without washing the day green.
+  const background = isToday ? '#e6f4ff' : weekend ? '#fafafa' : '#fff'
 
   return (
     <div
@@ -470,10 +466,24 @@ function DayCell({
         >
           {date.format('DD')}
         </span>
+        {/* The holiday reads by name rather than a flag icon that had to be
+            hovered to mean anything. It sits on the date row so it costs no
+            extra height, and truncates in the denser calendar styles. */}
         {holiday && (
-          <Tooltip title={`Public Holiday — ${holiday.name}`}>
-            <FlagFilled style={{ fontSize: 11, color: '#52c41a' }} />
-          </Tooltip>
+          <span
+            title={`Public Holiday — ${holiday.name}`}
+            style={{
+              fontSize: 10,
+              fontWeight: 600,
+              color: '#389e0d',
+              minWidth: 0,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {holiday.name}
+          </span>
         )}
       </div>
 
@@ -1106,31 +1116,9 @@ function Legend({
           onToggle={() => onToggleGroup(key)}
         />
       ))}
-      <div
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 8,
-          padding: '5px 14px 5px 8px',
-          borderRadius: 20,
-          border: '1px solid #f0f0f0',
-        }}
-      >
-        <span
-          style={{
-            width: 24,
-            height: 24,
-            borderRadius: '50%',
-            background: '#f6ffed',
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <FlagFilled style={{ fontSize: 11, color: '#52c41a' }} />
-        </span>
-        <Text style={{ fontSize: 13 }}>Public Holiday</Text>
-      </div>
+      {/* Feedback 6 — no Public Holiday chip any more. It keyed a green flag and
+          a green cell wash, neither of which the calendar draws now: a holiday
+          names itself in the day cell instead. */}
     </div>
   )
 }
