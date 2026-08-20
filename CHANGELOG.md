@@ -14,6 +14,36 @@ minor).
 
 ## [Unreleased]
 
+### Changed — 19 Aug review: pattern editor and drawer legibility
+
+**Pattern editor**
+
+- **Day headers read Mon–Sun** instead of `M T W T F S S`. The single letters
+  were ambiguous (two Ts, two Ss) and the column had room for the full name.
+- **Names stack one per line** under each cell. As a comma-separated run they
+  wrapped into a four-line block that broke mid-name, so you could not tell
+  where one ended and the next began. Cells widened from 112px to 124px and the
+  text stepped darker (`#595959`).
+- **Effective Date is editable until it has passed.** MOVE-3610 specifies it as
+  view-only, derived from the previous rule; the review asks for it to stay
+  editable while it is still in the future, and to lock only once the date is
+  past — at which point the roster it produced is history. A Current rule stays
+  locked wholesale per MOVE-3611. Past dates cannot be picked, and the End Date
+  picker re-validates against the new Effective Date.
+
+**Edit Roster drawer**
+
+- **Standby now comes before Extend**, in the header and every layout. Standby
+  is the coverage decision; Extend is a detail on top of a shift already
+  assigned.
+- **The table carries real contrast.** It read as one pale wash: header
+  `#fafafa` on light-grey text, `#f5f5f5` row rules, and AntD's default
+  `#d9d9d9` control border left unticked checkboxes almost invisible. Header is
+  now `#f0f0f0` with `#434343` bold text, borders `#d9d9d9`/`#e8e8e8`, sub-text
+  `#595959`, and a scoped `ConfigProvider` darkens the checkbox border to
+  `#8c8c8c` for this drawer only. The shift picker's unselected tiles darkened
+  to match.
+
 ### Fixed — highlight copy was inverted (feedback 5)
 
 The spec table settles the open item raised when this wording first landed:

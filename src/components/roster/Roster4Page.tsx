@@ -24,7 +24,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import dayjs, { type Dayjs } from 'dayjs'
-import { Button, Checkbox, Drawer, Empty, Popover, Space, Tag, Tooltip, Typography, message } from 'antd'
+import { Button, Checkbox, ConfigProvider, Drawer, Empty, Popover, Space, Tag, Tooltip, Typography, message } from 'antd'
 import {
   LeftOutlined,
   RightOutlined,
@@ -749,7 +749,7 @@ function EditDayDrawer({
 
   const detail = (text: string) => (
     <div style={{ marginTop: 2 }}>
-      <Text type="secondary" style={{ fontSize: 11 }}>{text}</Text>
+      <Text style={{ fontSize: 11, color: '#595959' }}>{text}</Text>
     </div>
   )
 
@@ -874,7 +874,7 @@ function EditDayDrawer({
 
   // The Shift column is sized for its widest option set (AM / PM / NA), so
   // the buttons never have to wrap.
-  const TABLE_COLUMNS = '1.7fr 180px 0.9fr 1.1fr 80px'
+  const TABLE_COLUMNS = '1.7fr 180px 1.1fr 0.9fr 80px'
 
   const tableHeader = (
     <div
@@ -883,16 +883,18 @@ function EditDayDrawer({
         gridTemplateColumns: TABLE_COLUMNS,
         gap: 10,
         padding: '8px 10px',
-        background: '#fafafa',
-        border: '1px solid #f0f0f0',
+        background: '#f0f0f0',
+        border: '1px solid #d9d9d9',
         borderRadius: '6px 6px 0 0',
         position: 'sticky',
         top: 0,
         zIndex: 2,
       }}
     >
-      {['Employee', 'Shift', 'Extend', 'Standby', 'Absence'].map((h) => (
-        <Text key={h} type="secondary" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.4 }}>
+      {/* Feedback 5 — the table read as one pale wash. Header, borders and
+          secondary text all step darker so the structure is legible. */}
+      {['Employee', 'Shift', 'Standby', 'Extend', 'Absence'].map((h) => (
+        <Text key={h} style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.4, color: '#434343', fontWeight: 600 }}>
           {h}
         </Text>
       ))}
@@ -908,7 +910,7 @@ function EditDayDrawer({
         gap: 10,
         alignItems: 'start',
         padding: '10px',
-        borderBottom: '1px solid #f5f5f5',
+        borderBottom: '1px solid #e8e8e8',
       }}
     >
       {nameCell(row)}
@@ -916,8 +918,10 @@ function EditDayDrawer({
       {/* On Leave rows stay view-only, but say so through their own disabled
           fields rather than a highlighted row — the highlight pulled the eye to
           the one row that cannot be edited. */}
-      {extendCell(row, false)}
+      {/* Feedback 4 — Standby leads: it is the coverage decision, Extend is a
+          detail on top of a shift already assigned. */}
       {standbyCell(row, false)}
+      {extendCell(row, false)}
       {absenceCell(row, false)}
     </div>
   )
@@ -930,8 +934,8 @@ function EditDayDrawer({
           and 6), rather than trailing off in a shared block. On Leave rows keep
           the fields and disable them, matching the table layouts. */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginTop: 8 }}>
-        {extendCell(row, true)}
         {standbyCell(row, true)}
+        {extendCell(row, true)}
         <div>{absenceCell(row, true)}</div>
       </div>
     </div>
@@ -1028,20 +1032,24 @@ function EditDayDrawer({
 
       <Text strong style={{ fontSize: 13 }}>{rows.length} Employees</Text>
 
+      {/* Feedback 5 — AntD's default control border (#d9d9d9) left the unticked
+          checkboxes almost invisible against a white row. Darkened for this
+          drawer only, so the rest of the app keeps the stock look. */}
+      <ConfigProvider theme={{ token: { colorBorder: '#8c8c8c' } }}>
       {rows.length === 0 ? (
         <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No employees to roster on this date." />
       ) : layout === 'stacked' ? (
         rows.map((r) => stackedRow(rowModel(r)))
       ) : layout === 'table' ? (
-        <div style={{ marginTop: 8, border: '1px solid #f0f0f0', borderRadius: 6 }}>
+        <div style={{ marginTop: 8, border: '1px solid #d9d9d9', borderRadius: 6 }}>
           {tableHeader}
           {rows.map((r) => tableRow(rowModel(r)))}
         </div>
       ) : (
         <div style={{ marginTop: 8 }}>
           {groupedSections().map((section) => (
-            <div key={section.key} style={{ marginBottom: 16, border: '1px solid #f0f0f0', borderRadius: 6 }}>
-              <div style={{ padding: '8px 10px', background: '#fafafa', borderBottom: '1px solid #f0f0f0' }}>
+            <div key={section.key} style={{ marginBottom: 16, border: '1px solid #d9d9d9', borderRadius: 6 }}>
+              <div style={{ padding: '8px 10px', background: '#f0f0f0', borderBottom: '1px solid #d9d9d9' }}>
                 <Text strong style={{ fontSize: 12 }}>
                   {section.label} <Text type="secondary" style={{ fontSize: 12 }}>({section.rows.length})</Text>
                 </Text>
@@ -1051,6 +1059,7 @@ function EditDayDrawer({
           ))}
         </div>
       )}
+      </ConfigProvider>
 
       <ExtendShiftModal
         open={!!extendFor}

@@ -59,9 +59,10 @@ export default function ShiftSelector({
                     // Solid fill on the selected option, so it stands up next to
                     // the Standby checkbox instead of disappearing behind it.
                     fontWeight: selected ? 600 : 500,
-                    border: `1px solid ${selected ? '#1677ff' : '#d9d9d9'}`,
+                    // Feedback 5 — the unselected tiles were washing out.
+                    border: `1px solid ${selected ? '#1677ff' : '#bfbfbf'}`,
                     background: selected ? '#1677ff' : '#fff',
-                    color: selected ? '#fff' : '#595959',
+                    color: selected ? '#fff' : '#434343',
                   }
                 : {
                     // The original AntD Segmented look.

@@ -23,10 +23,10 @@ import { ISO, defaultNextEffectiveDate, findOverlappingRule } from './rosterStat
 
 const { Text } = Typography
 
-const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
+const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 const WEEKEND_INDEXES = [5, 6] // Saturday, Sunday within a Monday-first week
 
-const GRID_COLUMNS = '92px repeat(7, minmax(112px, 1fr))'
+const GRID_COLUMNS = '92px repeat(7, minmax(124px, 1fr))'
 
 function cloneWeek(week: RuleWeek): RuleWeek {
   return {
@@ -121,6 +121,13 @@ export default function RosterRuleModal({
     )
   }
 
+  // A Current rule stays locked wholesale (MOVE-3611); otherwise the Effective
+  // Date is only frozen once it is in the past.
+  const effectiveDateLocked = readOnly || effectiveDate.isBefore(today, 'day')
+  const effectiveDateError = effectiveDate.isBefore(today, 'day') && !effectiveDateLocked
+    ? 'Effective Date cannot be in the past'
+    : null
+
   const endDateError = (() => {
     if (!endDate) return 'End Date is required'
     if (endDate.isBefore(effectiveDate, 'day')) return 'End Date cannot be earlier than the Effective Date'
@@ -137,7 +144,7 @@ export default function RosterRuleModal({
   const handleSave = () => {
     setShowErrors(true)
 
-    if (endDateError) {
+    if (effectiveDateError || endDateError) {
       message.error('Unable to save. Please review the highlighted fields.')
       return
     }
@@ -225,9 +232,27 @@ export default function RosterRuleModal({
           style={{ width: '100%' }}
           optionFilterProp="label"
         />
+        {/* Feedback 2 — one name per line. A comma-separated run wrapped into a
+            four-line block where names broke mid-phrase, so you could not tell
+            where one ended and the next began. */}
         {names.length > 0 && (
-          <div style={{ marginTop: 2 }}>
-            <Text type="secondary" style={{ fontSize: 10, lineHeight: 1.3 }}>{names.join(', ')}</Text>
+          <div style={{ marginTop: 4, display: 'flex', flexDirection: 'column', gap: 1 }}>
+            {names.map((name) => (
+              <span
+                key={name}
+                title={name}
+                style={{
+                  fontSize: 11,
+                  lineHeight: '15px',
+                  color: '#595959',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {name}
+              </span>
+            ))}
           </div>
         )}
       </div>
@@ -259,9 +284,19 @@ export default function RosterRuleModal({
       )}
 
       <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 20 }}>
-        <Field label="Effective Date" required>
-          {/* View-only per MOVE-3610 — derived from the previous rule. */}
-          <DatePicker value={effectiveDate} disabled style={{ width: 180 }} format="D MMM YYYY" />
+        <Field label="Effective Date" required error={showErrors ? effectiveDateError : null}>
+          {/* MOVE-3610 derives this from the previous rule, but the 19 Aug review
+              asks for it to stay editable until the date has actually passed —
+              only then is it locked, since the roster it produced is history. */}
+          <DatePicker
+            value={effectiveDate}
+            onChange={(d) => d && setEffectiveDate(d)}
+            disabled={effectiveDateLocked}
+            style={{ width: 180 }}
+            format="D MMM YYYY"
+            status={showErrors && effectiveDateError ? 'error' : undefined}
+            disabledDate={(d) => d.isBefore(today, 'day')}
+          />
         </Field>
         <Field label="End Date" required error={showErrors ? endDateError : null}>
           <DatePicker
@@ -271,6 +306,7 @@ export default function RosterRuleModal({
             format="D MMM YYYY"
             status={showErrors && endDateError ? 'error' : undefined}
             disabledDate={(d) => d.isBefore(effectiveDate, 'day') || d.isBefore(today, 'day')}
+            key={effectiveDate.format(ISO)}
           />
         </Field>
         <Field label="Repeat Every" required>
@@ -284,7 +320,7 @@ export default function RosterRuleModal({
       {/* The grid is wider than the modal on small screens, so it scrolls in its
           own container rather than making the whole page scroll sideways. */}
       <div style={{ overflowX: 'auto' }}>
-        <div style={{ minWidth: 900 }}>
+        <div style={{ minWidth: 960 }}>
           {weeks.map((_, weekIndex) => (
             <div key={weekIndex} style={{ border: '1px solid #f0f0f0', borderRadius: 8, padding: 12, marginBottom: 12 }}>
               <Text strong style={{ fontSize: 13 }}>Week {weekIndex + 1}</Text>
