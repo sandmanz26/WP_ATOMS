@@ -14,6 +14,43 @@ minor).
 
 ## [Unreleased]
 
+### Fixed — highlight copy was inverted (feedback 5)
+
+The spec table settles the open item raised when this wording first landed:
+
+| Copy | Counts |
+|---|---|
+| X unassigned **standby** in next 60 days | days where no employee is assigned standby duty |
+| X unassigned **shift** in next 60 days | days where no employee is assigned an AM or PM shift |
+
+The two labels had been applied in the order they were written in an earlier
+review, which put "unassigned shift" on the standby count and "unassigned
+roster" on the AM/PM count — backwards for both, and flagged as an open item at
+the time rather than silently swapped. They now read `0 unassigned standby` and
+`10 unassigned shift`, and "roster" is gone from the copy entirely.
+
+### Changed — the day being edited keeps its colour (Xing Yun)
+
+Edit mode greys every group bar, which made the mode obvious but also flattened
+the day you are actually working on. The day open in the drawer now keeps the
+full palette while the rest of the month stays grey, so the selection reads at a
+glance. Verified on 6 Aug: before selecting, all four bars are `#f0f0f0`; once
+selected they return to Standby blue, AM purple, PM periwinkle and On Leave
+amber, while 5 Aug stays grey.
+
+### Changed — status tag holds one position (feedback 3)
+
+The On Leave / Absence tag sat inline after the name, so a long name pushed it
+onto a second line and made that row taller than its neighbours. The tag is now
+pinned to the right of the Employee cell and never shrinks; the name takes the
+remaining width and truncates with an ellipsis, keeping the full text in a title
+tooltip. The Employee column also took back the width the checkbox labels gave
+up when those were removed.
+
+Measured with a 57-character name injected into a tagged row: the tag's right
+edge stays at the same x for every row, before and after, and the set of row
+heights is unchanged.
+
 ### Changed — AM and PM are mutually exclusive per day again (feedback 4)
 
 Picking someone for AM used to silently pull them out of that day's PM list.
@@ -568,7 +605,7 @@ Tracked here so they do not get lost between sessions.
 | **MOVE-3660 [Payroll] Standby Calculation** — ticket has no description. | Not implemented |
 | **MOVE-3759 Design - Roster** — placeholder with no description, attachments, links or comments. | Nothing to build from |
 | **"No Roster" vs "Not Assigned"** — resolved by the 18 Aug review: Off Day is removed and both states collapse into Not Assigned. | Resolved |
-| **Highlight pill wording is inverted** — the 14 Aug review asked for "x unassigned shift" and "x unassigned roster", in that order. Positionally that puts "unassigned shift" on the *standby-coverage* count and "unassigned roster" on the *AM/PM shift* count, which is backwards for both. Shipped as written; a one-line swap fixes it either way. | Awaiting PM confirmation |
+| **Highlight pill wording is inverted** | Resolved 19 Aug — the spec table confirmed the swap; now "unassigned standby" and "unassigned shift". |
 | **MOVE-3608 internal inconsistency** — the AC still says "3 leading and trailing read-only dates", "scrolled into view" and "employee ordering follows the defined employee status sequence", all leftovers from the matrix version the body no longer describes. Implementation follows the body. | Worth raising with the PM |
 
 ---

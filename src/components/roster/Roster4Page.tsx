@@ -208,21 +208,20 @@ export default function Roster4Page() {
       {/* Highlights sit under the title as stat cards, on their own row above
           the calendar. They are still clickable filters. */}
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
-        {/* Wording set by the review, in the order the two were listed there.
-            Note that this reads the standby check as "unassigned shift" and the
-            AM/PM check as "unassigned roster", which is the reverse of how the
-            two counts are computed; raised as an open item rather than silently
-            swapped. */}
+        {/* Feedback 5 — copy corrected against the spec table: "unassigned
+            standby" counts days with nobody on standby, "unassigned shift"
+            counts days with no AM or PM assigned. The earlier wording had these
+            inverted, which is the open item this closes. */}
         <HighlightCard
           count={highlights.noStandbyDays}
-          label="unassigned shift"
+          label="unassigned standby"
           windowDays={highlights.windowDays}
           active={highlightFilter === 'noStandby'}
           onClick={() => setHighlightFilter((f) => (f === 'noStandby' ? 'none' : 'noStandby'))}
         />
         <HighlightCard
           count={highlights.noShiftDays}
-          label="unassigned roster"
+          label="unassigned shift"
           windowDays={highlights.windowDays}
           active={highlightFilter === 'noShift'}
           onClick={() => setHighlightFilter((f) => (f === 'noShift' ? 'none' : 'noShift'))}
@@ -489,7 +488,7 @@ function DayCell({
               openBarKey={openBarKey}
               onOpenChange={onBarOpenChange}
               interactive={!editing}
-              editing={editing}
+              greyed={editing && !selected}
               metrics={metrics}
               chip
             />
@@ -505,7 +504,7 @@ function DayCell({
             openBarKey={openBarKey}
             onOpenChange={onBarOpenChange}
             interactive={!editing}
-            editing={editing}
+            greyed={editing && !selected}
             metrics={metrics}
           />
         ))
@@ -521,7 +520,7 @@ function GroupBar({
   openBarKey,
   onOpenChange,
   interactive,
-  editing,
+  greyed,
   metrics,
   chip = false,
 }: {
@@ -531,15 +530,18 @@ function GroupBar({
   openBarKey: string | null
   onOpenChange: (key: string | null) => void
   interactive: boolean
-  editing: boolean
+  /** Edit mode, and this is not the day being edited. */
+  greyed: boolean
   metrics: (typeof CALENDAR_STYLE_METRICS)[CalendarStyle]
   chip?: boolean
 }) {
   // In edit mode every group goes grey, so the calendar itself signals the mode
-  // (MOVE-3658 §2 + 18 Aug feedback). Otherwise: 18 Aug review §6 — an empty
-  // Standby bar is the one zero worth showing, and it gets its own colour so a
-  // day with no standby cover reads as a gap.
-  const style = editing
+  // (MOVE-3658 §2 + 18 Aug feedback) — except the day currently open in the
+  // drawer, which keeps its colours so the one you are working on stands out
+  // from the rest. Otherwise: 18 Aug review §6 — an empty Standby bar is the one
+  // zero worth showing, and it gets its own colour so a day with no standby
+  // cover reads as a gap.
+  const style = greyed
     ? { ...DAY_GROUP_STYLE[group.key], ...EDIT_MODE_GROUP_STYLE }
     : group.key === 'STANDBY' && group.count === 0
       ? { ...DAY_GROUP_STYLE.STANDBY, ...EMPTY_STANDBY_STYLE }
@@ -751,11 +753,20 @@ function EditDayDrawer({
     </div>
   )
 
+  // Feedback 3 — the status tag holds one position: it is pinned to the right of
+  // the Employee cell and never wraps, so the eye finds it in the same place on
+  // every row. A long name truncates with an ellipsis instead of pushing the tag
+  // onto a second line and making the row taller; the full name stays available
+  // as a title tooltip.
   const nameCell = (row: Row) => (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-      {/* Feedback 5 — the Absence state reads next to the name. */}
-      <span style={{ fontSize: 13 }}>{row.employee.name}</span>
-      {row.absent && <Tag color="red" style={{ fontSize: 10, margin: 0 }}>Absence</Tag>}
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+      <span
+        title={row.employee.name}
+        style={{ fontSize: 13, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+      >
+        {row.employee.name}
+      </span>
+      {row.absent && <Tag color="red" style={{ fontSize: 10, margin: 0, flexShrink: 0 }}>Absence</Tag>}
       {/* The tag carries the calendar's On Leave swatch, so the same status
           reads the same colour in the grid and in the drawer. */}
       {row.onLeaveRow && (
@@ -766,6 +777,7 @@ function EditDayDrawer({
             background: DAY_GROUP_STYLE.ON_LEAVE.bg,
             color: DAY_GROUP_STYLE.ON_LEAVE.fg,
             border: 'none',
+            flexShrink: 0,
           }}
         >
           On Leave
@@ -862,7 +874,7 @@ function EditDayDrawer({
 
   // The Shift column is sized for its widest option set (AM / PM / NA), so
   // the buttons never have to wrap.
-  const TABLE_COLUMNS = '1.25fr 180px 1fr 1.15fr 96px'
+  const TABLE_COLUMNS = '1.7fr 180px 0.9fr 1.1fr 80px'
 
   const tableHeader = (
     <div
