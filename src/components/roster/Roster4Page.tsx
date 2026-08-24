@@ -991,11 +991,15 @@ function EditDayDrawer({
       // The table layouts need the width; the stacked list does not.
       width={isTable ? 760 : 480}
       title={`Edit Roster — ${date.format('D MMM YYYY')}`}
-      footer={
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+      // The drawer's actions sit in the header rather than a footer, matching
+      // the Create Event modal — they stay in view while a long employee list
+      // scrolls, and the Manage Shift Patterns drawer already puts its action
+      // there.
+      extra={
+        <Space>
           <Button onClick={onClose}>Cancel</Button>
           <Button type="primary" disabled={!dirty} onClick={handleSave}>Save</Button>
-        </div>
+        </Space>
       }
     >
       {dayHoliday && (

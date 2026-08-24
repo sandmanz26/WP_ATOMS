@@ -14,6 +14,19 @@ minor).
 
 ## [Unreleased]
 
+### Changed — Edit Roster drawer actions moved to the header
+
+Cancel and Save were in a footer at the bottom of the drawer; they now sit at
+the top right of the header, matching the Create Event pattern. This also puts
+them beside the close button and keeps them in view while a long employee list
+scrolls. The Manage Shift Patterns drawer already carried its action there, so
+the two now agree.
+
+Save still stays disabled until something is actually staged.
+
+Scoped to drawers, as asked — the Shift Patterns / Extend / Standby dialogs are
+AntD Modals and keep their footers.
+
 ### Changed — 22 Aug review
 
 **Pattern editor: names live in the control (item 1)**
