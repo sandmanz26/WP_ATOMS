@@ -343,16 +343,23 @@ export function computeDailyCoverage(employees: RosterEmployee[], date: Dayjs, c
 
 export type DayGroupKey = 'STANDBY' | 'AM' | 'PM' | 'NOT_ASSIGNED' | 'ON_LEAVE'
 
-/** One employee inside a day's group (MOVE-3659 + the 18 Aug tooltip rules). */
+/** One employee inside a day's group (MOVE-3659 §2). */
 export interface DayGroupMember {
   employee: RosterEmployee
   /** Standby reason. Only carried by the STANDBY group. */
   reason?: string
   /** Listed but not counted — the name still shows, tagged Absent. */
   absent?: boolean
-  /** Counted, and tagged Extended in the card. */
+  /** Counted, and tagged Extended in the card alongside its reason. */
   extended?: boolean
+  extendHours?: number
+  extendReason?: string
+  /** MOVE-3659 §2 — suspended staff stay in the list, tagged. */
+  suspended?: boolean
 }
+
+/** MOVE-3659 §2 — the reason shown for standby that came from the rule. */
+export const STANDBY_FROM_RULE_REASON = 'Assigned in pattern'
 
 export interface DayGroup {
   key: DayGroupKey
@@ -437,15 +444,29 @@ export function computeDayGroups(employees: RosterEmployee[], date: Dayjs, ctx: 
       continue // leave is exclusive, and cannot carry standby
     }
 
-    // Extension is a tag on the shift group, not a reason — the review keeps
-    // reasons to the Standby card only.
-    const shiftMember: DayGroupMember = { employee, absent: r.absent, extended: r.extend }
-    if (r.status === 'AM' || r.status === 'AM_WEEKEND') push('AM', shiftMember)
-    else if (r.status === 'PM') push('PM', shiftMember)
-    else push('NOT_ASSIGNED', shiftMember) // NA and PUBLIC_HOLIDAY both read as Not Assigned
+    // MOVE-3659 §2 — the extension tag travels with its reason, and suspended
+    // staff stay listed. (An earlier review reading kept reasons to the Standby
+    // card alone; the 21 Aug ticket rewrite asks for them here too.)
+    const member: DayGroupMember = {
+      employee,
+      absent: r.absent,
+      extended: r.extend,
+      extendHours: r.extendHours,
+      extendReason: r.extendReason,
+      suspended: employee.status === 'Suspended',
+    }
+    if (r.status === 'AM' || r.status === 'AM_WEEKEND') push('AM', member)
+    else if (r.status === 'PM') push('PM', member)
+    else push('NOT_ASSIGNED', member) // NA and PUBLIC_HOLIDAY both read as Not Assigned
 
     // Additive, on top of whichever shift group the employee just landed in.
-    if (r.standby) push('STANDBY', { employee, reason: r.standbyReason, absent: r.absent, extended: r.extend })
+    // Standby always carries a reason: the rule's own, or what the user typed.
+    if (r.standby) {
+      push('STANDBY', {
+        ...member,
+        reason: r.standbyReason ?? (r.standbyFromRule ? STANDBY_FROM_RULE_REASON : undefined),
+      })
+    }
   }
 
   const groups = DAY_GROUP_ORDER.map((key) => {

@@ -25,8 +25,10 @@ const { Text } = Typography
 
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 const WEEKEND_INDEXES = [5, 6] // Saturday, Sunday within a Monday-first week
+/** One tag per line in a day cell, so this is the three-line cap. */
+const MAX_VISIBLE_TAGS = 3
 
-const GRID_COLUMNS = '92px repeat(7, minmax(124px, 1fr))'
+const GRID_COLUMNS = '92px repeat(7, minmax(148px, 1fr))'
 
 function cloneWeek(week: RuleWeek): RuleWeek {
   return {
@@ -187,24 +189,33 @@ export default function RosterRuleModal({
     const taken = other ? weeks[weekIndex][other][dayIndex] : []
     const here = weeks[weekIndex][row][dayIndex]
 
-    const options = assignableEmployees.map((e) => {
-      const clash = taken.includes(e.id) && !here.includes(e.id)
-      return {
-        value: e.id,
-        label: clash ? `${e.name} — on ${other!.toUpperCase()}` : e.name,
-        disabled: clash,
-      }
-    })
+    const selected: { value: string; label: string; disabled?: boolean }[] = []
+    const available: { value: string; label: string; disabled?: boolean }[] = []
+    const unavailable: { value: string; label: string; disabled?: boolean }[] = []
+
+    for (const e of assignableEmployees) {
+      if (here.includes(e.id)) selected.push({ value: e.id, label: e.name })
+      else if (taken.includes(e.id)) {
+        unavailable.push({ value: e.id, label: `${e.name} — on ${other!.toUpperCase()}`, disabled: true })
+      } else available.push({ value: e.id, label: e.name })
+    }
 
     // MOVE-3610 offers only Active employees, but a stored pattern can still
-    // name someone who has since been suspended or whose contract ended. They
-    // are listed so the cell shows a name rather than a raw id, and so they can
-    // be taken out — they just cannot be added anywhere new.
+    // name someone since suspended or whose contract ended. They are listed so
+    // the cell shows a name rather than a raw id, and so they can be taken out
+    // — they just cannot be added anywhere new.
     for (const id of here) {
       if (assignableEmployees.some((e) => e.id === id)) continue
-      options.push({ value: id, label: `${nameOf(id)} — inactive`, disabled: false })
+      selected.push({ value: id, label: `${nameOf(id)} — inactive` })
     }
-    return options
+
+    // Feedback — the list is grouped by state so the eye lands on what is
+    // already picked before scanning what is still free.
+    return [
+      { label: `Selected (${selected.length})`, options: selected },
+      { label: 'Available', options: available },
+      { label: `Unavailable (${other ? other.toUpperCase() : ''})`, options: unavailable },
+    ].filter((g) => g.options.length > 0)
   }
 
   const daySelect = (weekIndex: number, row: keyof RuleWeek, dayIndex: number) => {
@@ -212,7 +223,6 @@ export default function RosterRuleModal({
     // disabled rather than silently dropping whatever is put in it.
     const blocked = row === 'pm' && WEEKEND_INDEXES.includes(dayIndex)
     const value = weeks[weekIndex][row][dayIndex]
-    const names = value.map(nameOf).sort((a, b) => a.localeCompare(b))
     return (
       <div>
         <Select
@@ -224,35 +234,17 @@ export default function RosterRuleModal({
           value={value}
           onChange={(ids: string[]) => setSlot(weekIndex, row, dayIndex, ids)}
           options={optionsFor(weekIndex, row, dayIndex)}
-          // A day cell is far too narrow for three name tags, so the control
-          // carries the headcount and the names read underneath it — the way
-          // the design sketch shows them.
-          maxTagCount={0}
-          maxTagPlaceholder={(omitted) => `${omitted.length} staff`}
+          // Feedback — the names live in the control as removable tags rather
+          // than in a paragraph underneath. One tag fills a cell line, so three
+          // is the height cap; the rest collapse into "+n".
+          maxTagCount={MAX_VISIBLE_TAGS}
+          maxTagPlaceholder={(omitted) => `+${omitted.length}`}
           style={{ width: '100%' }}
           optionFilterProp="label"
         />
-        {/* Feedback 2 — one name per line. A comma-separated run wrapped into a
-            four-line block where names broke mid-phrase, so you could not tell
-            where one ended and the next began. */}
-        {names.length > 0 && (
-          <div style={{ marginTop: 4, display: 'flex', flexDirection: 'column', gap: 1 }}>
-            {names.map((name) => (
-              <span
-                key={name}
-                title={name}
-                style={{
-                  fontSize: 11,
-                  lineHeight: '15px',
-                  color: '#595959',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {name}
-              </span>
-            ))}
+        {value.length > 0 && (
+          <div style={{ marginTop: 2 }}>
+            <Text style={{ fontSize: 10, color: '#8c8c8c' }}>{value.length} selected</Text>
           </div>
         )}
       </div>
@@ -272,7 +264,7 @@ export default function RosterRuleModal({
       onCancel={onCancel}
       onOk={handleSave}
       okText={isEdit ? 'Save' : 'Create'}
-      width={1180}
+      width={1320}
       styles={{ body: { maxHeight: '68vh', overflowY: 'auto', paddingRight: 8 } }}
     >
       {readOnly && (
@@ -320,7 +312,7 @@ export default function RosterRuleModal({
       {/* The grid is wider than the modal on small screens, so it scrolls in its
           own container rather than making the whole page scroll sideways. */}
       <div style={{ overflowX: 'auto' }}>
-        <div style={{ minWidth: 960 }}>
+        <div style={{ minWidth: 1184 }}>
           {weeks.map((_, weekIndex) => (
             <div key={weekIndex} style={{ border: '1px solid #f0f0f0', borderRadius: 8, padding: 12, marginBottom: 12 }}>
               <Text strong style={{ fontSize: 13 }}>Week {weekIndex + 1}</Text>

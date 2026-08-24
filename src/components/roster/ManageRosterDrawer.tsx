@@ -10,7 +10,7 @@
 
 import { Fragment, useMemo, useState } from 'react'
 import dayjs from 'dayjs'
-import { Button, Drawer, Empty, Modal, Tabs, Typography, message } from 'antd'
+import { Badge, Button, Drawer, Empty, Modal, Tabs, Typography, message } from 'antd'
 import { DeleteOutlined, EditOutlined, PlusOutlined, ExclamationCircleFilled } from '@ant-design/icons'
 import {
   OPERATIONS_EMPLOYEES,
@@ -91,7 +91,7 @@ function PlainCounts({ rule }: { rule: RosterRule }) {
       {rule.weeks.flatMap((week, weekIndex) =>
         (['am', 'pm'] as const).map((row) => (
           <Fragment key={`${row}-${weekIndex}`}>
-            <Text style={{ fontSize: 12 }}>{`Week ${weekIndex + 1} - ${row.toUpperCase()}`}</Text>
+            <Text strong style={{ fontSize: 12 }}>{`Week ${weekIndex + 1} - ${row.toUpperCase()}`}</Text>
             {week[row].map((day, dayIndex) => (
               <Text
                 key={dayIndex}
@@ -116,7 +116,8 @@ function TableCounts({ rule }: { rule: RosterRule }) {
     textAlign: 'center',
   }
   const headCell: React.CSSProperties = { ...cell, background: '#fafafa', fontWeight: 600 }
-  const rowLabelCell: React.CSSProperties = { ...cell, textAlign: 'left', whiteSpace: 'nowrap' }
+  // Feedback — both axes of the table are labels, so both read bold.
+  const rowLabelCell: React.CSSProperties = { ...cell, textAlign: 'left', whiteSpace: 'nowrap', fontWeight: 600 }
 
   return (
     <div style={{ overflowX: 'auto', marginTop: 14 }}>
@@ -210,6 +211,23 @@ function RuleCard({
         ))}
       </div>
     </div>
+  )
+}
+
+/**
+ * Tab label with the count as a filled circle rather than "(n)", matching the
+ * badge the routes module already uses.
+ */
+function tabLabel(text: string, count: number) {
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+      {text}
+      <Badge
+        count={count}
+        showZero
+        style={{ backgroundColor: count ? '#1677ff' : '#bfbfbf', fontSize: 11, minWidth: 18, height: 18, lineHeight: '18px', padding: '0 5px' }}
+      />
+    </span>
   )
 }
 
@@ -314,8 +332,8 @@ export default function ManageRosterDrawer({
           activeKey={tab}
           onChange={(k) => setTab(k as 'Current' | 'Upcoming')}
           items={[
-            { key: 'Current', label: `Current (${byBucket.Current.length})`, children: renderList('Current') },
-            { key: 'Upcoming', label: `Upcoming (${byBucket.Upcoming.length})`, children: renderList('Upcoming') },
+            { key: 'Current', label: tabLabel('Current', byBucket.Current.length), children: renderList('Current') },
+            { key: 'Upcoming', label: tabLabel('Upcoming', byBucket.Upcoming.length), children: renderList('Upcoming') },
           ]}
         />
       </Drawer>

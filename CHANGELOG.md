@@ -14,6 +14,56 @@ minor).
 
 ## [Unreleased]
 
+### Changed — 22 Aug review
+
+**Pattern editor: names live in the control (item 1)**
+
+The paragraph of names under each cell is gone. Staff now appear as removable
+tags inside the dropdown itself, following the Fleet Owner control the review
+pointed at:
+
+- **Three tags visible, then `+n`.** One tag fills a cell line, so three is the
+  three-line cap the review asked for. A `7 selected` subtext keeps the total
+  readable at a glance.
+- **The option list is grouped by state** — `Selected (n)`, `Available`,
+  `Unavailable (AM)` — so the eye lands on what is already picked before
+  scanning what is free. Empty groups are omitted.
+- Cells widened 124px → 148px and the modal 1180 → 1320 to fit all seven day
+  columns without clipping Sunday.
+
+**Shift pattern card (items 3, 4)**
+
+- Both axes of the headcount table read **bold** — the week/shift row labels as
+  well as the day headers. Both are labels; only one was.
+- Tab counts became **circular badges** (`Current ●1`) instead of `(1)`,
+  matching the badge the routes module already uses.
+
+### Fixed — details card was missing the extension reason (item 5, MOVE-3659)
+
+The card showed an `Extended` tag with nothing to explain it. MOVE-3659 was
+rewritten on 21 Aug (and renamed *Shift Details Card*); its table asks for the
+tag **plus the reason for extension**, so the hours and reason now read under
+the tag: `4h · Covering late run`.
+
+This reverses the 18 Aug reading that confined reasons to the Standby card.
+Checking the ticket, as asked, also turned up three other gaps we had not met:
+
+- **Standby always names its reason.** MOVE-3659 wants one beside every standby
+  name — *"'Assigned in pattern', or whatever user manually input"*. Standby
+  that came from the rule showed nothing; it now reads `Assigned in pattern`.
+- **Suspended staff carry a tag.** The ticket says the list includes all
+  assigned employees *"regardless of suspension, absence, or leave"*, each
+  tagged. Absent and Extended were tagged; Suspended was not.
+- **Empty standby copy** matches the ticket's `No employee assigned`.
+
+The ticket also confirms in writing that the bar count and the card list need
+not match — which is what the absent-but-listed rule produces.
+
+**Not done, deliberately:** the ticket's `on leave` tag inside shift groups is
+bracketed `[Implement after leave module]` and says to assume a zero leave count
+for now. Adding it would also contradict MOVE-3608, where On Leave overrides
+every other status and is its own exclusive group. Left alone and raised here.
+
 ### Changed — public holidays name themselves in the cell (feedback 6)
 
 The flag icon is gone and so is the green cell wash. A holiday now prints its

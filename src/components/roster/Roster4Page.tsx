@@ -621,23 +621,33 @@ function GroupBar({
       content={
         <div style={{ minWidth: 190, maxWidth: 280 }}>
           {group.members.length === 0 ? (
-            <Text type="secondary" style={{ fontSize: 12 }}>Nobody is on standby this day.</Text>
+            <Text type="secondary" style={{ fontSize: 12 }}>No employee assigned</Text>
           ) : (
-            group.members.map(({ employee, reason, absent, extended }) => (
-              <div key={employee.id} style={{ padding: '6px 0', borderBottom: '1px solid #f5f5f5', fontSize: 12 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                  <span>{employee.name}</span>
-                  {/* 18 Aug review §4 — absent staff are listed but not counted;
-                      extended staff are counted and flagged. */}
-                  {absent && <Tag color="red" style={{ fontSize: 10, margin: 0 }}>Absent</Tag>}
-                  {extended && <Tag color="blue" style={{ fontSize: 10, margin: 0 }}>Extended</Tag>}
+            group.members.map((m) => {
+              // MOVE-3659 §2 — the extension tag carries its hours and reason.
+              const extendDetail = [m.extendHours ? `${m.extendHours}h` : null, m.extendReason]
+                .filter(Boolean)
+                .join(' · ')
+              return (
+                <div key={m.employee.id} style={{ padding: '6px 0', borderBottom: '1px solid #f0f0f0', fontSize: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    <span>{m.employee.name}</span>
+                    {/* Everyone assigned stays listed regardless of suspension or
+                        absence (MOVE-3659 §2); the tags say which is which. */}
+                    {m.suspended && <Tag color="orange" style={{ fontSize: 10, margin: 0 }}>Suspended</Tag>}
+                    {m.absent && <Tag color="red" style={{ fontSize: 10, margin: 0 }}>Absent</Tag>}
+                    {m.extended && <Tag color="blue" style={{ fontSize: 10, margin: 0 }}>Extended</Tag>}
+                  </div>
+                  {m.extended && extendDetail && (
+                    <div style={{ fontSize: 11, color: '#595959', whiteSpace: 'normal', marginTop: 2 }}>{extendDetail}</div>
+                  )}
+                  {/* Standby always names why — the rule, or what the user typed. */}
+                  {m.reason && (
+                    <div style={{ fontSize: 11, color: '#595959', whiteSpace: 'normal', marginTop: 2 }}>{m.reason}</div>
+                  )}
                 </div>
-                {/* Reasons belong to the Standby card only (18 Aug review §4). */}
-                {reason && (
-                  <div style={{ fontSize: 11, color: '#8c8c8c', whiteSpace: 'normal', marginTop: 2 }}>{reason}</div>
-                )}
-              </div>
-            ))
+              )
+            })
           )}
         </div>
       }
