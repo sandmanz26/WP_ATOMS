@@ -37,6 +37,8 @@ export interface DailyCellResult {
   extendReason?: string
   /** MOVE-3769 §3 — marked absent: shift is kept but locked, and not counted. */
   absent: boolean
+  /** MOVE-3769 §2.1 — suspended on this date: row is locked, and not counted. */
+  suspended: boolean
   holidayName?: string
   leave?: LeaveRecord
   /** True when a manual override produced this cell's shift. */
@@ -88,6 +90,20 @@ export function isEmployeeVisibleInMonth(employee: RosterEmployee, monthStart: D
   const startsBeforeMonthEnds = employee.contractStartDate <= monthEnd.format(ISO)
   const endsAfterMonthStarts = !employee.contractEndDate || employee.contractEndDate >= monthStart.format(ISO)
   return startsBeforeMonthEnds && endsAfterMonthStarts
+}
+
+/**
+ * MOVE-3608 / MOVE-3769 — is this employee suspended on this date?
+ *
+ * Suspension is a period, not a flag: the ticket's example has someone
+ * suspended 10–20 Aug who counts again on the 21st. Everything that needs to
+ * know — the drawer, the calendar counts and the details card — goes through
+ * here so the three cannot disagree.
+ */
+export function isSuspendedOn(employee: RosterEmployee, dateStr: string): boolean {
+  return (employee.suspensions ?? []).some(
+    (s) => s.startDate <= dateStr && (!s.endDate || s.endDate >= dateStr)
+  )
 }
 
 export function isUnderContract(employee: RosterEmployee, dateStr: string): boolean {
@@ -204,7 +220,14 @@ export function findApprovedLeave(leaves: LeaveRecord[], employeeId: string, dat
 
 export function resolveDailyStatus(employee: RosterEmployee, date: Dayjs, ctx: RosterContext): DailyCellResult {
   const dateStr = date.format(ISO)
-  const empty = { standby: false, standbyFromRule: false, extend: false, absent: false, edited: false }
+  const empty = {
+    standby: false,
+    standbyFromRule: false,
+    extend: false,
+    absent: false,
+    suspended: false,
+    edited: false,
+  }
 
   // Priority 2 — outside the employee's contract range.
   if (!isUnderContract(employee, dateStr)) return { ...empty, status: 'DASH' }
@@ -222,6 +245,7 @@ export function resolveDailyStatus(employee: RosterEmployee, date: Dayjs, ctx: R
     extendHours: override?.extendHours,
     extendReason: override?.extendReason,
     absent: override?.absence ?? false,
+    suspended: isSuspendedOn(employee, dateStr),
     edited: override?.shift !== undefined,
   }
 
@@ -313,7 +337,9 @@ export function computeDailyCoverage(employees: RosterEmployee[], date: Dayjs, c
   const coverage: DailyCoverage = { am: 0, pm: 0, leave: 0, na: 0, standby: 0 }
   for (const employee of employees) {
     const r = resolveDailyStatus(employee, date, ctx)
-    if (r.absent) continue // MOVE-3608 §2.2 — absent employees are not counted
+    // MOVE-3608 — leave, suspension and absence all remove an employee from the
+    // day's counts even when the pattern still assigns them.
+    if (r.absent || r.suspended) continue
     if (r.standby) coverage.standby++
     switch (r.status) {
       case 'AM':
@@ -453,7 +479,7 @@ export function computeDayGroups(employees: RosterEmployee[], date: Dayjs, ctx: 
       extended: r.extend,
       extendHours: r.extendHours,
       extendReason: r.extendReason,
-      suspended: employee.status === 'Suspended',
+      suspended: r.suspended,
     }
     if (r.status === 'AM' || r.status === 'AM_WEEKEND') push('AM', member)
     else if (r.status === 'PM') push('PM', member)
@@ -471,7 +497,14 @@ export function computeDayGroups(employees: RosterEmployee[], date: Dayjs, ctx: 
 
   const groups = DAY_GROUP_ORDER.map((key) => {
     const members = [...(buckets.get(key) ?? [])].sort((a, b) => a.employee.name.localeCompare(b.employee.name))
-    return { key, label: DAY_GROUP_STYLE[key].label, count: members.filter((m) => !m.absent).length, members }
+    return {
+      key,
+      label: DAY_GROUP_STYLE[key].label,
+      // MOVE-3608 — absent and suspended staff stay listed but drop out of the
+      // headcount, so `count` and `members.length` deliberately differ.
+      count: members.filter((m) => !m.absent && !m.suspended).length,
+      members,
+    }
   })
 
   // 18 Aug review §6 — a group with nobody in it is dropped from the calendar,
@@ -517,8 +550,9 @@ export function computeRosterHighlights(
 
     for (const employee of onDuty) {
       const r = resolveDailyStatus(employee, date, ctx)
-      // Employees on approved leave are excluded from coverage entirely.
-      if (r.status === 'ON_LEAVE') continue
+      // Anyone who cannot actually cover the day is excluded: on leave,
+      // suspended, or marked absent (MOVE-3608).
+      if (r.status === 'ON_LEAVE' || r.suspended || r.absent) continue
       if (r.standby) hasStandby = true
       if (r.status === 'AM' || r.status === 'AM_WEEKEND' || r.status === 'PM') hasShift = true
       if (hasStandby && hasShift) break

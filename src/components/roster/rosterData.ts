@@ -19,13 +19,29 @@ export type EmployeeStatus =
   | 'Retired'
   | 'Contract Expired'
 
+/** A period an employee is suspended for. `endDate` omitted = open-ended. */
+export interface SuspensionPeriod {
+  startDate: string // ISO date
+  endDate?: string // ISO date
+}
+
 export interface RosterEmployee {
   id: string
   name: string
   department: string
+  /** The employee's HR status label. Not date-aware — see `suspensions`. */
   status: EmployeeStatus
   contractStartDate: string // ISO date
   contractEndDate?: string // ISO date; undefined = open-ended
+  /**
+   * MOVE-3608 and MOVE-3769 both ask whether an employee is suspended *on a
+   * given date* — the ticket's own example runs "suspended from 10-20 Aug", so
+   * a single static status cannot answer it. These periods are the date-aware
+   * source of truth the roster honours; `status` above stays the plain HR label
+   * the older matrix variants group by. In production this would sync from the
+   * HR Employee module (MOVE-1607).
+   */
+  suspensions?: SuspensionPeriod[]
 }
 
 /**
@@ -118,8 +134,24 @@ export const OPERATIONS_EMPLOYEES: RosterEmployee[] = [
   { id: 'emp-3', name: 'Citra Dewi', department: 'Operations', status: 'Active', contractStartDate: '2022-03-10' },
   { id: 'emp-4', name: 'Dedi Kurniawan', department: 'Operations', status: 'Active', contractStartDate: '2021-11-01' },
   { id: 'emp-5', name: 'Eka Wijaya', department: 'Operations', status: 'Active', contractStartDate: '2024-05-20' },
-  { id: 'emp-6', name: 'Farhan Hakim', department: 'Operations', status: 'Suspended', contractStartDate: '2023-02-01' },
-  { id: 'emp-7', name: 'Gita Permata', department: 'Operations', status: 'Suspended', contractStartDate: '2022-08-15' },
+  // Suspended for part of August only — mirrors MOVE-3608's worked example, so
+  // the count visibly drops during the period and recovers after it.
+  {
+    id: 'emp-6',
+    name: 'Farhan Hakim',
+    department: 'Operations',
+    status: 'Suspended',
+    contractStartDate: '2023-02-01',
+    suspensions: [{ startDate: '2026-08-10', endDate: '2026-08-20' }],
+  },
+  {
+    id: 'emp-7',
+    name: 'Gita Permata',
+    department: 'Operations',
+    status: 'Suspended',
+    contractStartDate: '2022-08-15',
+    suspensions: [{ startDate: '2026-08-24', endDate: '2026-08-26' }],
+  },
   { id: 'emp-8', name: 'Hendra Saputra', department: 'Operations', status: 'Future Employee', contractStartDate: '2026-08-20' },
   { id: 'emp-9', name: 'Indah Lestari', department: 'Operations', status: 'Future Employee', contractStartDate: '2026-09-01' },
   { id: 'emp-10', name: 'Joko Prasetyo', department: 'Operations', status: 'Resigned', contractStartDate: '2020-01-01', contractEndDate: '2026-08-10' },

@@ -14,6 +14,44 @@ minor).
 
 ## [Unreleased]
 
+### Added — suspension is now date-aware (MOVE-3608 + MOVE-3769, both updated 25 Aug)
+
+Xing Yun's report was right and both tickets now say so in writing. MOVE-3769:
+*"If employee status = suspended on selected date → display 'suspended' tag
+beside employee's name **+ disable all fields in employee's row**"*. MOVE-3608:
+*"**Even if assigned, don't include** employee in Standby/AM/PM/N.A. count for
+that date if … Employee status = suspended for that date"*.
+
+**The model had to change first.** MOVE-3608's own example runs "suspended from
+10–20 Aug … on 21 Aug the count includes them again", so suspension is a period,
+not a flag — and `RosterEmployee.status` was a single static label that could not
+express it. Applying the rule to the static label would have excluded a
+suspended employee from every day of every month.
+
+- **`RosterEmployee.suspensions`** — a list of `{ startDate, endDate? }` periods,
+  with `isSuspendedOn(employee, date)` in the shared logic as the single answer
+  the drawer, the counts and the details card all consult. `status` stays the
+  plain HR label the older matrix variants group by. In production this would
+  sync from the HR Employee module (MOVE-1607).
+- **Fixtures** carry the ticket's own example: Farhan Hakim suspended 10–20 Aug,
+  Gita Permata 24–26 Aug, so the behaviour changes mid-month and can be checked.
+
+**Behaviour**
+
+- **Drawer** — a suspended row keeps its place in the list, gains a `Suspended`
+  tag beside the name, and every field is locked: shift buttons, Standby, Extend
+  and Absence.
+- **Counts** — suspended staff drop out of Standby / AM / PM / Not Assigned,
+  exactly as absent staff already did. Verified against the ticket's example:
+  20 Aug reads `AM (3)`, 21 Aug reads `AM (4)` — same week, same pattern, the
+  only difference being that Farhan's suspension ended.
+- **Details card** — they stay listed with the tag, because MOVE-3659 wants the
+  list to include everyone assigned *"regardless of suspension, absence, or
+  leave"*. Verified: 11 Aug's PM card lists Farhan Hakim tagged `Suspended`
+  while the bar count excludes him; on 21 Aug the tag is gone.
+- **Highlights** — a suspended employee no longer counts as standby or shift
+  cover for the 60-day badges.
+
 ### Changed — Edit Roster drawer actions moved to the header
 
 Cancel and Save were in a footer at the bottom of the drawer; they now sit at

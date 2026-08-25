@@ -758,6 +758,8 @@ function EditDayDrawer({
     employee,
     result,
     onLeaveRow: result.status === 'ON_LEAVE',
+    /** MOVE-3769 §2.1 — suspended on this date locks the whole row. */
+    suspended: result.suspended,
     absent: !!valueOf(employee.id, 'absence', result.absent),
     standby: !!valueOf(employee.id, 'standby', result.standby),
     standbyReason: valueOf(employee.id, 'standbyReason', result.standbyReason),
@@ -786,6 +788,8 @@ function EditDayDrawer({
       >
         {row.employee.name}
       </span>
+      {/* MOVE-3769 §2.1 — a suspended employee stays listed, tagged, locked. */}
+      {row.suspended && <Tag color="orange" style={{ fontSize: 10, margin: 0, flexShrink: 0 }}>Suspended</Tag>}
       {row.absent && <Tag color="red" style={{ fontSize: 10, margin: 0, flexShrink: 0 }}>Absence</Tag>}
       {/* The tag carries the calendar's On Leave swatch, so the same status
           reads the same colour in the grid and in the drawer. */}
@@ -811,7 +815,7 @@ function EditDayDrawer({
       contrast={shiftContrast}
       // Locked on a public holiday, while the employee is marked absent
       // (MOVE-3769 §3), and for On Leave rows, which are view-only.
-      disabled={!!dayHoliday || row.absent || row.onLeaveRow}
+      disabled={!!dayHoliday || row.absent || row.onLeaveRow || row.suspended}
       value={
         row.onLeaveRow
           ? resolveShiftIgnoringLeave(row.employee, date, ctx)
@@ -831,9 +835,9 @@ function EditDayDrawer({
     <div>
       <Checkbox
         checked={row.extend}
-        // Feedback 5 — Absence locks Extend and Standby too. An On Leave row is
-        // view-only, and says so by disabling its fields the same way.
-        disabled={row.absent || row.onLeaveRow}
+        // Feedback 5 — Absence locks Extend and Standby too. On Leave and
+        // suspended rows are view-only, and say so the same way.
+        disabled={row.absent || row.onLeaveRow || row.suspended}
         onChange={(e) =>
           e.target.checked
             ? onOpenExtend(row.employee, { hours: row.extendHours ?? 0, reason: row.extendReason ?? '' })
@@ -856,7 +860,7 @@ function EditDayDrawer({
       {/* Standby is independent of the shift (MOVE-3608). */}
       <Checkbox
         checked={row.standby}
-        disabled={row.absent || row.onLeaveRow}
+        disabled={row.absent || row.onLeaveRow || row.suspended}
         onChange={(e) =>
           e.target.checked
             ? // Feedback 2 — standby that came from the rule does not ask for a
@@ -882,7 +886,7 @@ function EditDayDrawer({
   const absenceCell = (row: Row, labelled: boolean) => (
     <Checkbox
       checked={row.absent}
-      disabled={row.onLeaveRow}
+      disabled={row.onLeaveRow || row.suspended}
       onChange={(e) => stage(row.employee.id, { absence: e.target.checked })}
       style={{ fontSize: 12 }}
     >
