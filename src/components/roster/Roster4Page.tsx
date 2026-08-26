@@ -15,10 +15,12 @@
 //     Standby is an independent assignment: an employee rostered AM and put on
 //     standby appears in both bars.
 //   MOVE-3607 — the two highlight badges, here as stat cards that also filter.
-//   MOVE-3659 — clicking a bar opens the view-only Details Card, staff A–Z.
+//   MOVE-3659 — clicking a bar opens the view-only Shift Details Card, A–Z.
 //   MOVE-3609/3610/3611/3705 — via the shared Manage Shift Patterns drawer.
-//   MOVE-3658 — edit mode: pick a day, edit it in a drawer with its own
-//     Save/Cancel, then commit or discard the whole session.
+//   MOVE-3967 — clicking a day cell opens that day's roster drawer, read-only.
+//   MOVE-3769 — the drawer's Edit CTA turns it into the day's editor. There is
+//     no calendar-level edit mode: MOVE-3658 was cancelled on 26 Aug, so a
+//     day's Save commits immediately instead of staging into a session.
 //
 // Status resolution comes from the shared rosterStatusLogic.tsx, so rules
 // cannot drift between the variants.
@@ -48,7 +50,6 @@ import {
 import {
   DAY_GROUP_ORDER,
   DAY_GROUP_STYLE,
-  EDIT_MODE_GROUP_STYLE,
   EMPTY_STANDBY_STYLE,
   HIGHLIGHT_WINDOW_DAYS,
   ISO,
@@ -125,20 +126,20 @@ export default function Roster4Page() {
   // Variant 3 — legend chips double as per-group filters.
   const [hiddenGroups, setHiddenGroups] = useState<Set<DayGroupKey>>(new Set())
 
-  // Edit mode: a draft of overrides that only commits on Save.
-  const [editing, setEditing] = useState(false)
-  const [draft, setDraft] = useState<RosterOverride[]>([])
-  const [editDate, setEditDate] = useState<Dayjs | null>(null)
+  // MOVE-3967 — clicking a day opens its drawer. There is no calendar-level
+  // edit mode any more (MOVE-3658 was cancelled on 26 Aug): the drawer itself
+  // switches between viewing and editing, so a day's Save commits straight away.
+  const [dayDrawerDate, setDayDrawerDate] = useState<Dayjs | null>(null)
 
   const ctx: RosterContext = useMemo(
     () => ({
       rules: ROSTER_RULES,
       leaves: LEAVES,
       holidays: PUBLIC_HOLIDAYS,
-      overrides: editing ? [...ROSTER_OVERRIDES, ...draft] : ROSTER_OVERRIDES,
+      overrides: ROSTER_OVERRIDES,
     }),
     // The rules array is mutated in place by the Manage Shift Patterns drawer.
-    [revision, editing, draft]
+    [revision]
   )
 
   const weeks = useMemo(() => buildCalendarWeeks(month), [month])
@@ -154,47 +155,22 @@ export default function Roster4Page() {
     return null
   }, [highlightFilter, highlights])
 
+  // The Edit CTA inside the drawer is barred on a past month (feedback,
+  // 26 Aug). Viewing is allowed on any month.
   const editableMonth = canEditMonth(month, today)
-  const canGoNext = month.isBefore(today.add(MAX_MONTHS_AHEAD, 'month').startOf('month')) && !editing
+  const canGoNext = month.isBefore(today.add(MAX_MONTHS_AHEAD, 'month').startOf('month'))
 
   useEffect(() => {
-    setEditDate(null)
+    setDayDrawerDate(null)
     setOpenBarKey(null)
   }, [month])
 
-  const startEdit = () => {
-    setDraft([])
-    setEditDate(null)
-    setOpenBarKey(null)
-    setEditing(true)
-  }
-
-  const saveEdit = () => {
-    applyOverrides(draft)
-    setDraft([])
-    setEditDate(null)
-    setEditing(false)
+  /** A day's edits commit as soon as its drawer is saved — there is no session. */
+  const commitDay = (overrides: RosterOverride[]) => {
+    applyOverrides(overrides)
+    setDayDrawerDate(null)
     setRevision((r) => r + 1)
     message.success('Roster updated successfully.')
-  }
-
-  const cancelEdit = () => {
-    setDraft([])
-    setEditDate(null)
-    setEditing(false)
-  }
-
-  /** Folds one day's saved drawer edits into the session draft. */
-  const commitDay = (overrides: RosterOverride[]) => {
-    setDraft((prev) => {
-      const next = [...prev]
-      for (const override of overrides) {
-        const existing = next.find((o) => o.employeeId === override.employeeId && o.date === override.date)
-        if (existing) Object.assign(existing, override)
-        else next.push({ ...override })
-      }
-      return next
-    })
   }
 
   return (
@@ -231,32 +207,18 @@ export default function Roster4Page() {
       <div style={{ border: '1px solid #f0f0f0', borderRadius: 10, background: '#fff', padding: 16 }}>
         {/* Toolbar */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
-          <Tooltip title={editing ? 'Month navigation is disabled while editing' : undefined}>
-            <Button icon={<LeftOutlined />} disabled={editing} onClick={() => setMonth((m) => m.subtract(1, 'month'))} />
-          </Tooltip>
+          <Button icon={<LeftOutlined />} onClick={() => setMonth((m) => m.subtract(1, 'month'))} />
           <Button icon={<RightOutlined />} disabled={!canGoNext} onClick={() => canGoNext && setMonth((m) => m.add(1, 'month'))} />
           <Text strong style={{ fontSize: 15, minWidth: 140 }}>{month.format('MMMM YYYY')}</Text>
-          <Button icon={<CalendarOutlined />} disabled={editing} onClick={() => setMonth(today.startOf('month'))}>
+          <Button icon={<CalendarOutlined />} onClick={() => setMonth(today.startOf('month'))}>
             Today
           </Button>
 
           <div style={{ flex: 1 }} />
 
-          {editing ? (
-            <Space>
-              <Button onClick={cancelEdit}>Cancel</Button>
-              <Button type="primary" onClick={saveEdit}>Save</Button>
-            </Space>
-          ) : (
-            <Space>
-              <Button icon={<SettingOutlined />} onClick={() => setManageOpen(true)}>Manage Shift Patterns</Button>
-              <Tooltip title={editableMonth ? undefined : PAST_MONTH_TOOLTIP}>
-                <Button type="primary" icon={<EditOutlined />} disabled={!editableMonth} onClick={startEdit}>
-                  Edit Roster
-                </Button>
-              </Tooltip>
-            </Space>
-          )}
+          {/* MOVE-3608 §3 — Manage Shift Patterns is the only calendar CTA now.
+              Editing is reached by opening a day and pressing Edit there. */}
+          <Button icon={<SettingOutlined />} onClick={() => setManageOpen(true)}>Manage Shift Patterns</Button>
         </div>
 
         {/* Feedback 2 removed the legend row. The two earlier behaviours stay
@@ -307,12 +269,11 @@ export default function Roster4Page() {
                 inSelectedMonth={inSelectedMonth}
                 isToday={date.isSame(today, 'day')}
                 ctx={ctx}
-                editing={editing}
-                selected={!!editDate && editDate.isSame(date, 'day')}
+                selected={!!dayDrawerDate && dayDrawerDate.isSame(date, 'day')}
                 dimmedByFilter={!!filteredDates && !filteredDates.has(date.format(ISO))}
                 openBarKey={openBarKey}
                 onBarOpenChange={setOpenBarKey}
-                onSelectForEdit={() => inSelectedMonth && setEditDate(date)}
+                onSelect={() => inSelectedMonth && setDayDrawerDate(date)}
                 calendarStyle={variants.calendarStyle}
                 hiddenGroups={variants.legendMode === 'filters' ? hiddenGroups : EMPTY_HIDDEN}
               />
@@ -321,14 +282,15 @@ export default function Roster4Page() {
         ))}
       </div>
 
-      {editing && (
-        <EditDayDrawer
-          date={editDate}
+      {dayDrawerDate && (
+        <DayRosterDrawer
+          date={dayDrawerDate}
           ctx={ctx}
+          canEdit={editableMonth}
           shiftContrast={variants.shiftContrast}
           onLeaveDisplay={variants.onLeaveDisplay}
           layout={variants.drawerLayout}
-          onClose={() => setEditDate(null)}
+          onClose={() => setDayDrawerDate(null)}
           onCommitDay={commitDay}
         />
       )}
@@ -402,12 +364,11 @@ function DayCell({
   inSelectedMonth,
   isToday,
   ctx,
-  editing,
   selected,
   dimmedByFilter,
   openBarKey,
   onBarOpenChange,
-  onSelectForEdit,
+  onSelect,
   calendarStyle,
   hiddenGroups,
 }: {
@@ -415,12 +376,11 @@ function DayCell({
   inSelectedMonth: boolean
   isToday: boolean
   ctx: RosterContext
-  editing: boolean
   selected: boolean
   dimmedByFilter: boolean
   openBarKey: string | null
   onBarOpenChange: (key: string | null) => void
-  onSelectForEdit: () => void
+  onSelect: () => void
   calendarStyle: CalendarStyle
   hiddenGroups: Set<DayGroupKey>
 }) {
@@ -439,7 +399,7 @@ function DayCell({
 
   return (
     <div
-      onClick={editing ? onSelectForEdit : undefined}
+      onClick={onSelect}
       style={{
         minHeight: metrics.minHeight,
         padding: metrics.datePadding,
@@ -448,7 +408,7 @@ function DayCell({
         marginLeft: -1,
         background,
         opacity: inSelectedMonth ? (dimmedByFilter ? 0.35 : 1) : 0.4,
-        cursor: editing && inSelectedMonth ? 'pointer' : 'default',
+        cursor: inSelectedMonth ? 'pointer' : 'default',
         outline: selected ? '2px dashed #1677ff' : undefined,
         outlineOffset: -3,
         display: 'flex',
@@ -497,8 +457,7 @@ function DayCell({
               barKey={`${dateStr}|${group.key}`}
               openBarKey={openBarKey}
               onOpenChange={onBarOpenChange}
-              interactive={!editing}
-              greyed={editing && !selected}
+              interactive
               metrics={metrics}
               chip
             />
@@ -513,8 +472,7 @@ function DayCell({
             barKey={`${dateStr}|${group.key}`}
             openBarKey={openBarKey}
             onOpenChange={onBarOpenChange}
-            interactive={!editing}
-            greyed={editing && !selected}
+            interactive
             metrics={metrics}
           />
         ))
@@ -530,7 +488,6 @@ function GroupBar({
   openBarKey,
   onOpenChange,
   interactive,
-  greyed,
   metrics,
   chip = false,
 }: {
@@ -540,20 +497,13 @@ function GroupBar({
   openBarKey: string | null
   onOpenChange: (key: string | null) => void
   interactive: boolean
-  /** Edit mode, and this is not the day being edited. */
-  greyed: boolean
   metrics: (typeof CALENDAR_STYLE_METRICS)[CalendarStyle]
   chip?: boolean
 }) {
-  // In edit mode every group goes grey, so the calendar itself signals the mode
-  // (MOVE-3658 §2 + 18 Aug feedback) — except the day currently open in the
-  // drawer, which keeps its colours so the one you are working on stands out
-  // from the rest. Otherwise: 18 Aug review §6 — an empty Standby bar is the one
-  // zero worth showing, and it gets its own colour so a day with no standby
-  // cover reads as a gap.
-  const style = greyed
-    ? { ...DAY_GROUP_STYLE[group.key], ...EDIT_MODE_GROUP_STYLE }
-    : group.key === 'STANDBY' && group.count === 0
+  // 18 Aug review §6 — an empty Standby bar is the one zero worth showing, and
+  // it gets its own colour so a day with no standby cover reads as a gap.
+  const style =
+    group.key === 'STANDBY' && group.count === 0
       ? { ...DAY_GROUP_STYLE.STANDBY, ...EMPTY_STANDBY_STYLE }
       : DAY_GROUP_STYLE[group.key]
   const [hovered, setHovered] = useState(false)
@@ -570,6 +520,10 @@ function GroupBar({
   const bar = (
     <div
       title={chip ? `${group.label} (${group.count})` : undefined}
+      // MOVE-3608 §3 draws these as two separate actions: a bar opens the shift
+      // details card, the cell around it opens the day drawer. Without this the
+      // click would do both.
+      onClick={(e) => e.stopPropagation()}
       onMouseEnter={() => interactive && setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
@@ -658,16 +612,17 @@ function GroupBar({
 }
 
 /**
- * MOVE-3658 §3 — the day's roster editor.
+ * One day's roster — MOVE-3967 (view) and MOVE-3769 (edit).
  *
- * Edits here are staged locally and only handed to the session draft when the
- * drawer's own Save is pressed; Cancel (or closing the drawer) throws that day's
- * changes away. The session-level Save/Cancel on the page then commits or
- * discards everything across all edited days.
+ * The 26 Aug flow change dropped the calendar-level edit mode (MOVE-3658 is now
+ * cancelled). Clicking a day opens this drawer read-only; its Edit CTA switches
+ * the same drawer into editing. With no session to stage into, Save commits the
+ * day's overrides straight away.
  */
-function EditDayDrawer({
+function DayRosterDrawer({
   date,
   ctx,
+  canEdit,
   shiftContrast,
   onLeaveDisplay,
   layout,
@@ -676,12 +631,16 @@ function EditDayDrawer({
 }: {
   date: Dayjs | null
   ctx: RosterContext
+  /** MOVE-3608 — a past month can be viewed but not edited. */
+  canEdit: boolean
   shiftContrast: ShiftContrast
   onLeaveDisplay: OnLeaveDisplay
   layout: DrawerLayout
   onClose: () => void
   onCommitDay: (overrides: RosterOverride[]) => void
 }) {
+  // The drawer opens read-only and switches to editing on the Edit CTA.
+  const [mode, setMode] = useState<'view' | 'edit'>('view')
   // Pending edits for this day, keyed by employee id.
   const [pending, setPending] = useState<Record<string, Partial<RosterOverride>>>({})
   // Which employee, if any, has a reason modal open.
@@ -689,6 +648,7 @@ function EditDayDrawer({
   const [standbyFor, setStandbyFor] = useState<{ employee: RosterEmployee; reason?: string } | null>(null)
 
   useEffect(() => {
+    setMode('view')
     setPending({})
     setExtendFor(null)
     setStandbyFor(null)
@@ -727,8 +687,12 @@ function EditDayDrawer({
     fallback: RosterOverride[K]
   ): RosterOverride[K] => (pending[employeeId]?.[key] as RosterOverride[K]) ?? fallback
 
-  const stage = (employeeId: string, patch: Partial<RosterOverride>) =>
+  const viewOnly = mode === 'view'
+
+  const stage = (employeeId: string, patch: Partial<RosterOverride>) => {
+    if (viewOnly) return
     setPending((prev) => ({ ...prev, [employeeId]: { ...prev[employeeId], ...patch } }))
+  }
 
   // Ticking Extend or Standby opens its modal; the box only turns on once the
   // required details are saved, so cancelling leaves it untouched.
@@ -815,7 +779,7 @@ function EditDayDrawer({
       contrast={shiftContrast}
       // Locked on a public holiday, while the employee is marked absent
       // (MOVE-3769 §3), and for On Leave rows, which are view-only.
-      disabled={!!dayHoliday || row.absent || row.onLeaveRow || row.suspended}
+      disabled={viewOnly || !!dayHoliday || row.absent || row.onLeaveRow || row.suspended}
       value={
         row.onLeaveRow
           ? resolveShiftIgnoringLeave(row.employee, date, ctx)
@@ -837,7 +801,7 @@ function EditDayDrawer({
         checked={row.extend}
         // Feedback 5 — Absence locks Extend and Standby too. On Leave and
         // suspended rows are view-only, and say so the same way.
-        disabled={row.absent || row.onLeaveRow || row.suspended}
+        disabled={viewOnly || row.absent || row.onLeaveRow || row.suspended}
         onChange={(e) =>
           e.target.checked
             ? onOpenExtend(row.employee, { hours: row.extendHours ?? 0, reason: row.extendReason ?? '' })
@@ -860,7 +824,7 @@ function EditDayDrawer({
       {/* Standby is independent of the shift (MOVE-3608). */}
       <Checkbox
         checked={row.standby}
-        disabled={row.absent || row.onLeaveRow || row.suspended}
+        disabled={viewOnly || row.absent || row.onLeaveRow || row.suspended}
         onChange={(e) =>
           e.target.checked
             ? // Feedback 2 — standby that came from the rule does not ask for a
@@ -886,7 +850,7 @@ function EditDayDrawer({
   const absenceCell = (row: Row, labelled: boolean) => (
     <Checkbox
       checked={row.absent}
-      disabled={row.onLeaveRow || row.suspended}
+      disabled={viewOnly || row.onLeaveRow || row.suspended}
       onChange={(e) => stage(row.employee.id, { absence: e.target.checked })}
       style={{ fontSize: 12 }}
     >
@@ -994,16 +958,30 @@ function EditDayDrawer({
       onClose={onClose}
       // The table layouts need the width; the stacked list does not.
       width={isTable ? 760 : 480}
-      title={`Edit Roster — ${date.format('D MMM YYYY')}`}
+      // MOVE-3967 / MOVE-3769 — the header names the mode and spells the day
+      // out: "View Roster - Friday, 21 Aug 2026".
+      title={`${viewOnly ? 'View' : 'Edit'} Roster - ${date.format('dddd, D MMM YYYY')}`}
       // The drawer's actions sit in the header rather than a footer, matching
       // the Create Event modal — they stay in view while a long employee list
       // scrolls, and the Manage Shift Patterns drawer already puts its action
       // there.
       extra={
-        <Space>
-          <Button onClick={onClose}>Cancel</Button>
-          <Button type="primary" disabled={!dirty} onClick={handleSave}>Save</Button>
-        </Space>
+        viewOnly ? (
+          // MOVE-3967 §2 — the view drawer's only CTA. Barred on a past month.
+          <Tooltip title={canEdit ? undefined : PAST_MONTH_TOOLTIP}>
+            <Button type="primary" icon={<EditOutlined />} disabled={!canEdit} onClick={() => setMode('edit')}>
+              Edit
+            </Button>
+          </Tooltip>
+        ) : (
+          <Space>
+            {/* Cancel drops the day's pending edits and returns to viewing,
+                rather than closing the drawer outright — you stay on the day you
+                were looking at. */}
+            <Button onClick={() => { setPending({}); setMode('view') }}>Cancel</Button>
+            <Button type="primary" disabled={!dirty} onClick={handleSave}>Save</Button>
+          </Space>
+        )
       }
     >
       {dayHoliday && (

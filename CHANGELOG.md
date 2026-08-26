@@ -14,6 +14,41 @@ minor).
 
 ## [Unreleased]
 
+### Changed — edit mode replaced by a view-then-edit drawer (MOVE-3967)
+
+The 26 Aug flow change is in Jira: **MOVE-3658 (Edit Roster Mode) is cancelled**
+— its summary now reads `[x] Edit Roster Mode (Calendar View)` — and a new
+**MOVE-3967 "View Roster - Individual Date (Drawer)"** replaces it. MOVE-3608's
+CTA table was rewritten to match.
+
+- **The "Edit Roster" button is gone.** Manage Shift Patterns is the calendar's
+  only CTA now.
+- **Clicking a day cell opens that day's drawer, read-only** — on any month,
+  including past ones. Header reads `View Roster - Thursday, 20 Aug 2026`, with
+  the day name spelled out as the ticket asks.
+- **The drawer's Edit CTA switches the same drawer into editing** rather than
+  opening a second one, which is how MOVE-3967 §3 words it. Header becomes
+  `Edit Roster - …` and Cancel/Save replace the Edit button.
+- **Edit is disabled on a past month**, with the existing payroll tooltip.
+  Viewing stays available there.
+- **A bar click and a cell click are separate actions** (MOVE-3608 §3): the bar
+  opens the Shift Details Card, the cell opens the day drawer. The bar now stops
+  the click propagating, or one press would have done both.
+
+**Consequences of losing the session**
+
+- **A day's Save commits immediately.** There is no calendar-level session left
+  to stage into, so the page-level Save/Cancel are gone with it. MOVE-3769 §4
+  still describes staging "until user selects 'save all edits' … in edit roster
+  mode" — that text predates the flow change and now points at a cancelled
+  ticket. Flagged rather than followed.
+- **Cancel returns the drawer to viewing** instead of closing it, so you stay on
+  the day you were looking at. MOVE-3769 §4.2 says the drawer closes, but that
+  line also assumes the cancelled mode.
+- **Month navigation is never locked**, and the calendar no longer greys out —
+  both existed only to signal edit mode. `EDIT_MODE_GROUP_STYLE` and the
+  `greyed` prop were swept.
+
 ### Added — suspension is now date-aware (MOVE-3608 + MOVE-3769, both updated 25 Aug)
 
 Xing Yun's report was right and both tickets now say so in writing. MOVE-3769:
