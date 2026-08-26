@@ -70,6 +70,7 @@ import ManageRosterDrawer from './ManageRosterDrawer'
 import ExtendShiftModal, { type ExtendDetails } from './ExtendShiftModal'
 import StandbyReasonModal from './StandbyReasonModal'
 import ShiftSelector from './ShiftSelector'
+import { FIGMA_TOKENS_COMPACT, FIGMA_TOKENS_DEFAULT } from './figmaTokens'
 import RosterVariantSwitcher, {
   CALENDAR_STYLE_METRICS,
   DEFAULT_VARIANTS,
@@ -173,7 +174,20 @@ export default function Roster4Page() {
     message.success('Roster updated successfully.')
   }
 
+  // Variant 8 — run AntD on the team's exported Figma tokens so the two can be
+  // compared side by side. Wrapping the whole page (not just the calendar) means
+  // drawers, modals and popovers, which portal out of this tree, still inherit
+  // it: AntD threads its theme through context, not the DOM.
+  const themeToken =
+    variants.designSystem === 'figma'
+      ? FIGMA_TOKENS_DEFAULT
+      : variants.designSystem === 'figmaCompact'
+        ? FIGMA_TOKENS_COMPACT
+        : undefined
+
   return (
+    <>
+    <ConfigProvider theme={themeToken ? { token: themeToken } : undefined}>
     <div style={{ padding: 24 }}>
       {/* Feedback 2 — the "Operations department — month grid…" subtitle is
           gone; the sidebar and breadcrumb already say where you are. The page
@@ -302,8 +316,14 @@ export default function Roster4Page() {
         onRulesChanged={() => setRevision((r) => r + 1)}
       />
 
-      <RosterVariantSwitcher value={variants} onChange={setVariants} />
     </div>
+    </ConfigProvider>
+
+    {/* The switcher stays outside the themed tree on purpose: it is a demo
+        control, not product surface, and at the compact scale it would shrink
+        along with everything else and become awkward to drive. */}
+    <RosterVariantSwitcher value={variants} onChange={setVariants} />
+    </>
   )
 }
 

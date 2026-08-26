@@ -10,6 +10,7 @@
 //   variant 5 — where On Leave staff appear in the drawer
 //   variant 6 — how the Edit Roster drawer lays its employees out
 //   variant 7 — how a shift-pattern card draws its weekly headcounts
+//   variant 8 — whether AntD runs on the team's Figma design tokens
 
 import { useEffect, useRef, useState } from 'react'
 import { Segmented, Switch, Typography } from 'antd'
@@ -23,6 +24,7 @@ export type OnLeaveDisplay = 'inline' | 'section'
 export type LegendMode = 'hidden' | 'filters' | 'plain'
 export type DrawerLayout = 'table' | 'grouped' | 'stacked'
 export type PatternCardStyle = 'plain' | 'table'
+export type DesignSystem = 'off' | 'figma' | 'figmaCompact'
 
 export interface RosterVariantState {
   calendarStyle: CalendarStyle
@@ -32,6 +34,7 @@ export interface RosterVariantState {
   onLeaveDisplay: OnLeaveDisplay
   drawerLayout: DrawerLayout
   patternCardStyle: PatternCardStyle
+  designSystem: DesignSystem
 }
 
 export const DEFAULT_VARIANTS: RosterVariantState = {
@@ -45,7 +48,15 @@ export const DEFAULT_VARIANTS: RosterVariantState = {
   // Feedback 1 — the stacked drawer ran too long, so a table is the default now.
   drawerLayout: 'table',
   patternCardStyle: 'plain',
+  // Off by default so the comparison is opt-in and nothing shifts unasked.
+  designSystem: 'off',
 }
+
+export const DESIGN_SYSTEM_OPTIONS: { value: DesignSystem; label: string; hint: string }[] = [
+  { value: 'off', label: 'Off', hint: "AntD's own defaults — what the prototype has been built against so far." },
+  { value: 'figma', label: 'Figma tokens', hint: 'The team\'s exported design system: colours, sizes and SF Pro Text.' },
+  { value: 'figmaCompact', label: 'Figma compact', hint: 'The same tokens on the compact scale — smaller type, tighter controls.' },
+]
 
 export const PATTERN_CARD_STYLE_OPTIONS: { value: PatternCardStyle; label: string; hint: string }[] = [
   { value: 'plain', label: 'Plain', hint: 'Headcounts on an open grid, no rules or fills — the current look.' },
@@ -297,7 +308,7 @@ export default function RosterVariantSwitcher({
         </Section>
 
         {/* Variant 7 */}
-        <Section title="Variant 7 · Shift pattern card" last>
+        <Section title="Variant 7 · Shift pattern card">
           <Segmented
             size="small"
             block
@@ -307,6 +318,21 @@ export default function RosterVariantSwitcher({
           />
           <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 6 }}>
             {PATTERN_CARD_STYLE_OPTIONS.find((o) => o.value === value.patternCardStyle)?.hint}
+          </Text>
+        </Section>
+
+        {/* Variant 8 */}
+        <Section title="Variant 8 · Design system" last>
+          <Segmented
+            size="small"
+            block
+            vertical
+            value={value.designSystem}
+            onChange={(v) => set('designSystem', v as DesignSystem)}
+            options={DESIGN_SYSTEM_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+          />
+          <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 6 }}>
+            {DESIGN_SYSTEM_OPTIONS.find((o) => o.value === value.designSystem)?.hint}
           </Text>
         </Section>
       </div>

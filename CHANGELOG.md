@@ -14,6 +14,46 @@ minor).
 
 ## [Unreleased]
 
+### Added — Variant 8 · Design system, an on/off switch for the Figma tokens
+
+Requested so the two can be compared before committing to one: the switcher's
+new **Variant 8** runs the whole Roster 4.0 page on the team's Figma design
+tokens, or leaves it on AntD's defaults. Three settings — **Off**, **Figma
+tokens**, **Figma compact**. Off is the default, so nothing moves unless someone
+asks for it.
+
+- **`figmaTokens.ts` is generated, not hand-written.** Every value is resolved
+  from the Tokens Studio export (`variables_1.json`), aliases included
+  (`{Colors.Base.Blue.6}` and friends). Re-export from Figma and regenerate
+  rather than editing it. Two objects: `FIGMA_TOKENS_DEFAULT`
+  (colors-light + dimensions-default + typography-default) and
+  `FIGMA_TOKENS_COMPACT` (the same colours on the compact scale).
+- **The honest finding: the export is a stock Ant Design 5 palette.**
+  `colorPrimary #1677ff`, `colorSuccess #52c41a`, `colorError #ff4d4f`,
+  `colorBorder #d9d9d9`, `borderRadius 6`, `fontSize 14` — all identical to what
+  the prototype already renders. So **Figma tokens** differs from **Off**
+  essentially only in the typeface. **Figma compact** is the real comparison:
+  measured live, buttons go 32px → 28px and body type 14px → 12px.
+- **`fontFamily` got a fallback stack.** The export names `SF Pro Text` alone,
+  which exists only on macOS; on anything else the browser would have dropped to
+  its default serif and made the comparison meaningless. The system-UI stack is
+  appended behind it — judgment call, noted in the file.
+- **`ConfigProvider` wraps the whole page, not just the calendar**, so drawers,
+  modals and popovers inherit the theme: AntD threads it through React context,
+  not the DOM. Verified live — the day drawer renders at 12px/28px controls in
+  compact mode.
+- **The switcher panel itself sits outside the themed tree.** It is a demo
+  control, not product surface, and at the compact scale it would have shrunk
+  along with everything else and become awkward to drive.
+- **Scope limit worth knowing before judging the comparison:** this changes AntD
+  chrome only — buttons, inputs, selects, checkboxes, drawers, modals, tabs,
+  tags, typography. The calendar's own bar colours (Standby blue, AM, PM, On
+  Leave amber, the empty-standby red) are separately approved design swatches
+  outside this token set and do not move.
+- Three exported names (`colorFillAlterSolid`, `fontWeightNormal`,
+  `transparent`) have no counterpart in AntD 5's `AliasToken` and are dropped —
+  they would not have been read anyway.
+
 ### Changed — edit mode replaced by a view-then-edit drawer (MOVE-3967)
 
 The 26 Aug flow change is in Jira: **MOVE-3658 (Edit Roster Mode) is cancelled**
