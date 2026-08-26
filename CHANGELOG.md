@@ -14,6 +14,34 @@ minor).
 
 ## [Unreleased]
 
+### Fixed — Extend is now locked on public holidays (MOVE-3769 §3)
+
+Found while re-checking the ticket over whether the edit drawer allows more than
+one checkbox per row. It does — but the public-holiday table in MOVE-3769 §3
+lists **Extend: Disable**, and only Shift was being disabled. There is no shift
+to extend when every employee defaults to N.A., so Extend is now guarded by
+`dayHoliday` alongside Shift. Standby and Absent stay enabled on a PH, which is
+what the same table asks for.
+
+The banner copy followed: it used to promise only that "standby can still be
+assigned", which understated what is locked and what is not.
+
+**On the multi-check question itself — the ticket is explicit, and the build
+already matches it:**
+
+- MOVE-3769 §2.1 says standby "is independent of (does not affect) AM/PM shift
+  assignment", extension "is independent of (does not affect) AM/PM/standby
+  assignment". So Standby + Extend together on one row is correct, not a bug.
+- **Absent is the exception.** It is worded as independent too — ticking it does
+  not clear the values already set — but the same row adds "Disable all fields
+  in employee's row". Verified live: after ticking Absent, Shift, Standby and
+  Extend all go read-only with their values and sub-text intact, and Absent
+  itself stays clickable so the row can be released again. The spec says
+  "all fields", which taken literally would trap the user; treating Absent as
+  the one field that stays live is the reading that makes the "If uncheck →
+  enable all fields" sentence work.
+- Suspended rows disable everything including Absent, per §2.1 row 2.
+
 ### Added — Variant 8 · Design system, an on/off switch for the Figma tokens
 
 Requested so the two can be compared before committing to one: the switcher's

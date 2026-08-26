@@ -821,7 +821,10 @@ function DayRosterDrawer({
         checked={row.extend}
         // Feedback 5 — Absence locks Extend and Standby too. On Leave and
         // suspended rows are view-only, and say so the same way.
-        disabled={viewOnly || row.absent || row.onLeaveRow || row.suspended}
+        // MOVE-3769 §3 — Extend is disabled on a public holiday as well: there
+        // is no shift to extend when everyone defaults to N.A. Standby and
+        // Absence stay enabled on a PH, which is why only this one is guarded.
+        disabled={viewOnly || !!dayHoliday || row.absent || row.onLeaveRow || row.suspended}
         onChange={(e) =>
           e.target.checked
             ? onOpenExtend(row.employee, { hours: row.extendHours ?? 0, reason: row.extendReason ?? '' })
@@ -1007,7 +1010,7 @@ function DayRosterDrawer({
       {dayHoliday && (
         <div style={{ background: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: 6, padding: '8px 12px', marginBottom: 16 }}>
           <Text style={{ fontSize: 12, color: '#237804' }}>
-            Public Holiday — {dayHoliday.name}. Every roster is Not Assigned and cannot be changed; standby can still be assigned.
+            Public Holiday — {dayHoliday.name}. Every roster is Not Assigned, and shift and extend cannot be changed; standby and absence can still be recorded.
           </Text>
         </div>
       )}
