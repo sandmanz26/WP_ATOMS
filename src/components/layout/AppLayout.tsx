@@ -48,19 +48,16 @@ export default function AppLayout({
     },
     ...(operationsOpen
       ? [
+          // 27 Aug review — Roster 3.0 is off the menu so it cannot be mistaken
+          // for the live design. Roster 4.0 is the one that matches the PRD;
+          // the 3.0 page stays in the code (and on its route) as a prior
+          // exploration, just not as something a reviewer can wander into.
           {
             key: 'roster',
             label: (
               <Text style={{ fontSize: 13, paddingLeft: 8 }}>Roster Calendar</Text>
             ),
             onClick: () => onNavigate?.({ type: 'roster' }),
-          },
-          {
-            key: 'roster-3',
-            label: (
-              <Text style={{ fontSize: 13, paddingLeft: 8 }}>Roster 3.0</Text>
-            ),
-            onClick: () => onNavigate?.({ type: 'roster-3' }),
           },
           {
             key: 'roster-4',

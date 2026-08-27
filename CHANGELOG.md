@@ -14,6 +14,45 @@ minor).
 
 ## [Unreleased]
 
+### Changed — day cells react to hover, switcher rebuilt on the Live Tracking 2.0 panel, Roster 3.0 off the menu
+
+Three items from the 27 Aug review.
+
+**Day cells now answer a hover.** The cell became the click target when the
+Edit Roster button went away, and nothing said so. Hovering an in-month cell
+tints it (`#f0f7ff`, or a deeper `#bae0ff` on today, which is already blue) and
+draws a 1px inset border. Out-of-month cells do not react — they open nothing.
+The cell lifts to `z-index: 1` on hover so its highlight is not clipped by the
+neighbour overlapping it by 1px.
+
+**The hover wording is a new Variant 9 · Cell hover text**, with three settings
+rather than two. The review asked for "Click to edit", but a cell click opens
+the day **read-only** first (MOVE-3967) and Edit sits inside the drawer,
+disabled on a past month — so "Click to edit" over-promises there. Rather than
+silently overrule the request or ship copy that lies on past months, both are on
+the switcher: **Off**, **Click to view** (default, matches the built flow), and
+**Click to edit** (as asked). Pick one and it becomes the only one. The label
+sits on the date row rather than below it, so showing it costs no height and the
+bars underneath never shift.
+
+**The switcher now wears Live Tracking 2.0's chrome**, as requested — the same
+amber "Display settings" panel: 260px wide, amber header and drag handle, one
+compact label-plus-control row per option, hairline dividers between groups, and
+a circular amber reopener. Eight Segmented stacks became eight small Selects,
+which is most of why the panel got shorter.
+
+- **Judgment call worth knowing:** that layout has no room for the line of prose
+  under each option, and the explanations were what made the panel demoable to
+  PM. They moved onto the label as a tooltip rather than being deleted.
+- The panel's dropdowns render at `z-index: 2100`; the panel itself sits at 900,
+  below AntD's drawer layer, and its menus would otherwise open behind the
+  calendar.
+
+**Roster 3.0 is out of the sidebar** so it cannot be mistaken for the live
+design. Per CLAUDE.md, Roster 4.0 is the variant that matches the PRD; 3.0 stays
+in the code and on its route as a prior exploration, just not somewhere a
+reviewer can wander into by accident.
+
 ### Fixed — Extend is now locked on public holidays (MOVE-3769 §3)
 
 Found while re-checking the ticket over whether the edit drawer allows more than

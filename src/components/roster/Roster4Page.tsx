@@ -75,6 +75,7 @@ import RosterVariantSwitcher, {
   CALENDAR_STYLE_METRICS,
   DEFAULT_VARIANTS,
   type CalendarStyle,
+  type CellHoverHint,
   type DrawerLayout,
   type OnLeaveDisplay,
   type RosterVariantState,
@@ -290,6 +291,7 @@ export default function Roster4Page() {
                 onSelect={() => inSelectedMonth && setDayDrawerDate(date)}
                 calendarStyle={variants.calendarStyle}
                 hiddenGroups={variants.legendMode === 'filters' ? hiddenGroups : EMPTY_HIDDEN}
+                hoverHint={variants.cellHoverHint}
               />
             ))}
           </div>
@@ -391,6 +393,7 @@ function DayCell({
   onSelect,
   calendarStyle,
   hiddenGroups,
+  hoverHint,
 }: {
   date: Dayjs
   inSelectedMonth: boolean
@@ -403,6 +406,7 @@ function DayCell({
   onSelect: () => void
   calendarStyle: CalendarStyle
   hiddenGroups: Set<DayGroupKey>
+  hoverHint: CellHoverHint
 }) {
   const dateStr = date.format(ISO)
   const metrics = CALENDAR_STYLE_METRICS[calendarStyle]
@@ -417,20 +421,35 @@ function DayCell({
   // the date row says the same thing without washing the day green.
   const background = isToday ? '#e6f4ff' : weekend ? '#fafafa' : '#fff'
 
+  // 27 Aug review — the cell is the click target now, so it has to say so. Only
+  // days in the viewed month open a drawer, so only they react. Today's cell is
+  // already blue, hence its own slightly deeper hover.
+  const [hovered, setHovered] = useState(false)
+  const hot = hovered && inSelectedMonth
+  const hoverBg = isToday ? '#bae0ff' : '#f0f7ff'
+
   return (
     <div
       onClick={onSelect}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       style={{
         minHeight: metrics.minHeight,
         padding: metrics.datePadding,
         border: '1px solid #f5f5f5',
         marginTop: -1,
         marginLeft: -1,
-        background,
+        background: hot ? hoverBg : background,
         opacity: inSelectedMonth ? (dimmedByFilter ? 0.35 : 1) : 0.4,
         cursor: inSelectedMonth ? 'pointer' : 'default',
         outline: selected ? '2px dashed #1677ff' : undefined,
         outlineOffset: -3,
+        // Keeps the cell above its neighbours' -1px overlap so the whole
+        // highlight border shows rather than three of its four sides.
+        position: 'relative',
+        zIndex: hot ? 1 : undefined,
+        boxShadow: hot ? 'inset 0 0 0 1px #91caff' : undefined,
+        transition: 'background 0.12s ease, box-shadow 0.12s ease',
         display: 'flex',
         flexDirection: 'column',
         gap: metrics.gap,
@@ -463,6 +482,21 @@ function DayCell({
             }}
           >
             {holiday.name}
+          </span>
+        )}
+        {/* Sits on the date row, replacing nothing, so showing it does not
+            change the cell's height and the bars below never shift. */}
+        {hot && hoverHint !== 'off' && !holiday && (
+          <span
+            style={{
+              marginLeft: 'auto',
+              fontSize: 10,
+              fontWeight: 500,
+              color: '#1677ff',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {hoverHint === 'edit' ? 'Click to edit' : 'Click to view'}
           </span>
         )}
       </div>
