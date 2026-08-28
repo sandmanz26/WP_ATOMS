@@ -29,7 +29,7 @@ import { ControlOutlined, CloseOutlined, HolderOutlined } from '@ant-design/icon
 const { Text } = Typography
 
 export type CalendarStyle = 'comfortable' | 'compact' | 'chips' | 'detailed'
-export type ShiftContrast = 'strong' | 'subtle'
+export type ShiftContrast = 'strong' | 'swatch' | 'pill' | 'subtle' | 'dropdown'
 export type OnLeaveDisplay = 'inline' | 'section'
 export type LegendMode = 'hidden' | 'filters' | 'plain'
 export type DrawerLayout = 'table' | 'grouped' | 'stacked'
@@ -135,8 +135,23 @@ export const DRAWER_LAYOUT_OPTIONS: { value: DrawerLayout; label: string; hint: 
 ]
 
 export const SHIFT_CONTRAST_OPTIONS: { value: ShiftContrast; label: string; hint: string }[] = [
-  { value: 'strong', label: 'Strong', hint: 'Selected shift is a solid fill, so it holds up next to the Standby checkbox.' },
-  { value: 'subtle', label: 'Subtle', hint: 'The original look — selected shift is a raised white tile.' },
+  { value: 'strong', label: 'Strong', hint: 'Selected shift is a solid blue fill, so it holds up next to the Standby checkbox.' },
+  {
+    value: 'swatch',
+    label: 'Shift colours',
+    hint: "Selected shift wears the colour the calendar gives it — AM lilac, PM blue-grey, NA grey — so the drawer and the month grid agree. Leaves blue to Standby alone.",
+  },
+  {
+    value: 'pill',
+    label: 'Pill group',
+    hint: 'One rounded frame around all three options with hairlines between them, rather than three separate boxes. The lightest of the button styles.',
+  },
+  { value: 'subtle', label: 'Subtle', hint: 'The original look — selected shift is a raised white tile on a grey track.' },
+  {
+    value: 'dropdown',
+    label: 'Dropdown',
+    hint: 'A compact Select — about a third of the width, and the only option that would still fit if the shift list grew past three. Costs a second click per change.',
+  },
 ]
 
 export const ON_LEAVE_DISPLAY_OPTIONS: { value: OnLeaveDisplay; label: string; hint: string }[] = [

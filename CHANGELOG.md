@@ -14,6 +14,32 @@ minor).
 
 ## [Unreleased]
 
+### Added — three more shift-picker styles (Variant 4 now has five)
+
+Asked for on the 28 Aug review. Rather than five shades of the same idea, the
+five differ along three separate axes: what the selection is coloured with,
+how heavy the frame around it is, and whether it is a set of buttons at all.
+
+- **Shift colours** *(new)* — the selected shift wears the swatch the calendar
+  already gives it: AM lilac, PM blue-grey, NA grey. The drawer and the month
+  grid then agree on what AM looks like, and blue is left to Standby alone,
+  which is the coverage decision the eye should find first. Verified live: the
+  selected AM renders `#a5a0f5`, the same value as `DAY_GROUP_STYLE.AM`.
+- **Pill group** *(new)* — one rounded frame around all three options with
+  hairlines between them, instead of three separate boxes. The lightest of the
+  button styles; the group owns the radius and clips the fill.
+- **Dropdown** *(new)* — a compact Select. Measured at **92px against 140px**
+  for the button row, and the only option that would still fit if the shift
+  list ever grew past three. It costs a second click per change, which is the
+  wrong trade when setting eleven rows in a row — it earns its place on width,
+  not on speed, and the switcher hint says so.
+- **Strong** and **Subtle** are unchanged. Strong stays the default.
+
+**Tidied while here:** `ShiftContrast` was declared twice — once in
+`ShiftSelector.tsx` and once in `RosterVariantSwitcher.tsx`. The two copies had
+already drifted. There is now one definition, held with the rest of the variant
+types, and `ShiftSelector` imports it.
+
 ### Added — Variants 10 and 11: the view drawer stops pretending to be a form
 
 Two options asked for on the 28 Aug review of the View Roster drawer. Both
