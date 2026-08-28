@@ -53,6 +53,7 @@ import {
   EMPTY_STANDBY_STYLE,
   HIGHLIGHT_WINDOW_DAYS,
   ISO,
+  SHIFT_SELECTION_LABEL,
   computeDayGroups,
   computeRosterHighlights,
   employeesOnDuty,
@@ -76,10 +77,12 @@ import RosterVariantSwitcher, {
   DEFAULT_VARIANTS,
   type CalendarStyle,
   type CellHoverHint,
+  type DaySummary,
   type DrawerLayout,
   type OnLeaveDisplay,
   type RosterVariantState,
   type ShiftContrast,
+  type ViewStyle,
 } from './RosterVariantSwitcher'
 import { PAST_MONTH_TOOLTIP, canEditMonth } from './useRosterEdit'
 
@@ -306,6 +309,8 @@ export default function Roster4Page() {
           shiftContrast={variants.shiftContrast}
           onLeaveDisplay={variants.onLeaveDisplay}
           layout={variants.drawerLayout}
+          viewStyle={variants.viewStyle}
+          daySummary={variants.daySummary}
           onClose={() => setDayDrawerDate(null)}
           onCommitDay={commitDay}
         />
@@ -680,6 +685,8 @@ function DayRosterDrawer({
   shiftContrast,
   onLeaveDisplay,
   layout,
+  viewStyle,
+  daySummary,
   onClose,
   onCommitDay,
 }: {
@@ -690,6 +697,8 @@ function DayRosterDrawer({
   shiftContrast: ShiftContrast
   onLeaveDisplay: OnLeaveDisplay
   layout: DrawerLayout
+  viewStyle: ViewStyle
+  daySummary: DaySummary
   onClose: () => void
   onCommitDay: (overrides: RosterOverride[]) => void
 }) {
@@ -828,7 +837,58 @@ function DayRosterDrawer({
     </div>
   )
 
-  const shiftCell = (row: Row) => (
+  // Variant 10 — while viewing, a roster is a set of values, not a form. The
+  // old drawer drew every control greyed out, which read as eleven rows of dead
+  // buttons and made View look like a broken Edit. `plain` mode renders the
+  // values instead, so nothing invites a click that will not land.
+  const plainView = viewOnly && viewStyle === 'readonly'
+
+  /** Shift as a tag in the calendar's own colours, so the grid and the drawer
+   *  name the same shift with the same swatch. */
+  const shiftTag = (value: ShiftSelection) => {
+    const swatch =
+      value === 'AM'
+        ? DAY_GROUP_STYLE.AM
+        : value === 'PM'
+          ? DAY_GROUP_STYLE.PM
+          : DAY_GROUP_STYLE.NOT_ASSIGNED
+    return (
+      <span
+        style={{
+          display: 'inline-block',
+          fontSize: 12,
+          fontWeight: 500,
+          lineHeight: '20px',
+          padding: '0 10px',
+          borderRadius: 4,
+          background: swatch.bg,
+          color: swatch.fg,
+        }}
+      >
+        {SHIFT_SELECTION_LABEL[value]}
+      </span>
+    )
+  }
+
+  /** An off modifier reads as a dash rather than an empty box: the eye skips a
+   *  dash, where an unticked checkbox still asks to be read. */
+  const plainMark = (on: boolean, label: string) =>
+    on ? (
+      <Text style={{ fontSize: 12, fontWeight: 500, color: '#1a1a1a' }}>{label}</Text>
+    ) : (
+      <Text style={{ fontSize: 12, color: '#bfbfbf' }}>—</Text>
+    )
+
+  const shiftCell = (row: Row) =>
+    plainView ? (
+      shiftTag(
+        row.onLeaveRow
+          ? resolveShiftIgnoringLeave(row.employee, date, ctx)
+          : dayHoliday
+            ? 'NA'
+            : shiftOf(row.employee.id, row.result.status),
+      )
+    ) : (
     <ShiftSelector
       contrast={shiftContrast}
       // Locked on a public holiday, while the employee is marked absent
@@ -844,12 +904,20 @@ function DayRosterDrawer({
       options={dayShiftOptions}
       onChange={(v) => stage(row.employee.id, { shift: v })}
     />
-  )
+    )
 
   // `labelled` — the table layouts carry a column header for each modifier, so
   // repeating "Extend" on every row is noise (18 Aug feedback 1). The stacked
   // layout has no headers, so it keeps them.
-  const extendCell = (row: Row, labelled: boolean) => (
+  const extendCell = (row: Row, labelled: boolean) =>
+    plainView ? (
+      <div>
+        {plainMark(row.extend, 'Extended')}
+        {row.extend &&
+          (row.extendHours || row.extendReason) &&
+          detail([row.extendHours ? `${row.extendHours}h` : null, row.extendReason].filter(Boolean).join(' · '))}
+      </div>
+    ) : (
     <div>
       <Checkbox
         checked={row.extend}
@@ -874,9 +942,16 @@ function DayRosterDrawer({
         (row.extendHours || row.extendReason) &&
         detail([row.extendHours ? `${row.extendHours}h` : null, row.extendReason].filter(Boolean).join(' · '))}
     </div>
-  )
+    )
 
-  const standbyCell = (row: Row, labelled: boolean) => (
+  const standbyCell = (row: Row, labelled: boolean) =>
+    plainView ? (
+      <div>
+        {plainMark(row.standby, 'Standby')}
+        {!row.onLeaveRow && row.result.standbyFromRule && detail('Standby from Rule')}
+        {!row.onLeaveRow && row.standbyReason && detail(row.standbyReason)}
+      </div>
+    ) : (
     <div>
       {/* Standby is independent of the shift (MOVE-3608). */}
       <Checkbox
@@ -902,9 +977,12 @@ function DayRosterDrawer({
       {!row.onLeaveRow && row.result.standbyFromRule && detail('Standby from Rule')}
       {!row.onLeaveRow && row.standbyReason && detail(row.standbyReason)}
     </div>
-  )
+    )
 
-  const absenceCell = (row: Row, labelled: boolean) => (
+  const absenceCell = (row: Row, labelled: boolean) =>
+    plainView ? (
+      plainMark(row.absent, 'Absent')
+    ) : (
     <Checkbox
       checked={row.absent}
       disabled={viewOnly || row.onLeaveRow || row.suspended}
@@ -913,7 +991,7 @@ function DayRosterDrawer({
     >
       {labelled ? 'Absence' : null}
     </Checkbox>
-  )
+    )
 
   // ---- Layouts -------------------------------------------------------------
 
@@ -1009,6 +1087,69 @@ function DayRosterDrawer({
 
   const isTable = layout !== 'stacked'
 
+  // Variant 11 — the drawer used to open on nothing but "11 Employees", so the
+  // shape of the day had to be counted off the rows. These are the same numbers
+  // the calendar bar already shows, restated where the detail is read.
+  const summaryChips = () => {
+    const models = rows.map(rowModel)
+    const counts = { AM: 0, PM: 0, NA: 0, standby: 0, extend: 0, absent: 0, onLeave: 0 }
+    for (const row of models) {
+      if (row.onLeaveRow) counts.onLeave++
+      else {
+        const shift = dayHoliday ? 'NA' : shiftOf(row.employee.id, row.result.status)
+        counts[shift]++
+      }
+      // An absent or suspended employee is not cover, so they are not counted
+      // as standby here either — same rule the calendar bars use.
+      const counted = !row.absent && !row.suspended && !row.onLeaveRow
+      if (counted && row.standby) counts.standby++
+      if (counted && row.extend) counts.extend++
+      if (row.absent) counts.absent++
+    }
+
+    const chips: { label: string; count: number; bg: string; fg: string }[] = [
+      // Standby always shows, red at zero: a day with no cover is the one
+      // number worth seeing even when it is nothing, exactly as the calendar
+      // draws its empty-standby bar.
+      counts.standby === 0
+        ? { label: 'Standby', count: 0, bg: EMPTY_STANDBY_STYLE.bg, fg: EMPTY_STANDBY_STYLE.fg }
+        : { label: 'Standby', count: counts.standby, bg: DAY_GROUP_STYLE.STANDBY.bg, fg: DAY_GROUP_STYLE.STANDBY.fg },
+      ...(counts.AM ? [{ label: 'AM', count: counts.AM, bg: DAY_GROUP_STYLE.AM.bg, fg: DAY_GROUP_STYLE.AM.fg }] : []),
+      ...(counts.PM ? [{ label: 'PM', count: counts.PM, bg: DAY_GROUP_STYLE.PM.bg, fg: DAY_GROUP_STYLE.PM.fg }] : []),
+      ...(counts.NA
+        ? [{ label: 'Not Assigned', count: counts.NA, bg: DAY_GROUP_STYLE.NOT_ASSIGNED.bg, fg: DAY_GROUP_STYLE.NOT_ASSIGNED.fg }]
+        : []),
+      ...(counts.onLeave
+        ? [{ label: 'On Leave', count: counts.onLeave, bg: DAY_GROUP_STYLE.ON_LEAVE.bg, fg: DAY_GROUP_STYLE.ON_LEAVE.fg }]
+        : []),
+      // Extend and Absent only appear once there is one — a row of zeroes is
+      // the noise this summary is meant to remove.
+      ...(counts.extend ? [{ label: 'Extended', count: counts.extend, bg: '#f0f0f0', fg: '#434343' }] : []),
+      ...(counts.absent ? [{ label: 'Absent', count: counts.absent, bg: '#fff1f0', fg: '#cf1322' }] : []),
+    ]
+
+    return (
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+        {chips.map((c) => (
+          <span
+            key={c.label}
+            style={{
+              fontSize: 12,
+              fontWeight: 500,
+              lineHeight: '22px',
+              padding: '0 10px',
+              borderRadius: 4,
+              background: c.bg,
+              color: c.fg,
+            }}
+          >
+            {c.label} ({c.count})
+          </span>
+        ))}
+      </div>
+    )
+  }
+
   return (
     <Drawer
       open
@@ -1094,6 +1235,7 @@ function DayRosterDrawer({
       )}
 
       <Text strong style={{ fontSize: 13 }}>{rows.length} Employees</Text>
+      {daySummary === 'chips' && rows.length > 0 && summaryChips()}
 
       {/* Feedback 5 — AntD's default control border (#d9d9d9) left the unticked
           checkboxes almost invisible against a white row. Darkened for this

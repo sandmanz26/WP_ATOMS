@@ -12,6 +12,8 @@
 //   variant 7 — how a shift-pattern card draws its weekly headcounts
 //   variant 8 — whether AntD runs on the team's Figma design tokens
 //   variant 9 — what a day cell says when you hover it
+//   variant 10 — whether the view drawer draws controls or plain values
+//   variant 11 — whether the drawer opens with a headcount summary
 //
 // 27 Aug review: the panel now uses the same chrome as Live Tracking 2.0's
 // "Display settings" — amber header, 260px, one compact label/control row per
@@ -34,6 +36,8 @@ export type DrawerLayout = 'table' | 'grouped' | 'stacked'
 export type PatternCardStyle = 'plain' | 'table'
 export type DesignSystem = 'off' | 'figma' | 'figmaCompact'
 export type CellHoverHint = 'off' | 'view' | 'edit'
+export type ViewStyle = 'controls' | 'readonly'
+export type DaySummary = 'off' | 'chips'
 
 export interface RosterVariantState {
   calendarStyle: CalendarStyle
@@ -45,6 +49,8 @@ export interface RosterVariantState {
   patternCardStyle: PatternCardStyle
   designSystem: DesignSystem
   cellHoverHint: CellHoverHint
+  viewStyle: ViewStyle
+  daySummary: DaySummary
 }
 
 export const DEFAULT_VARIANTS: RosterVariantState = {
@@ -63,7 +69,33 @@ export const DEFAULT_VARIANTS: RosterVariantState = {
   // The hover tint is always on now that a cell is clickable; only the wording
   // is switchable, and it starts at the one that matches the built flow.
   cellHoverHint: 'view',
+  // Both default to the improved reading; the previous behaviour stays
+  // selectable so the two can still be put side by side.
+  viewStyle: 'readonly',
+  daySummary: 'chips',
 }
+
+export const VIEW_STYLE_OPTIONS: { value: ViewStyle; label: string; hint: string }[] = [
+  {
+    value: 'readonly',
+    label: 'Plain values',
+    hint: 'Viewing shows the roster as values — a coloured shift tag and a dash where a modifier is off. Nothing pretends to be clickable, and View stops looking like Edit.',
+  },
+  {
+    value: 'controls',
+    label: 'Disabled controls',
+    hint: 'The original: viewing draws the same buttons and checkboxes as editing, all greyed out. Eleven rows of dead controls, and the two modes look alike.',
+  },
+]
+
+export const DAY_SUMMARY_OPTIONS: { value: DaySummary; label: string; hint: string }[] = [
+  {
+    value: 'chips',
+    label: 'Count chips',
+    hint: "A headcount per shift above the table, so the day reads at a glance instead of by counting rows. Standby always shows — red at zero, matching the calendar's empty-standby bar.",
+  },
+  { value: 'off', label: 'Off', hint: 'Just the employee count, as before.' },
+]
 
 export const DESIGN_SYSTEM_OPTIONS: { value: DesignSystem; label: string; hint: string }[] = [
   { value: 'off', label: 'Off', hint: "AntD's own defaults — what the prototype has been built against so far." },
@@ -248,6 +280,13 @@ export default function RosterVariantSwitcher({
         </SettingRow>
 
         <Divider />
+
+        <SettingRow label="Viewing a day" hint={hintOf(VIEW_STYLE_OPTIONS, value.viewStyle)}>
+          <Picker options={VIEW_STYLE_OPTIONS} value={value.viewStyle} onChange={(v) => set('viewStyle', v)} />
+        </SettingRow>
+        <SettingRow label="Day summary" hint={hintOf(DAY_SUMMARY_OPTIONS, value.daySummary)}>
+          <Picker options={DAY_SUMMARY_OPTIONS} value={value.daySummary} onChange={(v) => set('daySummary', v)} />
+        </SettingRow>
 
         <SettingRow label="Shift picker" hint={hintOf(SHIFT_CONTRAST_OPTIONS, value.shiftContrast)}>
           <Picker options={SHIFT_CONTRAST_OPTIONS} value={value.shiftContrast} onChange={(v) => set('shiftContrast', v)} />

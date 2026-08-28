@@ -14,6 +14,41 @@ minor).
 
 ## [Unreleased]
 
+### Added — Variants 10 and 11: the view drawer stops pretending to be a form
+
+Two options asked for on the 28 Aug review of the View Roster drawer. Both
+default to the new reading; the previous behaviour stays selectable so the two
+can be compared.
+
+**Variant 10 · Viewing a day — `Plain values` (default) / `Disabled controls`.**
+The read-only drawer was drawing the *edit* controls with everything greyed out:
+eleven rows of dead AM/NA buttons and empty checkboxes, which made View look
+like a broken Edit and gave the eye nothing to skip. Viewing now renders values:
+the shift as a coloured tag in the calendar's own swatches, and each modifier as
+its name when on or an em-dash when off. Measured live — the view drawer went
+from **33 checkboxes to 0**, while Edit is untouched at 33.
+
+- Sub-text is kept, not dropped: "Standby from Rule", a standby reason, and the
+  extension's `4h · reason` still read under their column.
+- The two modes are now told apart at a glance, which the flow needs more than
+  it used to: since MOVE-3967 a cell click lands on View, so that is the screen
+  ops sees first and most often.
+
+**Variant 11 · Day summary — `Count chips` (default) / `Off`.**
+The drawer opened on nothing but "11 Employees", so the shape of a day had to be
+counted off the rows. A chip row now restates the same numbers the calendar bar
+already carries, in the place the detail is actually read.
+
+- **Standby always shows, red at zero**, reusing `EMPTY_STANDBY_STYLE` — a day
+  with no cover is the one number worth seeing even when it is nothing, exactly
+  as the calendar draws its empty-standby bar.
+- Extended and Absent appear only once there is one. A row of zeroes is the
+  noise this summary exists to remove.
+- Absent, suspended and On Leave staff are excluded from the standby and extend
+  counts, matching the rule the calendar bars already use, so the drawer and the
+  grid cannot disagree.
+- Shown in both modes — the counts are as useful while editing as while reading.
+
 ### Changed — day cells react to hover, switcher rebuilt on the Live Tracking 2.0 panel, Roster 3.0 off the menu
 
 Three items from the 27 Aug review.
