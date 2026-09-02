@@ -14,6 +14,40 @@ minor).
 
 ## [Unreleased]
 
+### Changed — Live Tracking 2.0 opens on the reviewed Display settings
+
+The panel's settings were signed off in the 28 Aug review, so they are the
+page's starting values now rather than eleven controls to set by hand each time
+the demo is opened. Every one stays switchable; only the default moved.
+
+Eleven changed, and all 25 rows were read back from the live panel to confirm
+they match the reviewed screenshot:
+
+| Setting | Was | Now |
+| --- | --- | --- |
+| List : map size | 60 : 40 | **65 : 35** |
+| Slack format | Minutes (130min) | **Hours + min (2hr 10min)** |
+| Show delay text | on | **off** |
+| Driver status text | on | **off** |
+| L2 spacing | 12px | **24px** |
+| Flashing | Ring | **Glow** |
+| L2 font | 11px | **12px** |
+| Box padding | 10px | **14px** |
+| Show route | on | **off** |
+| Show traffic | on | **off** |
+| Use dummy data | off | **on** |
+
+The other fourteen already matched: Silver map, Rev 03 card, 9. Panel highlight,
+Bus markers, Default map card, map on the Left, Drawer detail panel, action On
+card, Claim workflow, Text claim button, All cards (v1), Category colour,
+Compact width, Row slack position, Dropdown sort, L2 match L1 width off, L1
+font 24px.
+
+**Worth knowing: `Use dummy data` now defaults on**, which swaps the dataset the
+page builds its stops from — the demo opens on `DUMMY_STOPS` rather than
+`DEMO_TRIPS`. That is what the reviewed panel showed, so it is what shipped, but
+it is the one default here that changes the data rather than the presentation.
+
 ### Added — three more shift-picker styles (Variant 4 now has five)
 
 Asked for on the 28 Aug review. Rather than five shades of the same idea, the
