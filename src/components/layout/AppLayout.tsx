@@ -6,6 +6,7 @@ import {
   DownOutlined,
   HomeOutlined,
   RightOutlined,
+  SolutionOutlined,
 } from '@ant-design/icons'
 import type { AppPage } from '@/App'
 import { version as appVersion } from '../../../package.json'
@@ -35,6 +36,15 @@ export default function AppLayout({
   const [operationsOpen, setOperationsOpen] = useState(true)
 
   const menuItems = [
+    // MOVE-1975 — Leave is its own top-level destination rather than a child of
+    // Operations: the listing is HR's, covering every department, and sitting
+    // it under Operations would have implied it was scoped to that one.
+    {
+      key: 'leave',
+      icon: <SolutionOutlined style={{ fontSize: 16, color: '#595959' }} />,
+      label: <span>Leave</span>,
+      onClick: () => onNavigate?.({ type: 'leave' }),
+    },
     {
       key: 'operations-header',
       icon: <CalendarOutlined style={{ fontSize: 16, color: '#595959' }} />,

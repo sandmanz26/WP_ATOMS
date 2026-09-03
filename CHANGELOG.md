@@ -14,6 +14,57 @@ minor).
 
 ## [Unreleased]
 
+### Added — Leave module: listing page (MOVE-1975)
+
+A new top-level **Leave** menu entry and its listing, one row per employee.
+Built on the listing chrome the app already uses (Invoice 2.0 / the Inspection
+reference): right-aligned toolbar, Filter popover behind the funnel, detached
+pagination card. No new patterns — the point is that Leave looks like every
+other listing.
+
+**Against the ticket, verified live:**
+
+- **Columns** — Employee, Hiring Company, Department, AL Balance, ML Balance,
+  Last Updated On (biz req 1).
+- **Active contracts only.** The dataset holds 22 employees; 19 reach the table.
+  A Terminated, a Resigned and a Future Employee are in there deliberately so
+  the rule is visible in the count rather than taken on trust.
+- **Hiring Company shows the most recent contract, the rest as `+n`** — Bella
+  Santoso renders `Westpoint Coach +2`, with the hidden ones on hover so
+  nothing is actually lost.
+- **Default sort is Last Updated On, newest first** (biz req 2), confirmed by
+  reading the rendered column: 26 → 14 Aug descending.
+- **Sorting matches the acceptance criteria exactly**: Employee, Hiring Company,
+  Department and Last Updated On carry sorters; **AL and ML Balance do not.**
+  Measured from the rendered headers, since that distinction is easy to get
+  wrong and invisible in a screenshot.
+- **Search** is a full-text match on Employee alone, placeholder "Search
+  Employees" — "bella" narrows 19 → 1.
+- **Filters** — Hiring Company (multi-select), Department (multi-select with
+  auto-complete, "Not applicable" included as a real option), Last Updated On
+  range, plus Clear all filters. Department = Human Resources gives 2.
+
+**Judgment calls worth knowing:**
+
+- **Balance is derived, not stored.** MOVE-3494 biz req 2 row 6 defines it as
+  `entitlement − used − pending approval`, with a null entitlement rendering as
+  `-` regardless of what has been taken. Modelling it that way means the listing
+  cannot drift from the profile page when that ticket gets built; Eka Wijaya has
+  no ML entitlement so the dash is exercised.
+- **The "x days ago" sub-text is computed** from the timestamp rather than
+  stored as a second string the way other listings do it — those two can drift,
+  and here they cannot.
+- **The Last Updated On range picker sits in the toolbar**, not the popover, as
+  the reference layout places it. It also appears in the popover so both routes
+  work off the same state.
+- **Leave is top-level, not under Operations.** The listing is HR's and spans
+  every department, so nesting it under Operations would have implied a scope
+  it does not have.
+- **Two linked destinations are stubs.** "Manage Leave Types" (MOVE-1977) and
+  the row click through to the Employee Leave Profile (MOVE-3494) are separate
+  tickets; both are wired and say plainly that they are not built rather than
+  opening an empty page.
+
 ### Changed — Live Tracking 2.0 opens on the reviewed Display settings
 
 The panel's settings were signed off in the 28 Aug review, so they are the

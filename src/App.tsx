@@ -21,6 +21,7 @@ import CustomerNotificationDetailPage from '@/components/notification/CustomerNo
 import RosterPage from '@/components/roster/RosterPage'
 import Roster3Page from '@/components/roster/Roster3Page'
 import Roster4Page from '@/components/roster/Roster4Page'
+import LeavePage from '@/components/leave/LeavePage'
 import { Button } from 'antd'
 import { ArrowLeftOutlined } from '@ant-design/icons'
 
@@ -46,6 +47,7 @@ export type AppPage =
   | { type: 'roster' }
   | { type: 'roster-3' }
   | { type: 'roster-4' }
+  | { type: 'leave' }
 
 export default function App() {
   const [page, setPage] = useState<AppPage>({ type: 'live-tracking-testing-2' })
@@ -236,6 +238,14 @@ export default function App() {
     return (
       <AppLayout activeKey="roster-4" breadcrumbLabel="Roster" onNavigate={navigate}>
         <Roster4Page />
+      </AppLayout>
+    )
+  }
+
+  if (page.type === 'leave') {
+    return (
+      <AppLayout activeKey="leave" breadcrumbLabel="Leave" onNavigate={navigate}>
+        <LeavePage />
       </AppLayout>
     )
   }
