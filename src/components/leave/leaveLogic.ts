@@ -205,11 +205,19 @@ function monthsOfServiceIn(e: LeaveEmployee, year: number): number {
   const to = end && end.isBefore(yearEnd) ? end : yearEnd
   if (to.isBefore(from)) return 0
 
+  // Complete months, then any part-month rounds the whole thing up — which is
+  // what "by months, round up" means in MOVE-3900 §1, and what its first two
+  // worked examples compute (1 Jul → 6, 20 Jul → 6). A full 1 Jan – 31 Dec
+  // year lands on 12 through the same arithmetic, so it needs no special case.
+  //
+  // NOTE: the ticket's third example (contract ending 20 May → "5 months & 20
+  // days" → 6) does not agree: 1 Jan to 20 May is 4 months and 20 days, so this
+  // returns 5. Two of the three examples are internally consistent and this
+  // follows those; the third is flagged in the changelog as a ticket error
+  // rather than special-cased to match a wrong premise.
   const wholeMonths = to.diff(from, 'month')
   const remainder = to.diff(from.add(wholeMonths, 'month'), 'day')
-  // +1 because a period ending 31 Dec from 1 Jan is 12 months, not 11.
-  const months = wholeMonths + (remainder > 0 ? 1 : 0) + 1
-  return Math.min(12, months)
+  return Math.min(12, wholeMonths + (remainder > 0 ? 1 : 0))
 }
 
 /** True when the year is the employee's first or last — the pro-rated ones. */
@@ -257,30 +265,40 @@ export interface BalanceRow {
   manual: boolean
 }
 
-/** Days consumed by an application, clipped to the year being viewed. */
-function daysInYear(app: LeaveApplication, year: number): number {
+/**
+ * Days consumed by an application, clipped to the year being viewed.
+ *
+ * MOVE-3494 biz req 1 — an application spanning a year boundary is counted in
+ * each year for the part that falls in it. The slice is re-run through the
+ * deduction rules rather than split proportionally by calendar days: the two
+ * disagree whenever the split lands near a weekend or a public holiday, and
+ * the ticket's own example (24 Dec – 5 Jan = 5 days then 2 days) is exactly
+ * such a case.
+ */
+function daysInYear(app: LeaveApplication, employee: LeaveEmployee, year: number): number {
   const start = dayjs(app.startDate)
   const end = dayjs(app.endDate)
   if (start.year() === end.year()) return start.year() === year ? app.days : 0
-  // MOVE-3494 biz req 1 — an application spanning a year boundary is counted in
-  // each year for the part that falls in it.
+
   const yearStart = dayjs(`${year}-01-01`)
   const yearEnd = dayjs(`${year}-12-31`)
   if (end.isBefore(yearStart) || start.isAfter(yearEnd)) return 0
+
   const from = start.isAfter(yearStart) ? start : yearStart
   const to = end.isBefore(yearEnd) ? end : yearEnd
-  const total = end.diff(start, 'day') + 1
-  const slice = to.diff(from, 'day') + 1
-  return Math.round((app.days * slice) / total * 2) / 2
+  // A half-day marker only belongs to the slice that actually holds that end.
+  const fromHalf: HalfDay = from.isSame(start, 'day') ? app.startHalf : 'AM'
+  const toHalf: HalfDay = to.isSame(end, 'day') ? app.endHalf : 'PM'
+  return deductionFor(employee, from.format(ISO), to.format(ISO), fromHalf, toHalf)
 }
 
-function usageFor(employeeId: string, leaveTypeId: string, year: number) {
+function usageFor(employee: LeaveEmployee, leaveTypeId: string, year: number) {
   let usedDays = 0
   let pendingDays = 0
   for (const app of LEAVE_APPLICATIONS) {
-    if (app.employeeId !== employeeId || app.leaveTypeId !== leaveTypeId) continue
+    if (app.employeeId !== employee.id || app.leaveTypeId !== leaveTypeId) continue
     if (!consumesBalance(app.status)) continue
-    const d = daysInYear(app, year)
+    const d = daysInYear(app, employee, year)
     if (app.status === 'Approved') usedDays += d
     else pendingDays += d
   }
@@ -348,7 +366,7 @@ function balanceRowFor(
   const carriedForward = withCarryForward && entitlementDays !== null ? carryForwardInto(e, type, year) : 0
   if (entitlementDays !== null) entitlementDays += carriedForward
 
-  const { usedDays, pendingDays } = usageFor(e.id, type.id, year)
+  const { usedDays, pendingDays } = usageFor(e, type.id, year)
 
   return {
     leaveType: type,
@@ -458,6 +476,68 @@ export function deductionFor(
   if (startHalf === 'PM' && !isWeekendDay(start) && !isPublicHoliday(start)) total -= 0.5
   if (endHalf === 'AM' && !isWeekendDay(end) && !isPublicHoliday(end)) total -= 0.5
   return Math.max(0, total)
+}
+
+/**
+ * MOVE-3777 biz req 2 vs biz req 3 — the two read as contradictory at first:
+ * dates outside the validity period are disabled, yet the ticket's own worked
+ * example applies 24 Dec 2026 – 5 Jan 2027 against annual leave whose period
+ * ends 31 Dec 2026. The resolution is that a recurring type has a *separate*
+ * window in each year it recurs, and the application simply spans two of them.
+ * So selectability is checked against the viewing year and the next one, not
+ * against a single window.
+ */
+export function isSelectableDate(
+  e: LeaveEmployee,
+  type: LeaveType,
+  year: number,
+  d: Dayjs,
+): boolean {
+  const windows: Validity[] = [balanceRowFor(e, type, year)?.validity].filter(Boolean) as Validity[]
+  if (type.autoRecur) {
+    const next = balanceRowFor(e, type, year + 1)?.validity
+    if (next) windows.push(next)
+  }
+  // A type with no validity period at all (Time Off, Unpaid, Compassionate,
+  // NS) constrains nothing — every date is fair game.
+  if (windows.length === 0 || windows.every((w) => !w.effective || !w.end)) return true
+  return windows.some(
+    (w) => !!w.effective && !!w.end && !d.isBefore(w.effective, 'day') && !d.isAfter(w.end, 'day'),
+  )
+}
+
+/** The years an application period touches, in order. */
+export function yearsSpanned(startDate: string, endDate: string): number[] {
+  const a = dayjs(startDate).year()
+  const b = dayjs(endDate).year()
+  const out: number[] = []
+  for (let y = a; y <= b; y++) out.push(y)
+  return out
+}
+
+/**
+ * MOVE-3777 biz req 3 — when an application spans two years the drawer shows a
+ * balance per year, so the deduction has to be sliced the same way the balances
+ * table slices it. Shares `daysInYear`'s rule by construction.
+ */
+export function deductionInYear(
+  e: LeaveEmployee,
+  startDate: string,
+  endDate: string,
+  startHalf: HalfDay,
+  endHalf: HalfDay,
+  year: number,
+): number {
+  const start = dayjs(startDate)
+  const end = dayjs(endDate)
+  const yearStart = dayjs(`${year}-01-01`)
+  const yearEnd = dayjs(`${year}-12-31`)
+  if (end.isBefore(yearStart) || start.isAfter(yearEnd)) return 0
+  const from = start.isAfter(yearStart) ? start : yearStart
+  const to = end.isBefore(yearEnd) ? end : yearEnd
+  const fromHalf: HalfDay = from.isSame(start, 'day') ? startHalf : 'AM'
+  const toHalf: HalfDay = to.isSame(end, 'day') ? endHalf : 'PM'
+  return deductionFor(e, from.format(ISO), to.format(ISO), fromHalf, toHalf)
 }
 
 /** MOVE-3777 biz req 3.1 — the sentence shown under "Available". */

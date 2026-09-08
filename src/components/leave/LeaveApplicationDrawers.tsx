@@ -18,12 +18,15 @@ import {
 } from './leaveData'
 import {
   availabilityNote,
+  balanceRow as balanceRowFor,
   balancesFor,
   deductionFor,
+  deductionInYear,
   formatDays,
+  isSelectableDate,
   leaveTypeById,
   requiresDocument,
-  type BalanceRow,
+  yearsSpanned,
 } from './leaveLogic'
 
 const { Text } = Typography
@@ -95,7 +98,6 @@ export function ApplyLeaveDrawer({
   // Biz req 2 — the dropdown lists exactly the types on the employee's profile,
   // regardless of whether each one's validity window is open today.
   const rows = useMemo(() => (open ? balancesFor(employee, year) : []), [employee, year, open])
-  const row: BalanceRow | undefined = rows.find((r) => r.leaveType.id === leaveTypeId)
   const type = leaveTypeId ? leaveTypeById(leaveTypeId) : undefined
   const isTimeOff = leaveTypeId === TIME_OFF_ID
 
@@ -111,21 +113,45 @@ export function ApplyLeaveDrawer({
     if (isTimeOff && startDate) setEndDate(startDate)
   }, [isTimeOff, startDate])
 
-  /** Biz req 2 — dates outside the type's validity period are not selectable. */
-  const outsideValidity = (d: Dayjs) => {
-    if (!row?.validity.effective || !row.validity.end) return false
-    return d.isBefore(row.validity.effective, 'day') || d.isAfter(row.validity.end, 'day')
-  }
+  /**
+   * Biz req 2 — dates outside the type's validity period are not selectable.
+   * For a recurring type that means the viewing year's window *or* the next
+   * one, which is what lets biz req 3's cross-year example be entered at all.
+   */
+  const outsideValidity = (d: Dayjs) => (type ? !isSelectableDate(employee, type, year, d) : false)
 
   const deduction =
     startDate && endDate && !isTimeOff
       ? deductionFor(employee, startDate.format('YYYY-MM-DD'), endDate.format('YYYY-MM-DD'), startHalf, endHalf)
       : 0
 
+  // Biz req 3 — an application spanning two years shows one balance per year,
+  // each computed against that year's own entitlement.
+  const spannedYears = startDate && endDate ? yearsSpanned(startDate.format('YYYY-MM-DD'), endDate.format('YYYY-MM-DD')) : []
+  const yearBlocks =
+    !type || isTimeOff || !startDate || !endDate
+      ? []
+      : spannedYears
+          .map((y) => {
+            const r = balanceRowFor(employee, type.id, y)
+            return { year: y, row: r }
+          })
+          .filter((x) => !!x.row && x.row.entitlementDays !== null)
+          .map(({ year: y, row: r }) => {
+            const ded = deductionInYear(
+              employee,
+              startDate.format('YYYY-MM-DD'),
+              endDate.format('YYYY-MM-DD'),
+              startHalf,
+              endHalf,
+              y,
+            )
+            const avail = r!.balance ?? 0
+            return { year: y, validity: r!.validity, available: avail, deduction: ded, projected: avail - ded }
+          })
+
   // Biz req 2 — no balance block for types with no entitlement at all.
-  const showBalance = !!row && row.entitlementDays !== null && !!startDate && !!endDate
-  const available = row?.balance ?? 0
-  const projected = available - deduction
+  const showBalance = yearBlocks.length > 0
 
   const docRequired = !!type && requiresDocument(type)
   const missing =
@@ -257,37 +283,55 @@ export function ApplyLeaveDrawer({
         </Field>
       )}
 
-      {/* Biz req 3 — hidden until there is something real to compute. */}
+      {/* Biz req 3 — hidden until there is something real to compute. When the
+          period crosses a year boundary this renders one block per year, which
+          is what the ticket's 24 Dec – 5 Jan example asks for. */}
       {showBalance && (
-        <div style={{ background: '#f6f8fa', border: '1px solid #e8eaed', borderRadius: 8, padding: '12px 14px', marginBottom: 16 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-            <Text style={{ fontSize: 12, color: '#595959' }}>Available</Text>
-            <Text style={{ fontSize: 12 }}>
-              {formatDays(available)}
-              {row?.validity.effective && (
-                <Text type="secondary" style={{ fontSize: 11 }}>, {availabilityNote(row.validity)}</Text>
+        <div style={{ marginBottom: 16 }}>
+          {yearBlocks.map((blk) => (
+            <div
+              key={blk.year}
+              style={{
+                background: '#f6f8fa',
+                border: '1px solid #e8eaed',
+                borderRadius: 8,
+                padding: '12px 14px',
+                marginBottom: 8,
+              }}
+            >
+              {yearBlocks.length > 1 && (
+                <Text strong style={{ fontSize: 12, display: 'block', marginBottom: 6 }}>{blk.year}</Text>
               )}
-            </Text>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-            <Text style={{ fontSize: 12, color: '#595959' }}>Deduction</Text>
-            <Text style={{ fontSize: 12 }}>{formatDays(deduction)}</Text>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 6, borderTop: '1px solid #e8eaed' }}>
-            <Text strong style={{ fontSize: 12 }}>Balance</Text>
-            <Text strong style={{ fontSize: 12, color: projected < 0 ? '#cf1322' : '#1a1a1a' }}>
-              {formatDays(projected)}
-            </Text>
-          </div>
-          {/* Biz req 3 — a negative balance is allowed, but it has a cost, and
-              the drawer says what it is rather than blocking the submit. */}
-          {projected < 0 && (
-            <Text type="danger" style={{ fontSize: 11, display: 'block', marginTop: 6 }}>
-              {Math.abs(projected)} day{Math.abs(projected) === 1 ? '' : 's'} will be taken as unpaid leave and deducted from payroll.
-            </Text>
-          )}
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                <Text style={{ fontSize: 12, color: '#595959' }}>Available</Text>
+                <Text style={{ fontSize: 12 }}>
+                  {formatDays(blk.available)}
+                  {blk.validity.effective && (
+                    <Text type="secondary" style={{ fontSize: 11 }}>, {availabilityNote(blk.validity)}</Text>
+                  )}
+                </Text>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                <Text style={{ fontSize: 12, color: '#595959' }}>Deduction</Text>
+                <Text style={{ fontSize: 12 }}>{formatDays(blk.deduction)}</Text>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 6, borderTop: '1px solid #e8eaed' }}>
+                <Text strong style={{ fontSize: 12 }}>Balance</Text>
+                <Text strong style={{ fontSize: 12, color: blk.projected < 0 ? '#cf1322' : '#1a1a1a' }}>
+                  {formatDays(blk.projected)}
+                </Text>
+              </div>
+              {/* Biz req 3 — a negative balance is allowed, but it has a cost,
+                  and the drawer says what it is rather than blocking the submit. */}
+              {blk.projected < 0 && (
+                <Text type="danger" style={{ fontSize: 11, display: 'block', marginTop: 6 }}>
+                  {Math.abs(blk.projected)} day{Math.abs(blk.projected) === 1 ? '' : 's'} will be taken as unpaid leave and deducted from payroll.
+                </Text>
+              )}
+            </div>
+          ))}
           {employee.workingDaysPerWeek >= 5.5 && (
-            <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 6 }}>
+            <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
               {employee.givenName} works {employee.workingDaysPerWeek} days a week, so a full weekend inside the period costs a day.
             </Text>
           )}

@@ -14,6 +14,59 @@ minor).
 
 ## [Unreleased]
 
+### Fixed — three bugs in the Leave module, found on a re-check of the listing
+
+Raised by the reviewer looking at the listing and saying the numbers looked
+off. They were. All three had survived the first round of verification because
+that round only exercised full-year employees and single-year applications.
+
+**1. Annual leave pro-ration was a month too generous.** `monthsOfServiceIn`
+carried a stray `+1`, so every partial year came out one month high. It was
+invisible on full-time staff because `Math.min(12, …)` clipped the overflow —
+which is exactly why it got through. Checked against MOVE-3900 §1's own
+examples:
+
+| Case | Ticket | Was | Now |
+| --- | --- | --- | --- |
+| Contract starts 1 Jul 2026 | 6 days | 7 | **6** |
+| Contract starts 20 Jul 2026 | 6 days | 7 | **6** |
+| Full calendar year | 12 days | 12 | **12** |
+
+On screen: Hendra Saputra and Indah Lestari (both starting 1 Jun 2026) went
+from 8 days to **7**, and Toni Wibowo from 13 to 12.
+
+**Ticket error worth flagging:** MOVE-3900 §1's *third* example says a contract
+ending 20 May 2026 is "5 months & 20 days → round up to 6". From 1 Jan that is
+4 months and 20 days, not 5 — so the stated conclusion does not follow from its
+own premise. The two internally consistent examples win; this returns 5 and the
+discrepancy is noted in the code. **PM should confirm which they meant.**
+
+**2. A leave application spanning two years split its days by calendar length.**
+`daysInYear` pro-rated `app.days` by the share of dates in each year, which
+disagrees with the deduction rules whenever the split lands near a weekend or a
+public holiday — and MOVE-3494's own worked example is precisely such a case.
+Each year's slice is now re-run through `deductionFor`, with the half-day
+markers assigned to whichever slice actually holds that end.
+
+**3. The apply drawer would not accept a cross-year application at all.**
+MOVE-3777 biz req 2 disables dates outside the validity period, while biz req 3
+walks through applying 24 Dec 2026 – 5 Jan 2027 against annual leave that ends
+31 Dec 2026. Read literally the two contradict; the resolution is that a
+recurring type has a *separate* window each year and the application spans two
+of them. `isSelectableDate()` now checks the viewing year's window **and** the
+next one when the type auto-recurs.
+
+That unblocked the other half of biz req 3, which was missing: **the drawer now
+shows one balance block per year** when the period crosses a boundary. Verified
+against the ticket's example on Ahmad Fauzi — 2026 available 15.5, deduction 5,
+balance 10.5; 2027 available 19, deduction 2, balance 17 — and after submitting,
+2026's pending rose by 5 and 2027's by 2, exactly as MOVE-3494 describes.
+
+**Not a bug, worth knowing:** carry-forward into 2027 then reads 3.5 rather than
+7, because it is computed from 2026's entitlement *excluding* what 2026 itself
+carried in. That is deliberate — letting it compound would inflate the
+entitlement a little more every year.
+
 ### Added — the rest of the Leave module (epic MOVE-3410)
 
 All 15 live child tickets of the epic. **MOVE-3778 ([x] Edit Leave) is
