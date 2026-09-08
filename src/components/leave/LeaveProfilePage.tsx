@@ -160,17 +160,15 @@ export default function LeaveProfilePage({
       ),
     },
     {
-      title: '',
+      // MOVE-3775 biz req 1 — reached from the balances table's actions column,
+      // and available on every leave type.
+      title: 'Actions',
       key: 'actions',
-      width: 60,
+      width: 90,
       render: (_, r) => (
-        <Button
-          type="text"
-          size="small"
-          icon={<EditOutlined />}
-          title="Edit leave entitlement"
-          onClick={() => setEditingRow(r)}
-        />
+        <Tooltip title={`Edit ${r.leaveType.name} entitlement`}>
+          <Button type="text" size="small" icon={<EditOutlined />} onClick={() => setEditingRow(r)} />
+        </Tooltip>
       ),
     },
   ]
@@ -250,8 +248,12 @@ export default function LeaveProfilePage({
           </Text>
         </div>
         <Space>
-          <Button icon={<PlusOutlined />} onClick={() => setAddOpen(true)}>Add Leave Entitlement</Button>
-          <Button type="primary" onClick={() => setApplyOpen(true)}>Apply Leave</Button>
+          {/* MOVE-3500 biz req 1 names this the profile page's primary CTA, so it
+              is the primary here even though Apply Leave is the busier action. */}
+          <Button onClick={() => setApplyOpen(true)}>Apply Leave</Button>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setAddOpen(true)}>
+            Add Leave Entitlement
+          </Button>
           <Dropdown
             menu={{
               items: [{ key: 'history', label: 'Leave Entitlement Change History' }],

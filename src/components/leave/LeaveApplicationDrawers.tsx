@@ -449,13 +449,30 @@ export function LeaveApplicationDrawer({
     if (action === 'cancel') onClose()
   }
 
-  const disabledReason = (allowed: boolean) =>
-    allowed ? undefined : `Not available while the application is ${app.status.toLowerCase()}.`
+  /**
+   * MOVE-3779 biz req 1 and MOVE-3893 biz req 1 both say the action is disabled
+   * *with a tooltip* when the status does not allow it — a greyed row with no
+   * explanation is the thing they are asking us not to ship. AntD does not fire
+   * hover events on a disabled menu item, so the tooltip wraps the label.
+   */
+  const item = (key: PendingAction, label: string, allowed: boolean, why: string, danger = false) => ({
+    key,
+    disabled: !allowed,
+    danger: danger && allowed,
+    label: allowed ? (
+      <span>{label}</span>
+    ) : (
+      <Tooltip title={why} placement="left">
+        <span style={{ display: 'block' }}>{label}</span>
+      </Tooltip>
+    ),
+  })
 
+  const statusWord = app.status.toLowerCase()
   const menuItems = [
-    { key: 'approve', label: 'Approve Leave', disabled: !canApproveReject },
-    { key: 'reject', label: 'Reject Leave', disabled: !canApproveReject },
-    { key: 'cancel', label: 'Cancel Leave', disabled: !canCancel, danger: canCancel },
+    item('approve', 'Approve Leave', canApproveReject, `Only a pending application can be approved — this one is ${statusWord}.`),
+    item('reject', 'Reject Leave', canApproveReject, `Only a pending application can be rejected — this one is ${statusWord}.`),
+    item('cancel', 'Cancel Leave', canCancel, `A ${statusWord} application cannot be cancelled.`, true),
   ]
 
   return (
@@ -484,7 +501,9 @@ export function LeaveApplicationDrawer({
       >
         {!canApproveReject && !canCancel && (
           <div style={{ background: '#fafafa', border: '1px solid #f0f0f0', borderRadius: 6, padding: '8px 12px', marginBottom: 14 }}>
-            <Text type="secondary" style={{ fontSize: 12 }}>{disabledReason(false)}</Text>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              This application is {statusWord}, so no further action can be taken on it.
+            </Text>
           </div>
         )}
 

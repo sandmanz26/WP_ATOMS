@@ -14,6 +14,47 @@ minor).
 
 ## [Unreleased]
 
+### Fixed — Leave module CTA audit against the tickets
+
+Every button in the module walked back to the line of the ticket that specifies
+it. Three were wrong; the rest were confirmed rather than assumed.
+
+**1. The profile page had the wrong primary CTA.** MOVE-3500 biz req 1 is
+explicit — "On the employee's leave profile details page → **primary CTA** 'add
+leave entitlement'". Apply Leave was carrying the primary styling. Swapped.
+Noted in the code that Apply Leave is the busier action of the two, so this is
+the ticket's call rather than an ergonomic one; **PM may want to revisit it.**
+
+**2. The leave balances table had no Actions column.** MOVE-3775 biz req 1
+reaches Edit Leave Entitlement "in actions column of leave balances table (see
+3494, biz req 2, row 7)". It was an unlabelled column of bare icons, which does
+not read as one. Now titled **Actions**, with a per-row tooltip naming the leave
+type it edits.
+
+**3. Disabled actions gave no reason.** MOVE-3779 biz req 1 and MOVE-3893 biz
+req 1 both say the action is disabled **with a tooltip** when the status
+forbids it. The items were greyed and silent. Each now explains itself — "Only
+a pending application can be approved — this one is approved." AntD does not
+fire hover events on a disabled menu item, so the tooltip wraps the label
+rather than the item.
+
+**Confirmed correct, driven in the browser rather than read off the source** —
+18 checks, all passing:
+
+| Ticket | Check |
+| --- | --- |
+| MOVE-1975 §4 | Manage Leave Types is the primary CTA; a row opens the profile |
+| MOVE-1977 §3 | Create Leave Type is primary; Return to listing present; a row in **either** table opens the details drawer |
+| MOVE-4019 §2 | Edit is the drawer's primary CTA, on system types too |
+| MOVE-3559 §2 | header "Edit [leave type name]", Save primary / Cancel secondary |
+| MOVE-3221 §2/§4 | header "Create Leave Type", Save primary, and Cancel creates nothing |
+| MOVE-3500 §2 | header "Add Leave Entitlement", Save primary / Cancel secondary |
+| MOVE-3775 §2 | header "Edit [leave type]", Save primary / Cancel secondary |
+| MOVE-3777 §2 | header "Apply for Leave", Send for Approval primary |
+| MOVE-3888 §1 | change history sits under the actions dropdown |
+| MOVE-3889 §2 | **no primary CTA** on the details drawer — actions live in a dropdown |
+| MOVE-3893 | a **rejected** application offers nothing: approve, reject *and* cancel are all disabled |
+
 ### Fixed — three bugs in the Leave module, found on a re-check of the listing
 
 Raised by the reviewer looking at the listing and saying the numbers looked
