@@ -14,6 +14,90 @@ minor).
 
 ## [Unreleased]
 
+### Added — the rest of the Leave module (epic MOVE-3410)
+
+All 15 live child tickets of the epic. **MOVE-3778 ([x] Edit Leave) is
+cancelled** and was not built — the `[x]` prefix is the same convention that
+marked MOVE-3658 dead earlier in this project.
+
+| Ticket | Built |
+| --- | --- |
+| MOVE-3900 | 15 pre-created system leave types, with their validity models |
+| MOVE-3890 | auto-created profile — which types an employee sees, and when |
+| MOVE-1977 | Manage Leave Types page (custom + system tables) |
+| MOVE-4019 | leave type details drawer |
+| MOVE-3221 | create leave type drawer |
+| MOVE-3559 | edit leave type drawer |
+| MOVE-3494 | employee leave profile, by year |
+| MOVE-3500 | add leave entitlement modal |
+| MOVE-3775 | edit leave entitlement modal |
+| MOVE-3888 | entitlement change history drawer |
+| MOVE-3777 | apply leave drawer |
+| MOVE-3889 | leave application details drawer |
+| MOVE-3779 | cancel leave |
+| MOVE-3893 | approve / reject leave |
+
+**`leaveLogic.ts` is the single source for every rule**, the same way
+`rosterStatusLogic` is for the roster. The balances table, the apply drawer's
+live preview, both entitlement modals and the listing's AL/ML columns all
+compute from it — they can only agree because they share it.
+
+**Worked examples from the tickets, verified live rather than asserted:**
+
+- **Driver vs non-driver annual leave** — Eka Wijaya (Driver) gets *Annual Leave
+  (Drivers)* at 7 days; Ahmad Fauzi gets *Annual Leave* at 12. The listing's
+  "AL Balance" column picks whichever type the employee is actually on.
+- **MOVE-3900 §5 birthday leave**, the epic's fiddliest rule: Indah Lestari
+  (born June, started 1 Jun 2026) has **no** birthday leave in 2026 — she
+  completes three months on 1 Sep, after her birth month — and gets it in 2027.
+  That is the ticket's first worked example, alive in the data.
+- **MOVE-3494 childcare recurrence** — Citra Dewi's childcare leave shows for
+  2026 (1 Apr – 31 Dec), 2027 and 2028 as full calendar years, and 2029 is not
+  even offered in the year toggle.
+- **MOVE-3777 §3.2 deduction** — Dedi Kurniawan works 5.5 days a week, so his
+  31 Jul – 8 Aug application costs **6 days**: five weekdays plus one for the
+  consecutive Sat–Sun at the start, and nothing for the lone Saturday at the
+  end. The ticket's own example, matched exactly.
+- **Weeks → days** — Nadia Rahmawati's adoption leave reads "12 weeks / 60 days"
+  at her 5 working days per week.
+- **The full application lifecycle**: applying moved 3 days into pending and
+  balance 15.5 → 12.5; approving moved them pending → used with balance
+  unchanged; cancelling released them and returned every number to its start.
+
+**Judgment calls worth knowing:**
+
+- **Balance is derived everywhere, never stored.** Cancelling a leave needs no
+  balance adjustment because nothing was ever written down — `balancesFor()`
+  recomputes from application status. Same for carry-forward and pro-ration.
+- **Carry-forward does not compound.** MOVE-3900 says up to 7 days roll into the
+  next year; computing the previous year's balance *without* its own
+  carry-forward stops that recursing into an ever-growing entitlement. Every
+  employee currently shows 7 carried days because the mock data has no 2025
+  applications — that is the rule working, not a seeded number.
+- **A negative balance on apply is allowed, not blocked.** MOVE-3777 §3 says the
+  excess becomes unpaid leave, so the drawer says exactly that instead of
+  refusing the submit. The entitlement editor is the opposite: MOVE-3775 §3
+  requires a hard block, and it blocks with the arithmetic shown live.
+- **MOVE-3559's four-way edit rule** (system vs custom, effective passed, end
+  passed) is computed once in `editableFields()` rather than repeated as
+  `disabled` expressions across six controls.
+- **Uploads record a file name only.** There is no backend, so the details
+  drawer says so on hover rather than offering a download that cannot work.
+- **`PaginationBar` was extracted** to `leave/PaginationBar.tsx` and is shared
+  by the leave pages. Invoice 2.0 still has its own copy — collapsing that too
+  was outside this ticket's scope.
+
+**Open items for the PM**
+
+- MOVE-3900 does not say whether carry-forward should apply on top of a
+  *pro-rated* final year. It currently does — Toni Wibowo's 2026 reads 6
+  pro-rated + 7 carried = 13. Flagged rather than guessed.
+- Encashment is captured and displayed but has no effect, as MOVE-3559 §3 says
+  for MVP 1.
+- The copy master list linked throughout the epic is a Lark doc that is not
+  reachable from here, so toaster and tooltip wording is written to match the
+  described intent rather than quoted.
+
 ### Added — Leave module: listing page (MOVE-1975)
 
 A new top-level **Leave** menu entry and its listing, one row per employee.

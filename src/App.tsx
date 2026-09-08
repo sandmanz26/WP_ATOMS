@@ -22,6 +22,8 @@ import RosterPage from '@/components/roster/RosterPage'
 import Roster3Page from '@/components/roster/Roster3Page'
 import Roster4Page from '@/components/roster/Roster4Page'
 import LeavePage from '@/components/leave/LeavePage'
+import ManageLeaveTypesPage from '@/components/leave/ManageLeaveTypesPage'
+import LeaveProfilePage from '@/components/leave/LeaveProfilePage'
 import { Button } from 'antd'
 import { ArrowLeftOutlined } from '@ant-design/icons'
 
@@ -48,6 +50,8 @@ export type AppPage =
   | { type: 'roster-3' }
   | { type: 'roster-4' }
   | { type: 'leave' }
+  | { type: 'leave-types' }
+  | { type: 'leave-profile'; employeeId: string }
 
 export default function App() {
   const [page, setPage] = useState<AppPage>({ type: 'live-tracking-testing-2' })
@@ -245,7 +249,31 @@ export default function App() {
   if (page.type === 'leave') {
     return (
       <AppLayout activeKey="leave" breadcrumbLabel="Leave" onNavigate={navigate}>
-        <LeavePage />
+        <LeavePage onNavigate={navigate} />
+      </AppLayout>
+    )
+  }
+
+  if (page.type === 'leave-types') {
+    return (
+      <AppLayout
+        activeKey="leave"
+        breadcrumbItems={['Leave', 'Manage Leave Types']}
+        onNavigate={navigate}
+      >
+        <ManageLeaveTypesPage onNavigate={navigate} />
+      </AppLayout>
+    )
+  }
+
+  if (page.type === 'leave-profile') {
+    return (
+      <AppLayout
+        activeKey="leave"
+        breadcrumbItems={['Leave', 'Leave Profile']}
+        onNavigate={navigate}
+      >
+        <LeaveProfilePage employeeId={page.employeeId} onNavigate={navigate} />
       </AppLayout>
     )
   }

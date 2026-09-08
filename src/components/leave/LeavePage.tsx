@@ -6,31 +6,27 @@
 // pattern; the point is that Leave looks like every other listing.
 
 import { useMemo, useState } from 'react'
-import { Typography, Table, Button, Input, Select, DatePicker, Popover, Tag, Tooltip, message } from 'antd'
+import { Typography, Table, Button, Input, Select, DatePicker, Popover, Tag, Tooltip } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import type { Dayjs } from 'dayjs'
 import dayjs from 'dayjs'
-import { FilterOutlined, LeftOutlined, RightOutlined, SettingOutlined } from '@ant-design/icons'
+import { FilterOutlined, SettingOutlined } from '@ant-design/icons'
 import {
   DEPARTMENTS,
   HIRING_COMPANIES,
   LEAVE_EMPLOYEES,
-  balanceOf,
   fullName,
   isListedOnLeavePage,
   type Department,
   type HiringCompany,
   type LeaveEmployee,
 } from './leaveData'
+import { listingBalance } from './leaveLogic'
+import PaginationBar from './PaginationBar'
+import type { AppPage } from '@/App'
 
 const { Text, Title } = Typography
 const { RangePicker } = DatePicker
-
-const PAGE_SIZE_OPTIONS = [
-  { value: 10, label: '10 / page' },
-  { value: 20, label: '20 / page' },
-  { value: 50, label: '50 / page' },
-]
 
 /** "26 Aug 2026" — the format every other listing in the app prints. */
 const fmtDate = (iso: string) => dayjs(iso).format('DD MMM YYYY')
@@ -50,97 +46,7 @@ function agoLabel(iso: string, now: Dayjs): string {
   return months === 1 ? '1 month ago' : `${months} months ago`
 }
 
-/** Detached pagination card, same as Invoice 2.0. */
-function PaginationBar({
-  page,
-  pageSize,
-  total,
-  onPageChange,
-  onPageSizeChange,
-}: {
-  page: number
-  pageSize: number
-  total: number
-  onPageChange: (p: number) => void
-  onPageSizeChange: (n: number) => void
-}) {
-  const totalPages = Math.max(1, Math.ceil(total / pageSize))
-  const from = total === 0 ? 0 : (page - 1) * pageSize + 1
-  const to = Math.min(page * pageSize, total)
-
-  const btnStyle = (active: boolean): React.CSSProperties => ({
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    minWidth: 32,
-    height: 32,
-    padding: '0 6px',
-    borderRadius: 6,
-    border: `1px solid ${active ? '#1677ff' : '#e8eaed'}`,
-    background: '#fff',
-    cursor: 'pointer',
-    fontSize: 13,
-    color: active ? '#1677ff' : '#1a1d23',
-    fontWeight: active ? 600 : 400,
-  })
-
-  return (
-    <div
-      style={{
-        background: '#fff',
-        border: '1px solid #f0f0f0',
-        borderRadius: 10,
-        marginTop: 16,
-        padding: '13px 20px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: 8,
-      }}
-    >
-      <Text style={{ fontSize: 13, color: '#595959' }}>
-        You are now viewing Employee {from} – {to} of {total}
-      </Text>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-        <button
-          onClick={() => onPageChange(Math.max(1, page - 1))}
-          disabled={page === 1}
-          style={{ ...btnStyle(false), color: '#8c8c8c', opacity: page === 1 ? 0.5 : 1, cursor: page === 1 ? 'not-allowed' : 'pointer' }}
-        >
-          <LeftOutlined style={{ fontSize: 11 }} />
-        </button>
-        {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-          <button key={p} onClick={() => onPageChange(p)} style={btnStyle(p === page)}>
-            {p}
-          </button>
-        ))}
-        <button
-          onClick={() => onPageChange(Math.min(totalPages, page + 1))}
-          disabled={page === totalPages}
-          style={{
-            ...btnStyle(false),
-            color: '#8c8c8c',
-            opacity: page === totalPages ? 0.5 : 1,
-            cursor: page === totalPages ? 'not-allowed' : 'pointer',
-          }}
-        >
-          <RightOutlined style={{ fontSize: 11 }} />
-        </button>
-        <Select
-          size="small"
-          value={pageSize}
-          onChange={onPageSizeChange}
-          options={PAGE_SIZE_OPTIONS}
-          style={{ marginLeft: 8, width: 100 }}
-        />
-      </div>
-    </div>
-  )
-}
-
-export default function LeavePage() {
-  const [messageApi, contextHolder] = message.useMessage()
+export default function LeavePage({ onNavigate }: { onNavigate: (page: AppPage) => void }) {
   const [search, setSearch] = useState('')
   const [filterOpen, setFilterOpen] = useState(false)
   const [filterCompanies, setFilterCompanies] = useState<HiringCompany[]>([])
@@ -233,13 +139,15 @@ export default function LeavePage() {
       // that deliberately do NOT sort.
       title: 'AL Balance',
       key: 'al',
-      render: (_, rec) => balanceCell(balanceOf(rec.annualLeave)),
+      // MOVE-1975 — "AL Balance" is the driver or non-driver annual leave type,
+      // whichever the employee is actually eligible for, for the current year.
+      render: (_, rec) => balanceCell(listingBalance(rec, 'AL', now.year())),
       width: 120,
     },
     {
       title: 'ML Balance',
       key: 'ml',
-      render: (_, rec) => balanceCell(balanceOf(rec.medicalLeave)),
+      render: (_, rec) => balanceCell(listingBalance(rec, 'ML', now.year())),
       width: 120,
     },
     {
@@ -325,7 +233,6 @@ export default function LeavePage() {
 
   return (
     <div style={{ padding: 24 }}>
-      {contextHolder}
       <Title level={2} style={{ marginBottom: 20, fontWeight: 700 }}>Leave</Title>
 
       {/* Toolbar. The date range sits out here rather than in the popover
@@ -387,9 +294,7 @@ export default function LeavePage() {
           type="primary"
           size="small"
           icon={<SettingOutlined />}
-          onClick={() =>
-            messageApi.info('Manage Leave Types (MOVE-1977) is not built yet — this listing is MOVE-1975.')
-          }
+          onClick={() => onNavigate({ type: 'leave-types' })}
         >
           Manage Leave Types
         </Button>
@@ -418,16 +323,14 @@ export default function LeavePage() {
           onRow={(rec) => ({
             // Biz req 4 — a row opens the employee's leave profile (MOVE-3494),
             // which is its own ticket and not built here.
-            onClick: () =>
-              messageApi.info(
-                `${fullName(rec)} — Employee Leave Profile (MOVE-3494) is not built yet.`,
-              ),
+            onClick: () => onNavigate({ type: 'leave-profile', employeeId: rec.id }),
             style: { cursor: 'pointer' },
           })}
         />
       </div>
 
       <PaginationBar
+        noun="Employee"
         page={page}
         pageSize={pageSize}
         total={filtered.length}
