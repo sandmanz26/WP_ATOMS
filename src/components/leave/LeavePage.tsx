@@ -23,6 +23,7 @@ import {
 } from './leaveData'
 import { listingBalance } from './leaveLogic'
 import PaginationBar from './PaginationBar'
+import { WhatsNewBanner } from './WhatsNew'
 import type { AppPage } from '@/App'
 
 const { Text, Title } = Typography
@@ -233,6 +234,7 @@ export default function LeavePage({ onNavigate }: { onNavigate: (page: AppPage) 
 
   return (
     <div style={{ padding: 24 }}>
+      <WhatsNewBanner />
       <Title level={2} style={{ marginBottom: 20, fontWeight: 700 }}>Leave</Title>
 
       {/* Toolbar. The date range sits out here rather than in the popover

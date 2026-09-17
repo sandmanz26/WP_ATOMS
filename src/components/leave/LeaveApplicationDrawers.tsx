@@ -28,6 +28,7 @@ import {
   requiresDocument,
   yearsSpanned,
 } from './leaveLogic'
+import { Mark } from './WhatsNew'
 
 const { Text } = Typography
 
@@ -303,7 +304,13 @@ export function ApplyLeaveDrawer({
                 <Text strong style={{ fontSize: 12, display: 'block', marginBottom: 6 }}>{blk.year}</Text>
               )}
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                <Text style={{ fontSize: 12, color: '#595959' }}>Available</Text>
+                <Space size={6}>
+                  <Text style={{ fontSize: 12, color: '#595959' }}>Available</Text>
+                  {/* MOVE-3777 biz req 3.1 gained a row on 17 Sep 2026 for the
+                      case this already handled: a leave type with no validity
+                      period reads as a bare "Available: x days". */}
+                  {!blk.validity.effective && <Mark id="apply-no-validity" />}
+                </Space>
                 <Text style={{ fontSize: 12 }}>
                   {formatDays(blk.available)}
                   {blk.validity.effective && (

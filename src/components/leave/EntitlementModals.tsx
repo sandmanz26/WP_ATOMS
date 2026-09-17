@@ -153,6 +153,9 @@ export function AddEntitlementModal({
       entitlement,
       unit,
       recurringYears: isChildcare ? recurringYears ?? 1 : undefined,
+      // MOVE-4137 biz req 1.4 — the balance drawer's "added on / added by".
+      addedOn: dayjs().format('YYYY-MM-DDTHH:mm:ss'),
+      addedBy: CURRENT_USER,
     })
     // Biz req 3 — the add shows up in the change history.
     logChange(employee.id, 'Add', type.name, '-', '-')
@@ -346,6 +349,9 @@ export function EditEntitlementModal({
       effectiveDate: effective ? effective.format('YYYY-MM-DD') : undefined,
       endDate: end ? end.format('YYYY-MM-DD') : undefined,
       appliesForward: applyForward,
+      // MOVE-4137 biz req 1.4 — the balance drawer's "last updated on / by".
+      updatedOn: dayjs().format('YYYY-MM-DDTHH:mm:ss'),
+      updatedBy: CURRENT_USER,
     })
 
     // Biz req 2.2 of MOVE-3888 — one history row per field actually changed,

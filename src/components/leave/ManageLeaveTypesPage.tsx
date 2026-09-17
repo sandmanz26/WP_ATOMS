@@ -5,7 +5,7 @@
 // drawer on a row click.
 
 import { useMemo, useState } from 'react'
-import { Button, Empty, Table, Typography, message } from 'antd'
+import { Button, Empty, Space, Table, Typography, message } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { ArrowLeftOutlined, PlusOutlined } from '@ant-design/icons'
@@ -18,6 +18,7 @@ import {
   validityLabelOf,
 } from './LeaveTypeDrawers'
 import PaginationBar from './PaginationBar'
+import { Mark, WhatsNewBanner } from './WhatsNew'
 import type { AppPage } from '@/App'
 
 const { Text, Title } = Typography
@@ -54,7 +55,13 @@ export default function ManageLeaveTypesPage({ onNavigate }: { onNavigate: (page
       dataIndex: 'name',
       // Biz req 2 — only the custom table sorts, and only by name.
       sorter: sortable ? (a, b) => a.name.localeCompare(b.name) : undefined,
-      render: (v: string) => <Text style={{ fontSize: 13, fontWeight: 500 }}>{v}</Text>,
+      render: (v: string, t: LeaveType) => (
+        <Space size={6}>
+          <Text style={{ fontSize: 13, fontWeight: 500 }}>{v}</Text>
+          {/* The two annual leave types are the ones MOVE-3900 rewrote. */}
+          {(t.id === 'lt-al' || t.id === 'lt-al-drv') && <Mark id="annual-leave-drivers" />}
+        </Space>
+      ),
     },
     {
       title: 'Entitlement',
@@ -117,6 +124,7 @@ export default function ManageLeaveTypesPage({ onNavigate }: { onNavigate: (page
   return (
     <div style={{ padding: 24 }}>
       {contextHolder}
+      <WhatsNewBanner />
       <style>{`
         .leave-table .ant-table-thead > tr > th { position: relative; }
         .leave-table .ant-table-thead > tr > th:not(:last-child)::after {

@@ -5,13 +5,13 @@
 // entitlement, used, pending and balance are all specific to the viewing year,
 // and that an application spanning a year boundary shows in both years.
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
-  Button, DatePicker, Dropdown, Empty, Input, Segmented, Select, Space, Table, Tag, Tooltip, Typography, message,
+  Button, DatePicker, Empty, Segmented, Select, Space, Table, Tag, Tooltip, Typography, message,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs, { type Dayjs } from 'dayjs'
-import { ArrowLeftOutlined, DownOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons'
 import {
   LEAVE_APPLICATIONS,
   LEAVE_EMPLOYEES,
@@ -31,6 +31,9 @@ import {
 } from './leaveLogic'
 import { AddEntitlementModal, ChangeHistoryDrawer, EditEntitlementModal } from './EntitlementModals'
 import { ApplyLeaveDrawer, LeaveApplicationDrawer, StatusTag } from './LeaveApplicationDrawers'
+import LeaveBalanceDrawer from './LeaveBalanceDrawer'
+import PaginationBar from './PaginationBar'
+import { Mark, WhatsNewBanner } from './WhatsNew'
 import type { AppPage } from '@/App'
 
 const { Text, Title } = Typography
@@ -62,7 +65,12 @@ export default function LeaveProfilePage({
   const [applyOpen, setApplyOpen] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
   const [editingRow, setEditingRow] = useState<BalanceRow | null>(null)
+  // MOVE-4137 — the balance row whose details drawer is open.
+  const [detailRow, setDetailRow] = useState<BalanceRow | null>(null)
   const [openAppId, setOpenAppId] = useState<string | null>(null)
+  // MOVE-3494 biz req 3 — 10 rows per page.
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
 
   // MOVE-3494 biz req 3.2 — the applications table needs its own filters.
   const [filterTypes, setFilterTypes] = useState<string[]>([])
@@ -105,6 +113,17 @@ export default function LeaveProfilePage({
       .sort((a, b) => b.appliedOn.localeCompare(a.appliedOn))
   }, [employee, year, revision, filterTypes, filterStatuses, periodRange, appliedRange])
 
+  // Biz req 3 — paginated at 10. Any change to what is being listed sends the
+  // reader back to page 1, so they never land on an empty page.
+  useEffect(() => {
+    setPage(1)
+  }, [year, filterTypes, filterStatuses, periodRange, appliedRange])
+
+  const pagedApplications = useMemo(
+    () => applications.slice((page - 1) * pageSize, page * pageSize),
+    [applications, page, pageSize],
+  )
+
   const openApp = applications.find((a) => a.id === openAppId)
     ?? LEAVE_APPLICATIONS.find((a) => a.id === openAppId)
     ?? null
@@ -128,13 +147,13 @@ export default function LeaveProfilePage({
       ),
     },
     {
-      title: 'Validity Period',
+      title: <Space size={6}>Validity Period <Mark id="validity-period" /></Space>,
       key: 'validity',
       width: 220,
       render: (_, r) => <Text style={{ fontSize: 13 }}>{formatValidity(r.validity)}</Text>,
     },
     {
-      title: 'Entitlement',
+      title: <Space size={6}>Entitlement <Mark id="entitlement-total" /></Space>,
       key: 'entitlement',
       width: 200,
       render: (_, r) => (
@@ -168,7 +187,14 @@ export default function LeaveProfilePage({
       width: 90,
       render: (_, r) => (
         <Tooltip title={`Edit ${r.leaveType.name} entitlement`}>
-          <Button type="text" size="small" icon={<EditOutlined />} onClick={() => setEditingRow(r)} />
+          <Button
+            type="text"
+            size="small"
+            icon={<EditOutlined />}
+            // The row itself opens the details drawer (MOVE-4137), so this
+            // shortcut has to stop the click before it gets there.
+            onClick={(ev) => { ev.stopPropagation(); setEditingRow(r) }}
+          />
         </Tooltip>
       ),
     },
@@ -243,6 +269,8 @@ export default function LeaveProfilePage({
         }
       `}</style>
 
+      <WhatsNewBanner />
+
       <Button
         type="link"
         icon={<ArrowLeftOutlined />}
@@ -262,22 +290,16 @@ export default function LeaveProfilePage({
               : ' · No leave approver — applications are auto-approved'}
           </Text>
         </div>
-        <Space>
-          {/* MOVE-3500 biz req 1 names this the profile page's primary CTA, so it
-              is the primary here even though Apply Leave is the busier action. */}
+        {/* MOVE-3494 biz req 4 — two CTAs and nothing else. Add Leave Entitlement
+            is the primary, Apply Leave the secondary, and the Actions dropdown
+            that used to sit beside them is struck out of the ticket: both of the
+            entries it held now open from the balance details drawer instead. */}
+        <Space size={8}>
+          <Mark id="page-actions-removed" label="ACTIONS MOVED" />
           <Button onClick={() => setApplyOpen(true)}>Apply Leave</Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setAddOpen(true)}>
             Add Leave Entitlement
           </Button>
-          <Dropdown
-            menu={{
-              items: [{ key: 'history', label: 'Leave Entitlement Change History' }],
-              onClick: () => setHistoryOpen(true),
-            }}
-            trigger={['click']}
-          >
-            <Button>Actions <DownOutlined /></Button>
-          </Dropdown>
         </Space>
       </div>
 
@@ -291,9 +313,14 @@ export default function LeaveProfilePage({
       </div>
 
       <div style={{ marginBottom: 10 }}>
-        <Text strong style={{ fontSize: 14 }}>Leave Balances</Text>
+        <Space size={6}>
+          <Text strong style={{ fontSize: 14 }}>Leave Balances</Text>
+          <Mark id="balance-row-click" />
+          <Mark id="balances-sort" label="SORT" />
+        </Space>
         <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>
           Every leave type {employee.givenName} is eligible for in {year}. Balance = entitlement − used − pending approval.
+          Click a row for its full details.
         </Text>
       </div>
       <div className="leave-table" style={{ background: '#fff', borderRadius: 10, border: '1px solid #f0f0f0', overflow: 'hidden', marginBottom: 28 }}>
@@ -303,6 +330,8 @@ export default function LeaveProfilePage({
           rowKey={(r) => r.leaveType.id}
           size="middle"
           pagination={false}
+          // MOVE-4137 biz req 1 — the row is the way into the details drawer.
+          onRow={(rec) => ({ onClick: () => setDetailRow(rec), style: { cursor: 'pointer' } })}
           locale={{
             emptyText: (
               <Empty
@@ -316,7 +345,10 @@ export default function LeaveProfilePage({
 
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12, marginBottom: 10, flexWrap: 'wrap' }}>
         <div>
-          <Text strong style={{ fontSize: 14 }}>Leave Applications</Text>
+          <Space size={6}>
+            <Text strong style={{ fontSize: 14 }}>Leave Applications</Text>
+            <Mark id="applications-pagination" label="PAGED" />
+          </Space>
           <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>
             Sorted by applied on, newest first. An application spanning two years appears in both.
           </Text>
@@ -363,7 +395,7 @@ export default function LeaveProfilePage({
       <div className="leave-table" style={{ background: '#fff', borderRadius: 10, border: '1px solid #f0f0f0', overflow: 'hidden' }}>
         <Table<LeaveApplication>
           columns={applicationColumns}
-          dataSource={applications}
+          dataSource={pagedApplications}
           rowKey="id"
           size="middle"
           pagination={false}
@@ -375,6 +407,15 @@ export default function LeaveProfilePage({
           }}
         />
       </div>
+
+      <PaginationBar
+        noun="Application"
+        page={page}
+        pageSize={pageSize}
+        total={applications.length}
+        onPageChange={setPage}
+        onPageSizeChange={(n) => { setPageSize(n); setPage(1) }}
+      />
 
       <AddEntitlementModal
         open={addOpen}
@@ -406,6 +447,17 @@ export default function LeaveProfilePage({
         open={historyOpen}
         employee={employee}
         onClose={() => setHistoryOpen(false)}
+      />
+      {/* MOVE-4137 — opened from a balance row, and the only route to Edit
+          Leave Entitlement and the change history now that MOVE-3494 has struck
+          them out of the page's actions. */}
+      <LeaveBalanceDrawer
+        row={detailRow}
+        employee={employee}
+        year={year}
+        onClose={() => setDetailRow(null)}
+        onEdit={(r) => { setDetailRow(null); setEditingRow(r) }}
+        onHistory={() => setHistoryOpen(true)}
       />
     </div>
   )

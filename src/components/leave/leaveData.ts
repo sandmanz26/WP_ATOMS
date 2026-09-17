@@ -159,6 +159,14 @@ export interface LeaveType {
   supportingDocument: SupportingDocumentRule
   encashment: Encashment
   eligibility: EmployeeEligibility
+  /**
+   * MOVE-3900 biz req 1.2 / 2.2 — the carry-forward cap is the type's own
+   * default entitlement times this. Annual Leave (Drivers) is the only type
+   * that doubles it; everything else that carries forward uses 1. Stored as a
+   * multiplier rather than a number of days so that editing the default
+   * entitlement moves the cap with it, which is what the ticket asks for.
+   */
+  carryForwardMultiplier?: number
   /** MOVE-1977 biz req 1.2 — the fixed wording the system table shows. */
   validityLabel: string
   lastUpdatedOn: string
@@ -183,10 +191,12 @@ const SYS = (
   eligibility: EmployeeEligibility,
   validityLabel: string,
   lastUpdatedOn: string,
+  extra: Partial<LeaveType> = {},
 ): LeaveType => ({
   id, name, system: true, entitlement, unit, validity, autoRecur,
   supportingDocument, encashment, eligibility, validityLabel,
   lastUpdatedOn, lastUpdatedBy: 'System', createdBy: 'System',
+  ...extra,
 })
 
 const CUSTOM = (
@@ -218,7 +228,9 @@ const CUSTOM = (
  */
 export const LEAVE_TYPES: LeaveType[] = [
   SYS('lt-al', 'Annual Leave', 12, 'days', 'annual-leave', true, 'optional', 'upon-resignation', 'non-drivers', 'Every calendar year', '2026-01-02T09:00:00'),
-  SYS('lt-al-drv', 'Annual Leave (Drivers)', 7, 'days', 'annual-leave', true, 'optional', 'upon-resignation', 'drivers', 'Every calendar year', '2026-01-02T09:00:00'),
+  // MOVE-3900 biz req 2.2 — drivers carry forward 2x the default, so 14 days.
+  SYS('lt-al-drv', 'Annual Leave (Drivers)', 7, 'days', 'annual-leave', true, 'optional', 'upon-resignation', 'drivers', 'Every calendar year', '2026-01-02T09:00:00',
+    { carryForwardMultiplier: 2 }),
   SYS('lt-ml', 'Medical Leave', 14, 'days', 'calendar-year', true, 'required', 'not-available', 'all', 'Every calendar year', '2026-01-02T09:00:00'),
   SYS('lt-hosp', 'Hospitalisation Leave', 46, 'days', 'calendar-year', true, 'required', 'not-available', 'all', 'Every calendar year', '2026-01-02T09:00:00'),
   SYS('lt-bday', 'Birthday Leave', 1, 'days', 'birth-month', true, 'optional', 'not-available', 'all', 'Every calendar year, in birth month', '2026-01-02T09:00:00'),
@@ -267,6 +279,9 @@ export interface EmployeeEntitlement {
   unit: EntitlementUnit
   /** MOVE-3500 biz req 2 — childcare leave only. */
   recurringYears?: number
+  /** MOVE-4137 biz req 1.4 — when this entitlement reached the profile. */
+  addedOn: string
+  addedBy: string
 }
 
 /**
@@ -284,6 +299,9 @@ export interface EntitlementOverride {
   endDate?: string
   /** Set when "apply to subsequent recurring years" was ticked. */
   appliesForward?: boolean
+  /** MOVE-4137 biz req 1.4 — surfaces as "last updated" on the balance drawer. */
+  updatedOn?: string
+  updatedBy?: string
 }
 
 // ---------------------------------------------------------------------------
@@ -521,36 +539,38 @@ const WORKING_DAYS = new Map(LEAVE_EMPLOYEES.map((e) => [e.id, e.workingDaysPerW
 export const EMPLOYEE_ENTITLEMENTS: EmployeeEntitlement[] = [
   // Bella has maternity leave added for a year from 1 Mar 2026.
   { id: 'ent-1', employeeId: 'lv-2', leaveTypeId: 'lt-mat',
-    effectiveDate: '2026-03-01', endDate: '2027-02-28', entitlement: 16, unit: 'weeks' },
+    effectiveDate: '2026-03-01', endDate: '2027-02-28', entitlement: 16, unit: 'weeks', addedOn: '2026-02-18T10:24:00', addedBy: 'Maya Anggraini' },
   // Citra has childcare leave recurring for 3 years from 1 Apr 2026 — the
   // worked example in MOVE-3494 biz req 1, so the year toggle has something
   // real to show and stop showing in 2029.
   { id: 'ent-2', employeeId: 'lv-3', leaveTypeId: 'lt-ccl',
-    effectiveDate: '2026-04-01', endDate: '2026-12-31', entitlement: 8, unit: 'days', recurringYears: 3 },
+    effectiveDate: '2026-04-01', endDate: '2026-12-31', entitlement: 8, unit: 'days', recurringYears: 3 , addedOn: '2026-03-20T14:02:00', addedBy: 'Heikke Ekkieh' },
   { id: 'ent-3', employeeId: 'lv-1', leaveTypeId: 'lt-pat',
-    effectiveDate: '2026-09-01', endDate: '2027-08-31', entitlement: 4, unit: 'weeks' },
+    effectiveDate: '2026-09-01', endDate: '2027-08-31', entitlement: 4, unit: 'weeks', addedOn: '2026-08-12T09:15:00', addedBy: 'Heikke Ekkieh' },
   { id: 'ent-4', employeeId: 'lv-14', leaveTypeId: 'lt-adopt',
-    effectiveDate: '2026-10-01', endDate: '2027-09-30', entitlement: 12, unit: 'weeks' },
+    effectiveDate: '2026-10-01', endDate: '2027-09-30', entitlement: 12, unit: 'weeks', addedOn: '2026-09-08T16:40:00', addedBy: 'Maya Anggraini' },
   { id: 'ent-5', employeeId: 'lv-24', leaveTypeId: 'lt-mat',
-    effectiveDate: '2026-02-01', endDate: '2027-01-31', entitlement: 16, unit: 'weeks' },
+    effectiveDate: '2026-02-01', endDate: '2027-01-31', entitlement: 16, unit: 'weeks', addedOn: '2026-01-19T11:05:00', addedBy: 'Maya Anggraini' },
   { id: 'ent-6', employeeId: 'lv-26', leaveTypeId: 'lt-ccl',
-    effectiveDate: '2025-05-01', endDate: '2025-12-31', entitlement: 8, unit: 'days', recurringYears: 2 },
+    effectiveDate: '2025-05-01', endDate: '2025-12-31', entitlement: 8, unit: 'days', recurringYears: 2 , addedOn: '2025-04-14T08:52:00', addedBy: 'Maya Anggraini' },
   { id: 'ent-7', employeeId: 'lv-28', leaveTypeId: 'lt-uicl',
-    effectiveDate: '2026-03-15', endDate: '2027-03-14', entitlement: 12, unit: 'days' },
+    effectiveDate: '2026-03-15', endDate: '2027-03-14', entitlement: 12, unit: 'days', addedOn: '2026-03-02T15:30:00', addedBy: 'Heikke Ekkieh' },
   { id: 'ent-8', employeeId: 'lv-30', leaveTypeId: 'lt-spl',
-    effectiveDate: '2026-06-01', endDate: '2027-05-31', entitlement: 10, unit: 'weeks' },
+    effectiveDate: '2026-06-01', endDate: '2027-05-31', entitlement: 10, unit: 'weeks', addedOn: '2026-05-21T10:10:00', addedBy: 'Heikke Ekkieh' },
   { id: 'ent-9', employeeId: 'lv-36', leaveTypeId: 'lt-ccl',
-    effectiveDate: '2026-01-01', endDate: '2026-12-31', entitlement: 8, unit: 'days', recurringYears: 4 },
+    effectiveDate: '2026-01-01', endDate: '2026-12-31', entitlement: 8, unit: 'days', recurringYears: 4 , addedOn: '2025-12-15T13:45:00', addedBy: 'Maya Anggraini' },
   { id: 'ent-10', employeeId: 'lv-33', leaveTypeId: 'lt-pat',
-    effectiveDate: '2025-04-01', endDate: '2026-03-31', entitlement: 4, unit: 'weeks' },
+    effectiveDate: '2025-04-01', endDate: '2026-03-31', entitlement: 4, unit: 'weeks', addedOn: '2025-03-17T09:00:00', addedBy: 'Maya Anggraini' },
 ]
 
 /** MOVE-3775 — per-year entitlement edits, matching the Edit rows below. */
 export const ENTITLEMENT_OVERRIDES: EntitlementOverride[] = [
   // Long-service goodwill: Maya's annual leave was raised for 2026 onwards.
-  { employeeId: 'lv-13', leaveTypeId: 'lt-al', year: 2026, entitlement: 18, unit: 'days', appliesForward: true },
+  { employeeId: 'lv-13', leaveTypeId: 'lt-al', year: 2026, entitlement: 18, unit: 'days', appliesForward: true,
+    updatedOn: '2026-01-08T11:32:00', updatedBy: 'Maya Anggraini' },
   // A one-year-only adjustment, so the checkbox's other setting is visible too.
-  { employeeId: 'lv-27', leaveTypeId: 'lt-al', year: 2026, entitlement: 15, unit: 'days', appliesForward: false },
+  { employeeId: 'lv-27', leaveTypeId: 'lt-al', year: 2026, entitlement: 15, unit: 'days', appliesForward: false,
+    updatedOn: '2026-02-24T15:48:00', updatedBy: CURRENT_USER },
 ]
 
 // ---------------------------------------------------------------------------

@@ -14,6 +14,114 @@ minor).
 
 ## [Unreleased]
 
+### Added — Leave: a "what changed" layer over the module, and the 14–17 Sep ticket revisions
+
+Six Leave tickets were edited on 17 Sep 2026 and a seventh was created that
+morning. Rather than ship the changes and leave the reader to re-explore eleven
+screens looking for them, every applied change is registered once in a new
+`WhatsNew.tsx` and then **pinned to the control it actually affected**.
+
+- A violet banner on all three Leave pages states the count and the window, and
+  opens a drawer listing every change grouped by screen, with the old behaviour
+  where it differed and a link to the ticket.
+- Inline `NEW` / `UPDATED` badges sit on the affected column headers, section
+  titles and CTAs. Hovering one gives the rule, what it replaced, and the
+  ticket reference.
+- A switch on the banner hides every badge, so the shipping view is one click
+  away. The choice persists in `localStorage`.
+
+This is prototype scaffolding, deliberately: registering a change and marking it
+are the same act, so an entry with no badge anywhere is a change nobody can
+find, and a badge with no entry does not compile.
+
+### Added — Leave Balance Details drawer (MOVE-4137)
+
+A brand-new ticket, created 17 Sep 2026 10:00. Clicking a row in the leave
+balances table opens a drawer with the balance for the viewing year, the
+month-by-month usage behind it, the applications that produced it, and the
+audit trail.
+
+- **Days used by month** walks each approved application day by day through the
+  deduction rule rather than attributing the whole application to its start
+  month, which is what the ticket's own 30 Mar – 3 Apr example requires (2 days
+  in March, 3 in April). Half-day markers therefore land in the month that
+  holds them. Verified live: Bella's maternity leave reads Sep 18 / Oct 22 /
+  Nov 21 / Dec 18, summing to the 79 days her balance row shows.
+- **The entitlement breakdown section renders only for annual leave and annual
+  leave (drivers)**, per biz req 1.2. Ahmad Fauzi reads 7 carried forward + 12
+  this year = 19 total.
+- **Added On / Added By** needed data that did not exist, so
+  `EmployeeEntitlement` gained an `addedOn`/`addedBy` pair and
+  `EntitlementOverride` an `updatedOn`/`updatedBy` pair. An auto-added
+  entitlement was never added by anyone, so it reads `System` with the validity
+  effective date, which is the ticket's "display 'system'" case.
+
+**A judgment call.** The ticket's first table mixes four balance labels
+(Entitlement, Used, Pending Approval, Balance) with three that belong to a
+single leave application (Days Used, Remarks, Supporting Document). One drawer
+cannot show three per-application fields as drawer-level rows when there are
+five applications, so the first four are the balance summary and the last three
+read on each row of the applications list. Flagged in Open items rather than
+guessed silently.
+
+### Changed — Leave rules rewritten against the 17 Sep MOVE-3900 revision
+
+- **Carry-forward is no longer a flat 7 days.** MOVE-3900 §1.2 now sets the cap
+  at the leave type's *own default entitlement* — 12 for Annual Leave — and
+  §2.2 doubles it for Annual Leave (Drivers), so 14. The ticket is explicit that
+  editing the default entitlement has to move the cap with it, so this is stored
+  as a `carryForwardMultiplier` on the type and read through `maxCarryForward`
+  rather than baked into a constant. `MAX_CARRY_FORWARD` is gone. Visible in the
+  data: Farhan Hakim now carries 12 days into 2026 where he was capped at 7.
+- **Pro-ration counts completed months.** The ticket replaced "by months, round
+  up" with "no. of completed months of service", and moved its rounding rule
+  down to the resulting day count (`< 0.5` down, `≥ 0.5` up — which is what
+  `Math.round` already did). A 20 Jul start is now 5 completed months → 5 days,
+  where it was 6. Verified live: Laras Puspita (2 Feb 2026 start) reads 10 days,
+  previously 11.
+- **The ticket's self-contradictory third example is gone**, deleted by the PM
+  in the same edit. The note flagging it is removed with it, and the
+  corresponding Open item is closed.
+- **Birthday leave** was rewritten into three explicit branches for the first
+  year of service. The existing implementation already satisfies all three —
+  only the comment changed, to cite the new wording.
+- **Annual leave is non-drivers only** and Annual Leave (Drivers) now carries a
+  full spec table of its own instead of "same as annual leave, except". Both
+  already matched the dataset; no behaviour change.
+
+### Changed — Leave profile, against the 17 Sep MOVE-3494 revision
+
+- **The page-level Actions dropdown is removed.** MOVE-3494 biz req 4 struck out
+  both of its entries; Edit Leave Entitlement and Leave Entitlement Change
+  History now open from the balance details drawer. This closes the open
+  question from 11 Sep about a page-level "Edit Leave Entitlement" having no row
+  context — the ticket resolved it by deleting the action.
+- **Validity Period always shows a date range.** The clause that had system
+  types showing the manage-page wording is gone, which also closes the second
+  open question: the ticket's childcare example wins. Manually added
+  entitlements use the dates entered when they were added.
+- **Balances default sort corrected** to system leave types in the manage-page
+  order, then custom types by effective date newest first. The previous reading
+  sorted auto-added before manually added, each alphabetically — a different
+  split, since maternity leave is a system type that only ever arrives manually.
+- **Leave applications table is paginated at 10**, per biz req 3.
+- **Apply Leave is a secondary CTA** and encashment stays a dropdown. Both were
+  queued as 10 Sep deltas, and both were reversed by later ticket edits before
+  being applied — noted here because "we checked and the answer moved back" is
+  worth as much as a change.
+
+**Open items for the PM**
+
+- MOVE-4137 biz req 1.1 lists Days Used, Remarks and Supporting Document as
+  drawer-level rows alongside the balance summary, but all three are properties
+  of one leave application. Built as per-application rows; confirm.
+- MOVE-3777 biz req 3.1 says a leave type whose validity period has fully passed
+  displays "Available: 0 days". The drawer currently shows the real balance with
+  "Validity period has passed" beside it, which is more informative but off
+  spec. Left alone as it predates this batch.
+- Carry-forward on top of a pro-rated final year is still unspecified (see the
+  older entry below).
+
 ### Changed — a much larger Leave dataset, and seed data that computes its own day counts
 
 **The structural part first, because it is the reason the rest can be trusted.**
@@ -135,6 +243,8 @@ ending 20 May 2026 is "5 months & 20 days → round up to 6". From 1 Jan that is
 4 months and 20 days, not 5 — so the stated conclusion does not follow from its
 own premise. The two internally consistent examples win; this returns 5 and the
 discrepancy is noted in the code. **PM should confirm which they meant.**
+*(Resolved 17 Sep 2026: the PM deleted that example in the same edit that
+switched pro-ration to completed months. See the Unreleased entry above.)*
 
 **2. A leave application spanning two years split its days by calendar length.**
 `daysInYear` pro-rated `app.days` by the share of dates in each year, which

@@ -86,10 +86,16 @@ export interface Validity {
 const NOT_APPLICABLE: Validity = { effective: null, end: null, applies: true }
 
 /**
- * MOVE-3900 §5 — birthday leave is the fiddliest rule in the epic: the period
- * runs across the birth month, but in the first year it cannot start before the
- * employee completes three months of service, and if the birth month is already
- * over by then the employee simply gets no birthday leave that year.
+ * MOVE-3900 §5 — birthday leave is the fiddliest rule in the epic. The 17 Sep
+ * 2026 rewrite split it into explicit branches, which this already satisfies:
+ *
+ *   - birth month falls after the three-month mark → 1st of the birth month
+ *   - the three-month mark falls inside the birth month → that date
+ *   - the birth month is already over by the three-month mark → nothing this
+ *     year; the employee first qualifies on the 1st of their birth month next
+ *     year, which the "subsequent years" branch below then produces
+ *
+ * and the end date is always the last day of that same birth month.
  */
 function birthMonthValidity(e: LeaveEmployee, year: number): Validity {
   const birth = dayjs(e.birthDate)
@@ -186,10 +192,16 @@ export function entitlementInDays(value: number | null, unit: EntitlementUnit, e
 }
 
 /**
- * MOVE-3900 §1 — annual leave is pro-rated in the first and last year of
- * service, by months of service rounded **up**. Every worked example in the
- * ticket rounds a part-month up to a whole one, which is why this counts month
- * boundaries and adds one for any remaining days rather than using diff().
+ * MOVE-3900 §1.2 — annual leave is pro-rated in the first and last year of
+ * service by the number of **completed** months of service. Part-months are
+ * dropped, not rounded up: the 17 Sep 2026 rewrite of the ticket replaced
+ * "by months, round up" with "no. of completed months", and moved its rounding
+ * rule down to the resulting day count instead.
+ *
+ * The period is counted inclusively, so the end day is measured as the
+ * following midnight. That is what makes the ticket's own examples come out:
+ * 1 Jul – 31 Dec is 6 completed months, while 20 Jul – 31 Dec is 5 months and
+ * 11 days, so 5.
  */
 function monthsOfServiceIn(e: LeaveEmployee, year: number): number {
   const yearStart = dayjs(`${year}-01-01`)
@@ -201,19 +213,7 @@ function monthsOfServiceIn(e: LeaveEmployee, year: number): number {
   const to = end && end.isBefore(yearEnd) ? end : yearEnd
   if (to.isBefore(from)) return 0
 
-  // Complete months, then any part-month rounds the whole thing up — which is
-  // what "by months, round up" means in MOVE-3900 §1, and what its first two
-  // worked examples compute (1 Jul → 6, 20 Jul → 6). A full 1 Jan – 31 Dec
-  // year lands on 12 through the same arithmetic, so it needs no special case.
-  //
-  // NOTE: the ticket's third example (contract ending 20 May → "5 months & 20
-  // days" → 6) does not agree: 1 Jan to 20 May is 4 months and 20 days, so this
-  // returns 5. Two of the three examples are internally consistent and this
-  // follows those; the third is flagged in the changelog as a ticket error
-  // rather than special-cased to match a wrong premise.
-  const wholeMonths = to.diff(from, 'month')
-  const remainder = to.diff(from.add(wholeMonths, 'month'), 'day')
-  return Math.min(12, wholeMonths + (remainder > 0 ? 1 : 0))
+  return Math.min(12, to.add(1, 'day').diff(from, 'month'))
 }
 
 /** True when the year is the employee's first or last — the pro-rated ones. */
@@ -224,19 +224,31 @@ function isPartialYear(e: LeaveEmployee, year: number): boolean {
 }
 
 /**
- * MOVE-3900 §1 — up to 7 days of leftover annual leave carries into the next
- * year. Computed from the previous year's balance rather than stored, so it
- * cannot go stale when an application is cancelled.
+ * MOVE-3900 §1.2 / §2.2 — leftover annual leave carries into the next year, up
+ * to a cap. As of 17 Sep 2026 the cap is no longer a flat 7 days: it is the
+ * leave type's *own* default entitlement, doubled for Annual Leave (Drivers).
+ * So Annual Leave caps at 12 and the drivers' type at 14, and the ticket is
+ * explicit that editing the default entitlement has to move the cap with it —
+ * which is why this reads the type rather than a constant.
+ *
+ * The balance it carries is computed from the previous year rather than stored,
+ * so it cannot go stale when an application is cancelled.
  */
-export const MAX_CARRY_FORWARD = 7
+export function maxCarryForward(type: LeaveType, e: LeaveEmployee): number | null {
+  if (type.validity !== 'annual-leave') return null
+  const base = entitlementInDays(type.entitlement, type.unit, e)
+  if (base === null) return null
+  return base * (type.carryForwardMultiplier ?? 1)
+}
 
 function carryForwardInto(e: LeaveEmployee, type: LeaveType, year: number): number {
-  if (type.validity !== 'annual-leave') return 0
+  const cap = maxCarryForward(type, e)
+  if (cap === null) return 0
   const prev = year - 1
   if (!servesInYear(e, prev)) return 0
   const prevRow = balanceRowFor(e, type, prev, { withCarryForward: false })
   if (!prevRow || prevRow.balance === null || prevRow.balance <= 0) return 0
-  return Math.min(MAX_CARRY_FORWARD, prevRow.balance)
+  return Math.min(cap, prevRow.balance)
 }
 
 // ---------------------------------------------------------------------------
@@ -356,6 +368,8 @@ function balanceRowFor(
   // HR has explicitly overridden: that number is the decision.
   if (entitlementDays !== null && !override && type.validity === 'annual-leave' && isPartialYear(e, year)) {
     const months = monthsOfServiceIn(e, year)
+    // MOVE-3900 §1.2 — "fraction of a day < 0.5 → round down, ≥ 0.5 → round up",
+    // which is exactly what Math.round does with a positive number.
     entitlementDays = Math.round((entitlementDays / 12) * months)
   }
 
@@ -381,9 +395,14 @@ function balanceRowFor(
 }
 
 /**
- * MOVE-3494 biz req 2 — every leave type an employee is eligible for in a
- * year, auto-added ones first (in the system order) then manually added ones,
- * each group alphabetical, which is the ticket's stated default sort.
+ * MOVE-3494 biz req 2 — every leave type an employee is eligible for in a year,
+ * in the ticket's stated default sort: system leave types first, in the fixed
+ * order the manage-leave-types page uses, then custom leave types by their
+ * effective date, most recent first.
+ *
+ * Note this sorts by *system vs custom*, not by auto-added vs manually added.
+ * They are different splits — maternity leave is a system type that only ever
+ * arrives manually — and an earlier reading of this rule conflated them.
  */
 export function balancesFor(e: LeaveEmployee, year: number): BalanceRow[] {
   const rows: BalanceRow[] = []
@@ -391,13 +410,116 @@ export function balancesFor(e: LeaveEmployee, year: number): BalanceRow[] {
     const row = balanceRowFor(e, type, year)
     if (row) rows.push(row)
   }
-  const auto = rows.filter((r) => !r.manual).sort((a, b) => a.leaveType.name.localeCompare(b.leaveType.name))
-  const manual = rows.filter((r) => r.manual).sort((a, b) => a.leaveType.name.localeCompare(b.leaveType.name))
-  return [...auto, ...manual]
+  // LEAVE_TYPES is already in the manage page's order, so the system group only
+  // has to keep it.
+  const system = rows.filter((r) => r.leaveType.system)
+  const custom = rows
+    .filter((r) => !r.leaveType.system)
+    .sort((a, b) => (b.leaveType.effectiveDate ?? '').localeCompare(a.leaveType.effectiveDate ?? ''))
+  return [...system, ...custom]
 }
 
 export function balanceRow(e: LeaveEmployee, leaveTypeId: string, year: number): BalanceRow | undefined {
   return balancesFor(e, year).find((r) => r.leaveType.id === leaveTypeId)
+}
+
+// ---------------------------------------------------------------------------
+// Leave balance details (MOVE-4137)
+// ---------------------------------------------------------------------------
+
+/** Every application of one leave type that touches the viewing year. */
+export function applicationsForType(e: LeaveEmployee, leaveTypeId: string, year: number): LeaveApplication[] {
+  return LEAVE_APPLICATIONS
+    .filter((a) => a.employeeId === e.id && a.leaveTypeId === leaveTypeId)
+    .filter((a) => dayjs(a.startDate).year() <= year && dayjs(a.endDate).year() >= year)
+    .sort((a, b) => a.startDate.localeCompare(b.startDate))
+}
+
+export interface MonthUsage {
+  /** First of the month, for formatting as "Mar 2026". */
+  month: Dayjs
+  days: number
+}
+
+/**
+ * MOVE-4137 biz req 1.3 — leave days used per month, for approved applications
+ * of this type inside the viewing year.
+ *
+ * The ticket's example is a cross-month application (30 Mar – 3 Apr) that has
+ * to land 2 days in March and 3 in April, so this walks the period day by day
+ * through the same deduction rule rather than attributing the whole
+ * application to its start month. A month with no usage is left out entirely.
+ */
+export function monthlyUsage(e: LeaveEmployee, leaveTypeId: string, year: number): MonthUsage[] {
+  const perMonth = new Map<number, number>()
+
+  for (const app of applicationsForType(e, leaveTypeId, year)) {
+    if (app.status !== 'Approved') continue
+    const start = dayjs(app.startDate)
+    const end = dayjs(app.endDate)
+    for (let d = start; !d.isAfter(end); d = d.add(1, 'day')) {
+      if (d.year() !== year) continue
+      // One day at a time, carrying this day's own half-day markers so a
+      // half-day at either end still costs 0.5 in the month that holds it.
+      const startHalf: HalfDay = d.isSame(start, 'day') ? app.startHalf : 'AM'
+      const endHalf: HalfDay = d.isSame(end, 'day') ? app.endHalf : 'PM'
+      const cost = deductionFor(e, d.format(ISO), d.format(ISO), startHalf, endHalf)
+      if (cost === 0) continue
+      perMonth.set(d.month(), (perMonth.get(d.month()) ?? 0) + cost)
+    }
+  }
+
+  return [...perMonth.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([month, days]) => ({ month: dayjs(`${year}-${String(month + 1).padStart(2, '0')}-01`), days }))
+}
+
+export interface EntitlementAudit {
+  addedOn: string | null
+  addedBy: string
+  lastUpdatedOn: string | null
+  lastUpdatedBy: string
+}
+
+/**
+ * MOVE-4137 biz req 1.4 — who put this entitlement on the profile and who
+ * touched it last.
+ *
+ * A manually added entitlement carries its own stamps. An auto-added one was
+ * never "added" by anyone, so the ticket's "display 'system'" applies and the
+ * date shown is the day the entitlement became effective. An MOVE-3775 edit,
+ * where one exists, supplies the last-updated pair.
+ */
+export function entitlementAudit(e: LeaveEmployee, row: BalanceRow, year: number): EntitlementAudit {
+  const manualEnt = EMPLOYEE_ENTITLEMENTS.find(
+    (x) => x.employeeId === e.id && x.leaveTypeId === row.leaveType.id,
+  )
+  const addedOn = manualEnt ? manualEnt.addedOn : row.validity.effective?.format(ISO) ?? null
+  const addedBy = manualEnt ? manualEnt.addedBy : 'System'
+
+  const override = overrideFor(e.id, row.leaveType.id, year)
+  return {
+    addedOn,
+    addedBy,
+    lastUpdatedOn: override?.updatedOn ?? addedOn,
+    lastUpdatedBy: override?.updatedBy ?? addedBy,
+  }
+}
+
+/**
+ * MOVE-4137 biz req 1.2 — the entitlement breakdown shown for annual leave:
+ * what carried in, what this year grants on its own, and the total.
+ * `null` for every other leave type, which has no such section.
+ */
+export function entitlementBreakdown(
+  row: BalanceRow,
+): { carriedForward: number; thisYear: number; total: number } | null {
+  if (row.leaveType.validity !== 'annual-leave' || row.entitlementDays === null) return null
+  return {
+    carriedForward: row.carriedForward,
+    thisYear: row.entitlementDays - row.carriedForward,
+    total: row.entitlementDays,
+  }
 }
 
 /** MOVE-1975 — the listing's two balance columns. */
