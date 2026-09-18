@@ -130,6 +130,32 @@ export const LEAVE_CHANGES = {
     ticketKey: 'MOVE-3494',
     on: '10 Sep 2026',
   },
+  'edit-from-drawer': {
+    kind: 'changed',
+    area: 'Leave Profile',
+    what: 'The Actions column is gone from Leave Balances. Edit Leave Entitlement is reached only from this row\u2019s details drawer, and saving an edit leaves you on that drawer.',
+    was: 'A pencil icon in an Actions column on every balance row.',
+    ticket: 'MOVE-3775 biz req 1 & 2',
+    ticketKey: 'MOVE-3775',
+    on: '18 Sep 2026',
+  },
+  'usage-options': {
+    kind: 'new',
+    area: 'Leave Profile',
+    what: 'The ticket now offers two shapes for the usage list \u2014 by month (Option 1) or by application (Option 2) \u2014 and asks for one or the other depending on dev effort. Both are built so the choice can be made by looking.',
+    ticket: 'MOVE-4137 biz req 1.3',
+    ticketKey: 'MOVE-4137',
+    on: '18 Sep 2026',
+  },
+  'cross-year-days': {
+    kind: 'changed',
+    area: 'Leave Profile',
+    what: 'Option 2 shows an application\u2019s own dates unclipped, and a cross-year application lists its days per year \u2014 identical whichever year you are viewing.',
+    was: 'The period was shown in full but only the viewing year\u2019s share of the days.',
+    ticket: 'MOVE-4137 biz req 1.3',
+    ticketKey: 'MOVE-4137',
+    on: '18 Sep 2026',
+  },
   'apply-no-validity': {
     kind: 'changed',
     area: 'Apply Leave',
@@ -143,7 +169,7 @@ export const LEAVE_CHANGES = {
 export type ChangeId = keyof typeof LEAVE_CHANGES
 
 /** The window this batch covers, shown on the banner. */
-export const CHANGE_WINDOW = '10 – 17 Sep 2026'
+export const CHANGE_WINDOW = '10 – 18 Sep 2026'
 
 const jiraUrl = (key: string) => `https://westpoint.atlassian.net/browse/${key}`
 

@@ -14,6 +14,58 @@ minor).
 
 ## [Unreleased]
 
+### Changed — Leave: the 18 Sep ticket revisions, one day after the last batch
+
+Six Leave tickets were touched again on 18 Sep 2026. Four were wording only
+(MOVE-3500, MOVE-3777, MOVE-3778, and MOVE-3494's action table gaining an
+explicit "click a balance row → MOVE-4137" line, which was already built). Two
+changed behaviour.
+
+**MOVE-3775 — Edit Leave Entitlement leaves the balances table entirely.** The
+ticket's entry point was rewritten from "in actions column of leave balances
+table" to "on the employee's leave balance details drawer → access 'edit'
+action (primary CTA)". So:
+
+- **The Actions column is removed from Leave Balances.** Yesterday's entry
+  recorded keeping the pencil icon *and* adding the row click as a judgment
+  call, on the grounds that MOVE-3775 still asked for the column. It no longer
+  does, so the column goes. That is the ticket overruling the call, which is
+  the outcome the call was made to allow.
+- **Saving an edit returns to the drawer**, per biz req 2's "remain on
+  employee's leave balance details drawer". The modal now opens above the
+  drawer (`zIndex` 1100) instead of replacing it, and the drawer is keyed by
+  leave type id rather than holding a captured `BalanceRow` — so it re-reads
+  its figures after the save rather than showing what it captured on open.
+  Verified live: editing Andi Nugroho's annual leave from 12 to 20 days moves
+  the open drawer to 20 days and its total to 27 without closing.
+
+**MOVE-4137 — the usage list is now an explicit either/or.** Biz req 1.3 gained
+an **Option 1** (by month, what was built yesterday) and an **Option 2** (by
+application), with the note *"Show EITHER option 1 OR option 2 → depending on
+dev effort"*. Both are built and labelled as such in the drawer, so the choice
+can be made by looking at them rather than by imagining them.
+
+- **Option 2 now matches its spec.** An application's dates are shown unclipped,
+  and a cross-year application lists its days **per year** — Andi Nugroho's
+  24 Dec 2026 – 5 Jan 2027 reads "5 days (2026) / 2 days (2027)", identically
+  whether 2026 or 2027 is being viewed. It previously showed only the viewing
+  year's share.
+- **Remarks and Supporting Document are gone from the drawer.** The 18 Sep edit
+  trimmed the summary table to Entitlement / Used / Pending Approval / Balance —
+  "same as what is shown on employee leave profile details page" — and dropped
+  those three rows. This closes yesterday's open item about where they belonged:
+  the answer is that they do not. Both still read on the leave application
+  details drawer (MOVE-3889), which is where an application's own fields live.
+  The status tag is kept on each Option 2 row as a judgment call — a list of
+  applications with no status would show days for a rejected row that never
+  left the balance.
+- **"Entitlement This Year" must reflect a per-employee edit**, not the leave
+  type default. It already did, since the MOVE-3775 override flows through
+  `balanceRowFor` before the breakdown is taken; the live check above confirms
+  it.
+
+The in-app change layer picks up three more entries and now covers 10 – 18 Sep.
+
 ### Added — Leave: a "what changed" layer over the module, and the 14–17 Sep ticket revisions
 
 Six Leave tickets were edited on 17 Sep 2026 and a seventh was created that
@@ -115,6 +167,8 @@ guessed silently.
 - MOVE-4137 biz req 1.1 lists Days Used, Remarks and Supporting Document as
   drawer-level rows alongside the balance summary, but all three are properties
   of one leave application. Built as per-application rows; confirm.
+  *(Resolved 18 Sep 2026: the PM removed all three from the drawer. See the
+  Unreleased entry above.)*
 - MOVE-3777 biz req 3.1 says a leave type whose validity period has fully passed
   displays "Available: 0 days". The drawer currently shows the real balance with
   "Validity period has passed" beside it, which is more informative but off

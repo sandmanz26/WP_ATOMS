@@ -11,7 +11,7 @@ import {
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs, { type Dayjs } from 'dayjs'
-import { ArrowLeftOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, PlusOutlined } from '@ant-design/icons'
 import {
   LEAVE_APPLICATIONS,
   LEAVE_EMPLOYEES,
@@ -65,8 +65,10 @@ export default function LeaveProfilePage({
   const [applyOpen, setApplyOpen] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
   const [editingRow, setEditingRow] = useState<BalanceRow | null>(null)
-  // MOVE-4137 — the balance row whose details drawer is open.
-  const [detailRow, setDetailRow] = useState<BalanceRow | null>(null)
+  // MOVE-4137 — the leave type whose details drawer is open. Held as an id
+  // rather than the row itself so the drawer re-reads the row after an edit or
+  // a year change instead of showing the figures it captured on open.
+  const [detailTypeId, setDetailTypeId] = useState<string | null>(null)
   const [openAppId, setOpenAppId] = useState<string | null>(null)
   // MOVE-3494 biz req 3 — 10 rows per page.
   const [page, setPage] = useState(1)
@@ -124,6 +126,8 @@ export default function LeaveProfilePage({
     [applications, page, pageSize],
   )
 
+  const detailRow = detailTypeId ? balances.find((r) => r.leaveType.id === detailTypeId) ?? null : null
+
   const openApp = applications.find((a) => a.id === openAppId)
     ?? LEAVE_APPLICATIONS.find((a) => a.id === openAppId)
     ?? null
@@ -179,25 +183,10 @@ export default function LeaveProfilePage({
         </Text>
       ),
     },
-    {
-      // MOVE-3775 biz req 1 — reached from the balances table's actions column,
-      // and available on every leave type.
-      title: 'Actions',
-      key: 'actions',
-      width: 90,
-      render: (_, r) => (
-        <Tooltip title={`Edit ${r.leaveType.name} entitlement`}>
-          <Button
-            type="text"
-            size="small"
-            icon={<EditOutlined />}
-            // The row itself opens the details drawer (MOVE-4137), so this
-            // shortcut has to stop the click before it gets there.
-            onClick={(ev) => { ev.stopPropagation(); setEditingRow(r) }}
-          />
-        </Tooltip>
-      ),
-    },
+    // MOVE-3775 biz req 1, as rewritten on 18 Sep 2026 — the actions column is
+    // gone from this table. Edit Leave Entitlement is now reached only from the
+    // balance details drawer's Edit CTA, which is also the only place that
+    // knows which leave type is being edited.
   ]
 
   const applicationColumns: ColumnsType<LeaveApplication> = [
@@ -316,6 +305,7 @@ export default function LeaveProfilePage({
         <Space size={6}>
           <Text strong style={{ fontSize: 14 }}>Leave Balances</Text>
           <Mark id="balance-row-click" />
+          <Mark id="edit-from-drawer" label="NO ACTIONS COL" />
           <Mark id="balances-sort" label="SORT" />
         </Space>
         <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>
@@ -331,7 +321,7 @@ export default function LeaveProfilePage({
           size="middle"
           pagination={false}
           // MOVE-4137 biz req 1 — the row is the way into the details drawer.
-          onRow={(rec) => ({ onClick: () => setDetailRow(rec), style: { cursor: 'pointer' } })}
+          onRow={(rec) => ({ onClick: () => setDetailTypeId(rec.leaveType.id), style: { cursor: 'pointer' } })}
           locale={{
             emptyText: (
               <Empty
@@ -455,8 +445,10 @@ export default function LeaveProfilePage({
         row={detailRow}
         employee={employee}
         year={year}
-        onClose={() => setDetailRow(null)}
-        onEdit={(r) => { setDetailRow(null); setEditingRow(r) }}
+        onClose={() => setDetailTypeId(null)}
+        // Biz req 2 of MOVE-3775 — saving the edit leaves the user on the
+        // balance details drawer, so the drawer stays mounted underneath.
+        onEdit={setEditingRow}
         onHistory={() => setHistoryOpen(true)}
       />
     </div>

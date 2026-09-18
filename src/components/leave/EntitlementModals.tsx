@@ -381,6 +381,10 @@ export function EditEntitlementModal({
       onCancel={onClose}
       title={`Edit ${type.name}`}
       width={520}
+      // MOVE-3775 biz req 1 (18 Sep) — this modal opens on top of the balance
+      // details drawer and returns to it, so it has to sit above the drawer
+      // rather than sharing its stacking level.
+      zIndex={1100}
       footer={[
         <Button key="cancel" onClick={onClose}>Cancel</Button>,
         <Button key="save" type="primary" onClick={save}>Save</Button>,

@@ -9,7 +9,6 @@
 import { Button, Drawer, Empty, Space, Table, Tag, Tooltip, Typography } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
-import { PaperClipOutlined } from '@ant-design/icons'
 import type { LeaveApplication, LeaveEmployee } from './leaveData'
 import {
   applicationsForType,
@@ -20,6 +19,7 @@ import {
   formatEntitlement,
   formatValidity,
   monthlyUsage,
+  yearsSpanned,
   type BalanceRow,
   type MonthUsage,
 } from './leaveLogic'
@@ -104,54 +104,46 @@ export default function LeaveBalanceDrawer({
 
   const applicationColumns: ColumnsType<LeaveApplication> = [
     {
-      title: 'Leave Period',
+      title: 'Dates',
       key: 'dates',
+      // Option 2 — the application's own period, never clipped to the viewing
+      // year, so a cross-year application reads identically in both years.
       render: (_, a) => (
         <div>
           <Text style={{ fontSize: 12, display: 'block' }}>
             {dayjs(a.startDate).format('D MMM YYYY')} - {dayjs(a.endDate).format('D MMM YYYY')}
           </Text>
-          <Space size={6} style={{ marginTop: 2 }}>
-            <StatusTag status={a.status} />
-            {/* Biz req 1.1 — remarks and the attachment belong to the
-                application, so they read next to it rather than as drawer-level
-                fields. Both fall back to "-" when absent. */}
-            {a.remarks ? (
-              <Tooltip title={a.remarks}>
-                <Text style={{ fontSize: 11, color: '#8c8c8c', maxWidth: 150, display: 'inline-block' }} ellipsis>
-                  {a.remarks}
-                </Text>
-              </Tooltip>
-            ) : (
-              <Text style={{ fontSize: 11, color: '#bfbfbf' }}>No remarks</Text>
-            )}
-            {a.documentName && (
-              <Tooltip title={`Preview and download ${a.documentName}`}>
-                <a style={{ fontSize: 11 }}>
-                  <PaperClipOutlined /> {a.documentName}
-                </a>
-              </Tooltip>
-            )}
-          </Space>
+          {/* Not in the ticket's two columns, but a list of applications with
+              no status would be misleading: a rejected row shows days that
+              never left the balance. */}
+          <div style={{ marginTop: 2 }}><StatusTag status={a.status} /></div>
         </div>
       ),
     },
     {
       title: 'Days Used',
       key: 'days',
-      width: 110,
+      width: 150,
       align: 'right',
-      // Biz req 1.1 — time off has no day cost at all, and a cross-year
-      // application is counted here for the part inside the viewing year, the
-      // same way the balances table counts it.
-      render: (_, a) =>
-        isTimeOff ? (
-          <Text style={{ fontSize: 12 }}>-</Text>
-        ) : (
-          <Text style={{ fontSize: 12 }}>
-            {formatDays(deductionInYear(employee, a.startDate, a.endDate, a.startHalf, a.endHalf, year))}
-          </Text>
-        ),
+      // Option 2 — time off costs nothing, and a cross-year application shows
+      // one figure per year it touches rather than only the viewing year's
+      // share. The ticket's example reads "8 days (2026) / 2 days (2027)" in
+      // both 2026 and 2027.
+      render: (_, a) => {
+        if (isTimeOff) return <Text style={{ fontSize: 12 }}>-</Text>
+        const years = yearsSpanned(a.startDate, a.endDate)
+        if (years.length === 1) return <Text style={{ fontSize: 12 }}>{formatDays(a.days)}</Text>
+        return (
+          <div>
+            {years.map((y) => (
+              <Text key={y} style={{ fontSize: 12, display: 'block' }}>
+                {formatDays(deductionInYear(employee, a.startDate, a.endDate, a.startHalf, a.endHalf, y))}{' '}
+                <Text type="secondary" style={{ fontSize: 11 }}>({y})</Text>
+              </Text>
+            ))}
+          </div>
+        )
+      },
     },
   ]
 
@@ -208,7 +200,13 @@ export default function LeaveBalanceDrawer({
         </Section>
       )}
 
-      <Section title="Days Used by Month">
+      {/* Biz req 1.3 offers two shapes for the usage list and asks for one or
+          the other "depending on dev effort". Both are built, and labelled, so
+          the choice can be made by looking rather than by imagining. */}
+      <Section
+        title="Option 1 — Days Used by Month"
+        extra={<Mark id="usage-options" label="PICK ONE" />}
+      >
         <Table<MonthUsage>
           columns={monthColumns}
           dataSource={months}
@@ -227,8 +225,13 @@ export default function LeaveBalanceDrawer({
       </Section>
 
       <Section
-        title="Leave Applications"
-        extra={applications.length > 0 ? <Tag style={{ fontSize: 10, margin: 0 }}>{applications.length}</Tag> : undefined}
+        title="Option 2 — Leave Applications"
+        extra={
+          <Space size={6}>
+            <Mark id="cross-year-days" label="PER YEAR" />
+            {applications.length > 0 && <Tag style={{ fontSize: 10, margin: 0 }}>{applications.length}</Tag>}
+          </Space>
+        }
       >
         <Table<LeaveApplication>
           columns={applicationColumns}
