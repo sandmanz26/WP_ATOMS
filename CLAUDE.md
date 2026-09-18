@@ -49,3 +49,23 @@ as columns) and are kept only as prior explorations.
 All roster business rules live in `rosterStatusLogic.tsx` and are shared by every
 variant, so a rule fix lands everywhere at once. Keep it that way — presentation
 belongs in the pages.
+
+## Jira watch (nightly routine)
+
+A scheduled Routine wakes a fresh session every night at 23:00 SGT, checks
+whether any ticket under the Leave epic **MOVE-3410** has been edited since the
+last applied change, and applies what it finds. It is **read-only against
+Jira** — it never edits, comments on, or transitions a ticket.
+
+- `tools/jira-desc-diff.py` is what makes this tractable. Most Leave ticket
+  edits are Jira reflowing its own table markup; the script normalises both
+  sides of a description edit to table *cells* so a formatting-only edit prints
+  nothing. Feed it the JSON that a `getJiraIssue` call with `expand: changelog`
+  writes to disk, plus the date to diff from.
+- **The watermark lives in the repo, not in the Routine.** The latest `on:`
+  date in `src/components/leave/WhatsNew.tsx` is the last ticket edit that has
+  been applied; that is what a run diffs from. So a missed night self-corrects
+  on the next run rather than leaving a hole.
+- Every change the Routine applies gets a `LEAVE_CHANGES` entry and a `<Mark>`
+  pinned to the control it affected, the same as a change made by hand. That
+  registry is the module's own record of what moved and when.

@@ -14,6 +14,29 @@ minor).
 
 ## [Unreleased]
 
+### Added — `tools/jira-desc-diff.py`, and a nightly Jira watch built on it
+
+The Leave tickets have been edited on four separate days in the last week, and
+each check so far has meant re-deriving the same thing by hand. A scheduled
+Routine now does it: every night at 23:00 SGT a fresh session diffs the Leave
+epic's tickets against what the repo has already applied, and applies whatever
+it finds. It is read-only against Jira — it never edits, comments on, or
+transitions a ticket.
+
+The script is the part worth keeping in the repo. Most Leave ticket edits are
+Jira reflowing its own markup — a wiki table becoming an embedded ADF one,
+column widths moving — and a raw description diff drowns a one-word rule change
+in hundreds of lines of that. `jira-desc-diff.py` normalises both sides to
+table *cells* first, so a formatting-only edit prints "(formatting only)" and a
+real edit prints exactly the sentence that moved. It had been living in a
+session scratchpad, which is precisely where a Routine cannot reach it.
+
+**The watermark is `WhatsNew.tsx`, not the Routine.** The latest `on:` date in
+`LEAVE_CHANGES` is the last ticket edit that has been applied, and that is what
+a run diffs from — so a missed night self-corrects on the next run instead of
+leaving a hole. The change registry built for the reader turns out to be the
+right state for the scheduler too.
+
 ### Changed — Leave: the 18 Sep ticket revisions, one day after the last batch
 
 Six Leave tickets were touched again on 18 Sep 2026. Four were wording only
