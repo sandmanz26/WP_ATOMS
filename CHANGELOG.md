@@ -14,6 +14,85 @@ minor).
 
 ## [Unreleased]
 
+### Added — Driver mobile app: Manage Leave (MOVE-2481, MOVE-4073, MOVE-4074, MOVE-4075)
+
+The first screens from epic **MOVE-4113 (WL Mobile Apps: Driver – Accounts Tab)**.
+Four screens in a 390×844 phone frame: Manage Leave, Apply Leave, View Leave
+Application, and the Cancel Leave confirmation.
+
+**It is parked behind a switch on the Customer Notification page.** The name
+does not match, and that is deliberate — the driver app has no menu of its own
+yet and is not meant to be found by accident, so the page still opens exactly
+as it did and the prototype rides along behind a pill toggle.
+
+**No leave rule is re-derived.** The driver tickets defer to the HR ones —
+MOVE-2481 §2 cites MOVE-3494 biz req 2 for the balance table, and the expand
+section cites MOVE-4137 biz req 1.2 — so the screens call `leaveLogic`
+directly. That is what makes the numbers agree with the HR module by
+construction rather than by luck: Joko Prasetyo's NS leave reads 11 days
+because he is on 5.5+ working days a week and MOVE-3777 §3.2 charges a
+consecutive Sat+Sun pair as one day.
+
+**Built to the tickets:**
+
+- **Manage Leave** — Apply for Leave CTA, one card per application (leave type,
+  dates, time sub-text *only* for time off, Days Used with `-` for time off,
+  applied-on, status), the exact empty-state copy "No leave applications yet.",
+  balance cards sorted system-then-custom, and a year toggle limited to **this
+  year and next year** with this year as the default, which is what §2 asks for
+  rather than the HR page's open-ended year list.
+- **Expand section only for the two annual leave types** — Carried Forward,
+  Entitlement This Year, Total Entitlement This Year. Verified live: 2 + 7 = 9.
+- **View Leave Application** — every status-dependent block appears only for its
+  own status, including the two reason fields.
+- **Cancel Leave** — enabled only for Pending Approval / Approved, greyed with
+  an explanation otherwise; the modal quotes the ticket's copy verbatim; and
+  **the balance releases because the status changed**, not because anything
+  wrote a balance. `usageFor` only counts Approved and Pending Approval, so
+  flipping the status is the whole mechanism. Verified live: cancelling Joko's
+  pending 5-day application moved Pending Approval 5 → 0 and Balance 4 → 9.
+- **Offline banner** — fixed, not a toast; disappears on reconnect; "You are
+  back online" on return; navigation while offline is blocked with "Unable to
+  access due to no internet connection". A control beside the phone toggles it.
+
+**Data model.** `LeaveApplication` gained `rejectionReason` and
+`cancellationReason`. MOVE-4073 §2 requires both, and the 20 Sep revisions of
+MOVE-3893 and MOVE-3779 added the same two fields to the HR side. Two
+applications were seeded for Joko Prasetyo — one Rejected, one Cancelled —
+because MOVE-4075 §1's disabled states cannot be seen at all unless the signed-in
+driver has an application in each status.
+
+**Open items for the PM**
+
+These three driver tickets carry a lot of text pasted from other tickets, which
+is worth fixing before anyone builds against them:
+
+- **MOVE-4074 §4** is a copy table about "unable to Update Password", and the
+  Acceptance Criteria of both MOVE-4073 and MOVE-4074 describe changing a
+  password and logging out. There is therefore **no specified toaster or error
+  copy for Apply Leave**, and no stated result for a successful submit. Built to
+  follow MOVE-3777 §4 instead: pending approval, or approved when the employee
+  has no leave approver.
+- **MOVE-4073 §2** says "Show field only if **claim** status = cancelled /
+  rejected" for the two reason fields — *claim*, not *leave*, pasted from the
+  Claims module.
+- **MOVE-4073 §4** gives the Cancel action's access permissions as "Master &
+  Junior System Admin / any tenant staff with permission to cancel any leave",
+  which is the HR ticket's answer. MOVE-4075 §1 says the opposite: this is the
+  driver's own app, own-tenant drivers only, and subcon drivers have no access
+  to leave at all.
+- **MOVE-4075's Acceptance Criteria** describe the View Leave Application page
+  rather than cancelling, and refer to a "biz req #4" that the ticket does not
+  have.
+- **MOVE-2481 §2** places "1 card = 1 leave type" between the application-card
+  table and the balance section, so it is ambiguous which it governs. Read as
+  the balance cards, since applications are already one card each.
+- Sort order for the application cards is unspecified; used applied-on newest
+  first, matching MOVE-3494 §3.
+- The two new reason fields are **not yet shown in the HR-side leave application
+  drawer**, which the 20 Sep MOVE-3893/3779 edits also require. MOVE-3889's own
+  field table still does not list them.
+
 ### Added — `tools/jira-desc-diff.py`, and a nightly Jira watch built on it
 
 The Leave tickets have been edited on four separate days in the last week, and

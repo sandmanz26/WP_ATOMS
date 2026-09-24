@@ -334,6 +334,13 @@ export interface LeaveApplication {
   rejectedBy?: string
   cancelledOn?: string
   cancelledBy?: string
+  /**
+   * MOVE-4073 §2 (driver app) and the 20 Sep revisions of MOVE-3779 / MOVE-3893.
+   * Rejection demands a reason, cancellation does not — so only the second is
+   * ever legitimately absent, and it renders as '-' when it is.
+   */
+  rejectionReason?: string
+  cancellationReason?: string
 }
 
 /** MOVE-3779 / MOVE-3893 — only these two consume balance. */
@@ -584,6 +591,7 @@ interface AppOpts {
   endTime?: string
   remarks?: string
   documentName?: string
+  reason?: string
   appliedOn: string
   appliedBy?: string
   actedOn?: string
@@ -630,6 +638,8 @@ function app(
     rejectedBy: status === 'Rejected' ? o.actedBy : undefined,
     cancelledOn: status === 'Cancelled' ? o.actedOn : undefined,
     cancelledBy: status === 'Cancelled' ? o.actedBy : undefined,
+    rejectionReason: status === 'Rejected' ? o.reason : undefined,
+    cancellationReason: status === 'Cancelled' ? o.reason : undefined,
   }
 }
 
@@ -695,6 +705,11 @@ export const LEAVE_APPLICATIONS: LeaveApplication[] = [
   app('la-28', 'lv-10', 'lt-al-drv', '2025-06-16', '2025-06-20', 'Approved', { appliedOn: '2025-05-20T09:00:00', appliedBy: 'Joko Prasetyo', actedOn: '2025-05-21T08:00:00', actedBy: CITRA }),
   app('la-29', 'lv-10', 'lt-al-drv', '2026-09-21', '2026-09-26', 'Pending Approval', { remarks: 'Hometown visit', appliedOn: '2026-08-13T10:00:00' }),
   app('la-30', 'lv-10', 'lt-ns', '2026-04-06', '2026-04-17', 'Approved', { documentName: 'ns-callup.pdf', appliedOn: '2026-03-10T09:00:00', appliedBy: 'Joko Prasetyo', actedOn: '2026-03-11T09:00:00', actedBy: CITRA }),
+  // MOVE-4075 §1 — the driver's Cancel button is disabled for Rejected and
+  // Cancelled, so one of each has to exist on the driver the prototype signs
+  // in as, or those two states cannot be seen at all.
+  app('la-71', 'lv-10', 'lt-al-drv', '2026-02-09', '2026-02-11', 'Rejected', { remarks: 'Long weekend', appliedOn: '2026-01-20T08:30:00', appliedBy: 'Joko Prasetyo', actedOn: '2026-01-21T14:10:00', actedBy: CITRA, reason: 'Peak season coverage' }),
+  app('la-72', 'lv-10', 'lt-timeoff', '2026-07-15', '2026-07-15', 'Cancelled', { startTime: '09:00', endTime: '11:00', remarks: 'Clinic visit', appliedOn: '2026-07-13T17:20:00', appliedBy: 'Joko Prasetyo', actedOn: '2026-07-14T08:05:00', actedBy: 'Joko Prasetyo' }),
 
   // ---- Kartika Sari ----
   app('la-31', 'lv-11', 'lt-al', '2026-06-01', '2026-06-05', 'Approved', { appliedOn: '2026-05-05T10:00:00', appliedBy: 'Kartika Sari', actedOn: '2026-05-06T09:00:00', actedBy: MAYA }),

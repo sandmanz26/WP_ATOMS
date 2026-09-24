@@ -5,6 +5,7 @@ import { FilterOutlined, LeftOutlined, RightOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { NOTIFICATIONS, type CustomerNotification, type ContractStatus, type NotificationStatus } from './notificationData'
 import { ContractStatusBadge, NotificationStatusBadge, computeContractNotificationStatus } from './notificationStatusLogic'
+import DriverLeaveApp from '../driverleave/DriverLeaveApp'
 import type { AppPage } from '@/App'
 
 const { Text, Title } = Typography
@@ -103,6 +104,7 @@ function PaginationBar({
 }
 
 export default function CustomerNotificationPage({ onNavigate }: Props) {
+  const [surface, setSurface] = useState<'notifications' | 'driver-leave'>('notifications')
   const [search, setSearch] = useState('')
   const [filterOpen, setFilterOpen] = useState(false)
   const [filterCustomer, setFilterCustomer] = useState<string[]>([])
@@ -303,6 +305,45 @@ export default function CustomerNotificationPage({ onNavigate }: Props) {
 
   return (
     <div style={{ padding: 24 }}>
+      {/* Parked here deliberately. The driver Leave prototype (epic MOVE-4113)
+          has no menu of its own yet and is not meant to be found by accident,
+          so it rides along behind this switch and the page opens as it always
+          did. */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+        {([
+          { key: 'notifications', label: 'Customer Notifications' },
+          { key: 'driver-leave', label: 'Driver Leave (mobile)' },
+        ] as const).map((t) => (
+          <span
+            key={t.key}
+            onClick={() => setSurface(t.key)}
+            style={{
+              fontSize: 12,
+              fontWeight: 600,
+              padding: '5px 12px',
+              borderRadius: 999,
+              cursor: 'pointer',
+              border: '1px solid',
+              borderColor: surface === t.key ? '#1677ff' : '#e8eaed',
+              color: surface === t.key ? '#1677ff' : '#8c8c8c',
+              background: surface === t.key ? '#e6f4ff' : '#fff',
+            }}
+          >
+            {t.label}
+          </span>
+        ))}
+      </div>
+
+      {surface === 'driver-leave' ? (
+        <>
+          <Title level={2} style={{ marginBottom: 4, fontWeight: 700 }}>Driver App — Manage Leave</Title>
+          <Text type="secondary" style={{ fontSize: 13, display: 'block', marginBottom: 20 }}>
+            MOVE-2481 · MOVE-4073 · MOVE-4074 · MOVE-4075 — epic MOVE-4113, Driver Accounts Tab.
+          </Text>
+          <DriverLeaveApp />
+        </>
+      ) : (
+      <>
       {/* Title */}
       <Title level={2} style={{ marginBottom: 20, fontWeight: 700 }}>Customer Notifications</Title>
 
@@ -410,6 +451,8 @@ export default function CustomerNotificationPage({ onNavigate }: Props) {
         onPageChange={setPage}
         onPageSizeChange={(n) => { setPageSize(n); setPage(1) }}
       />
+      </>
+      )}
     </div>
   )
 }
