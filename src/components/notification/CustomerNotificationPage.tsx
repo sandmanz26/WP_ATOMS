@@ -6,6 +6,7 @@ import type { ColumnsType } from 'antd/es/table'
 import { NOTIFICATIONS, type CustomerNotification, type ContractStatus, type NotificationStatus } from './notificationData'
 import { ContractStatusBadge, NotificationStatusBadge, computeContractNotificationStatus } from './notificationStatusLogic'
 import DriverLeaveApp from '../driverleave/DriverLeaveApp'
+import PersonalDashboardLeaveTab from '../personaldashboard/PersonalDashboardLeaveTab'
 import type { AppPage } from '@/App'
 
 const { Text, Title } = Typography
@@ -104,7 +105,7 @@ function PaginationBar({
 }
 
 export default function CustomerNotificationPage({ onNavigate }: Props) {
-  const [surface, setSurface] = useState<'notifications' | 'driver-leave'>('notifications')
+  const [surface, setSurface] = useState<'notifications' | 'driver-leave' | 'personal-dashboard'>('notifications')
   const [search, setSearch] = useState('')
   const [filterOpen, setFilterOpen] = useState(false)
   const [filterCustomer, setFilterCustomer] = useState<string[]>([])
@@ -313,6 +314,7 @@ export default function CustomerNotificationPage({ onNavigate }: Props) {
         {([
           { key: 'notifications', label: 'Customer Notifications' },
           { key: 'driver-leave', label: 'Driver Leave (mobile)' },
+          { key: 'personal-dashboard', label: 'Personal Dashboard (web)' },
         ] as const).map((t) => (
           <span
             key={t.key}
@@ -341,6 +343,13 @@ export default function CustomerNotificationPage({ onNavigate }: Props) {
             MOVE-2481 · MOVE-4073 · MOVE-4074 · MOVE-4075 — epic MOVE-4113, Driver Accounts Tab.
           </Text>
           <DriverLeaveApp />
+        </>
+      ) : surface === 'personal-dashboard' ? (
+        <>
+          <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
+            MOVE-3946 · MOVE-3947 · MOVE-3948 · MOVE-3950 · MOVE-3952 · MOVE-3956 · MOVE-3965 — epic MOVE-3412, Personal Dashboard.
+          </Text>
+          <PersonalDashboardLeaveTab />
         </>
       ) : (
       <>

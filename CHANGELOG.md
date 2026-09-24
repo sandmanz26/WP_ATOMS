@@ -14,6 +14,89 @@ minor).
 
 ## [Unreleased]
 
+### Added — Personal Dashboard: the Leave tab (MOVE-3412), correcting the previous link
+
+The earlier "build it in Customer Notification" request had cited MOVE-4075
+(driver mobile app, epic MOVE-4113). The correct link was **MOVE-3412 "WLA: HR
+- Personal Dashboard"** — a different, web epic: the self-service portal where
+an employee views and manages their *own* leave, as opposed to MOVE-3494 where
+HR views an employee's. Both builds are kept; the Customer Notification page
+now carries a third pill, **Personal Dashboard (web)**, alongside Customer
+Notifications and Driver Leave (mobile).
+
+**Read all 22 of MOVE-3412's children before deciding scope.** They split
+three ways:
+
+- **Leave self-service** (7 real tickets) — built.
+- **Claims self-service** (MOVE-3776, 3943, 3945, 3958, 3964 + 2 cancelled/KIV)
+  — an entire separate domain (claim types, receipts, fleet-linked ERP/Carpark
+  claims, its own approval flow) with no existing data model or business rules
+  to build on. Not built.
+- **Payslip and Dashboard Home** (MOVE-3949, 3953, 3954) — all three have an
+  **empty description**. Nothing to build from.
+- **Notification tickets** (MOVE-3959, 3960, 3961, 3962, 3963) are all
+  `[KIV]`, and MOVE-3944/3951 (`[x]`) are cancelled duplicates of their
+  listing tickets. None of these are built, by the tickets' own status.
+
+**MOVE-3946 / MOVE-3950 / MOVE-3965 each say, explicitly, "same fields and
+logic as the leave module."** So this is not a reimplementation: the Leave
+tab's Apply for Leave button, its details drawer, and its cancel/approve/
+reject actions are the *same* `ApplyLeaveDrawer` and `LeaveApplicationDrawer`
+already built for MOVE-3777 / MOVE-3889 / MOVE-3779 / MOVE-3893, imported and
+reused as-is. What is actually new is the self-service framing (which
+employee is "me"), the Leave tab's own two tables (MOVE-3947, MOVE-3948 —
+different columns and filters from the HR page), and the "Pending My
+Approval" section (MOVE-3952) — the same drawer, opened against someone
+else's application.
+
+**"Me" is Citra Dewi (lv-3).** She already carries her own applications and
+balances in the seed data, and — cross-checked against the dataset — she is
+also the `leaveApprover` on five other employees with a currently pending
+application. That is what makes "Pending My Approval" show real rows instead
+of an empty state on the first render.
+
+**Two gaps this closes on the shared HR drawer**, both flagged as open items
+earlier in this session and both required by MOVE-3965 as well:
+
+- **"Applied On/By" is relabelled "Created On/By."** MOVE-3889 and MOVE-3965
+  both name it that; the underlying field is unchanged, since "created by" is
+  there to cover HR applying on an employee's behalf, which is exactly what
+  `appliedBy` already records.
+- **The reject and cancel confirmations now collect a reason.** Per the 20 Sep
+  revisions of MOVE-3893 and MOVE-3779: rejection's reason is **required**
+  (the Confirm button stays disabled until it's filled), cancellation's is
+  **optional**. Both cap at 120 characters with a counter. The drawer's
+  Additional Information block shows "Reason for Rejection" / "Reason for
+  Cancellation" only for that status, `-` when cancellation's is blank. This
+  fixes the drawer for the HR module (MOVE-3889) at the same time as it
+  satisfies MOVE-3965 — one component, one fix.
+
+**Verified live in Chromium:** the Leave tab renders Citra's 5 own
+applications, 10 balance rows (Remaining column, not Balance), and 5 rows
+pending her approval; rejecting Joko Prasetyo's application from "Pending My
+Approval" is blocked with the Confirm button disabled until a reason is typed,
+then removes his row from the queue and shows the reason on the drawer,
+correctly attributed to `CURRENT_USER`; on the HR side, the same drawer's
+Cancel still confirms with an empty, optional reason. `npx tsc --noEmit`
+clean.
+
+**Open items for the PM**
+
+- No sort order is specified anywhere for "Pending My Approval." Built
+  oldest-applied-first, on the reasoning that an approval queue reads better
+  that way; MOVE-3947's applications table keeps the newest-first default the
+  ticket does specify.
+- MOVE-3965's own spec is three bullet points ("view supporting document",
+  "created by", "rejected + reason for rejection") rather than a field table —
+  read as *additions* to MOVE-3889's existing table rather than its full
+  replacement, which is what let the same drawer serve both tickets.
+- Claims, Payslip and Dashboard Home remain unbuilt, per above. If any of
+  these is wanted next, Claims needs a data model started roughly the way
+  `leaveData.ts` was: types, entitlements, and a seed seeded through its own
+  `deduction`-equivalent, since its business rules (auto-appended Bus
+  Number/Route into Remarks, receipt-time-vs-now validation) are new and
+  non-trivial.
+
 ### Added — Driver mobile app: Manage Leave (MOVE-2481, MOVE-4073, MOVE-4074, MOVE-4075)
 
 The first screens from epic **MOVE-4113 (WL Mobile Apps: Driver – Accounts Tab)**.

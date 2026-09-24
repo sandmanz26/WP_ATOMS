@@ -425,6 +425,7 @@ export function LeaveApplicationDrawer({
   onChanged: (message: string) => void
 }) {
   const [pending, setPending] = useState<PendingAction | null>(null)
+  const [reasonInput, setReasonInput] = useState('')
 
   if (!application) return <Drawer open={false} onClose={onClose} />
   const app = application
@@ -435,22 +436,27 @@ export function LeaveApplicationDrawer({
   // MOVE-3779 — cancelling is allowed while pending or already approved.
   const canCancel = app.status === 'Pending Approval' || app.status === 'Approved'
 
-  const apply = (action: PendingAction) => {
+  const apply = (action: PendingAction, reason: string) => {
     const now = dayjs().format('YYYY-MM-DDTHH:mm:ss')
     if (action === 'approve') {
       app.status = 'Approved'
       app.approvedOn = now
       app.approvedBy = CURRENT_USER
     } else if (action === 'reject') {
+      // MOVE-3893 (20 Sep revision) — rejection carries a required reason.
       app.status = 'Rejected'
       app.rejectedOn = now
       app.rejectedBy = CURRENT_USER
+      app.rejectionReason = reason
     } else {
+      // MOVE-3779 (20 Sep revision) — cancellation's reason is optional.
       app.status = 'Cancelled'
       app.cancelledOn = now
       app.cancelledBy = CURRENT_USER
+      app.cancellationReason = reason || undefined
     }
     setPending(null)
+    setReasonInput('')
     // Balances recompute from status, so nothing else has to be adjusted here.
     onChanged(`Leave application ${app.status.toLowerCase()}.`)
     if (action === 'cancel') onClose()
@@ -497,7 +503,10 @@ export function LeaveApplicationDrawer({
         // Biz req 2 — no primary CTA; everything sits under an actions menu.
         extra={
           <Dropdown
-            menu={{ items: menuItems, onClick: ({ key }) => setPending(key as PendingAction) }}
+            menu={{
+              items: menuItems,
+              onClick: ({ key }) => { setPending(key as PendingAction); setReasonInput('') },
+            }}
             trigger={['click']}
           >
             <Button>
@@ -551,8 +560,11 @@ export function LeaveApplicationDrawer({
         <div style={{ height: 20 }} />
         <Text style={{ fontSize: 12, color: '#8c8c8c', fontWeight: 600 }}>Additional Information</Text>
         <div style={{ marginTop: 8 }}>
-          <ReadRow label="Applied On" value={dayjs(app.appliedOn).format('D MMM YYYY, h:mm A')} />
-          <ReadRow label="Applied By" value={app.appliedBy} />
+          {/* MOVE-3889 / MOVE-3965 both name this "Created On/By" — it is the
+              same appliedOn/appliedBy pair, since HR applying on an employee's
+              behalf is what "created by" is there to distinguish. */}
+          <ReadRow label="Created On" value={dayjs(app.appliedOn).format('D MMM YYYY, h:mm A')} />
+          <ReadRow label="Created By" value={app.appliedBy} />
           {/* Biz req 1 — each pair shows only for its own status. */}
           {app.status === 'Approved' && (
             <>
@@ -564,12 +576,14 @@ export function LeaveApplicationDrawer({
             <>
               <ReadRow label="Rejected On" value={app.rejectedOn ? dayjs(app.rejectedOn).format('D MMM YYYY, h:mm A') : '-'} />
               <ReadRow label="Rejected By" value={app.rejectedBy ?? '-'} />
+              <ReadRow label="Reason for Rejection" value={app.rejectionReason || '-'} />
             </>
           )}
           {app.status === 'Cancelled' && (
             <>
               <ReadRow label="Cancelled On" value={app.cancelledOn ? dayjs(app.cancelledOn).format('D MMM YYYY, h:mm A') : '-'} />
               <ReadRow label="Cancelled By" value={app.cancelledBy ?? '-'} />
+              <ReadRow label="Reason for Cancellation" value={app.cancellationReason || '-'} />
             </>
           )}
           <ReadRow label="Employee" value={`${employee.givenName} ${employee.familyName}`} />
@@ -578,13 +592,33 @@ export function LeaveApplicationDrawer({
 
       <Modal
         open={!!pending}
-        onCancel={() => setPending(null)}
+        onCancel={() => { setPending(null); setReasonInput('') }}
         title={pending ? ACTION_COPY[pending].title : ''}
         okText={pending ? ACTION_COPY[pending].ok : 'Confirm'}
-        okButtonProps={{ danger: pending ? ACTION_COPY[pending].danger : false }}
-        onOk={() => pending && apply(pending)}
+        okButtonProps={{
+          danger: pending ? ACTION_COPY[pending].danger : false,
+          // MOVE-3893 (20 Sep) — rejection cannot be confirmed without a reason.
+          disabled: pending === 'reject' && !reasonInput.trim(),
+        }}
+        onOk={() => pending && apply(pending, reasonInput.trim())}
       >
         <Text style={{ fontSize: 13 }}>{pending ? ACTION_COPY[pending].body : ''}</Text>
+        {/* Reject requires a reason; cancel's is optional; approve has none. */}
+        {(pending === 'reject' || pending === 'cancel') && (
+          <div style={{ marginTop: 14 }}>
+            <Text style={{ fontSize: 12, color: '#8c8c8c', display: 'block', marginBottom: 6 }}>
+              {pending === 'reject' ? <span style={{ color: '#ff4d4f', marginRight: 3 }}>*</span> : null}
+              Reason for {pending === 'reject' ? 'Rejection' : 'Cancellation'}
+            </Text>
+            <Input.TextArea
+              rows={3}
+              maxLength={120}
+              showCount
+              value={reasonInput}
+              onChange={(e) => setReasonInput(e.target.value)}
+            />
+          </div>
+        )}
       </Modal>
     </>
   )
