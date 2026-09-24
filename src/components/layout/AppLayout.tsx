@@ -5,6 +5,7 @@ import {
   CalendarOutlined,
   DownOutlined,
   HomeOutlined,
+  IdcardOutlined,
   RightOutlined,
   SolutionOutlined,
 } from '@ant-design/icons'
@@ -44,6 +45,15 @@ export default function AppLayout({
       icon: <SolutionOutlined style={{ fontSize: 16, color: '#595959' }} />,
       label: <span>Leave</span>,
       onClick: () => onNavigate?.({ type: 'leave' }),
+    },
+    // MOVE-3412 — its own top-level destination, same reasoning as Leave
+    // above: it is the employee's own dashboard, not scoped under any one
+    // department's section.
+    {
+      key: 'personal-dashboard',
+      icon: <IdcardOutlined style={{ fontSize: 16, color: '#595959' }} />,
+      label: <span>Personal Dashboard</span>,
+      onClick: () => onNavigate?.({ type: 'personal-dashboard' }),
     },
     {
       key: 'operations-header',

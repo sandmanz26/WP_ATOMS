@@ -14,6 +14,70 @@ minor).
 
 ## [Unreleased]
 
+### Added — Personal Dashboard: a real top-level menu, isolated from the earlier build (MOVE-3412)
+
+Judgment call from explicit feedback: *"pisahkan dengan personal dashboard
+yang sudah kamu buat... jangan gabung komponent apapun ya... buatkan ini di
+menu baru bernama personal dashboard."* The Customer-Notification-hidden
+build below (`personaldashboard/PersonalDashboardLeaveTab.tsx`) is going to be
+reworked separately, so this is a **second, independent implementation of the
+same epic** — new folder `src/components/employeeportal/`, a real top-level
+sidebar entry ("Personal Dashboard", its own `AppPage` route), and zero shared
+UI components with either `personaldashboard/PersonalDashboardLeaveTab.tsx` or
+`leave/LeaveApplicationDrawers.tsx`. The two builds now sit side by side; the
+older one is left completely untouched.
+
+**What is, and isn't, "a component" for this isolation rule.** Every piece of
+UI — `EmployeePortalPage.tsx` (Home/Leave/Claims/Pay Slip tabs),
+`EmployeePortalLeaveTab.tsx` (the three tables), `EmployeePortalLeaveDrawers.tsx`
+(Apply Leave, the details drawer, the confirm modals) — is written fresh, on
+purpose using different AntD idioms than the earlier build (`Form.useWatch`
+instead of manual state, `Descriptions` instead of a hand-rolled read-row,
+`Segmented` for the year toggle) so nothing is a copy-paste with the serial
+numbers filed off. What *is* still shared is `leave/leaveData.ts` and
+`leave/leaveLogic.ts` — the mock database and the carry-forward/pro-ration/
+deduction rules, no UI in either file. Recomputing those a second time was
+judged the wrong kind of independence: it would risk this page's balances
+disagreeing with the HR module's over the exact same employee, for no benefit
+to the user's actual ask.
+
+**Same scope as before, rebuilt clean**: MOVE-3946 (Apply), MOVE-3950
+(Cancel), MOVE-3952 (Approve/Reject + "Pending My Approval"), MOVE-3956
+(auto-approve when no leave approver), MOVE-3965 (details drawer), MOVE-3947
+(applications table + its Leave Type/Status filters), MOVE-3948 (balances
+table with the Remaining column and the this-year/next-year `Segmented`
+toggle). Claims and Pay Slip stay honest "not specified" placeholders
+(MOVE-3776/3943/3945/3958/3964 are a separate domain; MOVE-3953/3954/3949 have
+empty descriptions) — same reasoning as the earlier build, restated here
+because this is a from-scratch page, not an edit to it. "Me" is again Citra
+Dewi (lv-3), for the same reason: real seed data on both sides of the tab
+(own applications *and* 5 applications pending her approval) without
+engineering new mock data.
+
+**Two bugs caught in live verification, fixed before shipping:**
+- The details drawer showed "Cancel Leave" even when opened from "Pending My
+  Approval" — i.e. an approver could cancel *someone else's* application,
+  which contradicts MOVE-3947 biz req 4's explicit "manage own dashboard
+  means only your own leave" rule. Cancel now only shows when the drawer was
+  opened from the viewer's own Applications table, never from the approval
+  queue.
+- Approving/rejecting/cancelling mutated `LEAVE_APPLICATIONS` in place, but
+  the three tables were memoized on inputs that never changed (`self`,
+  `year`, `filters`), so nothing re-rendered until an unrelated prop changed.
+  Added the `revision` bump counter as an explicit `useMemo` dependency on all
+  three so a mutation is visible immediately — caught by watching "Pending My
+  Approval" not lose a row after rejecting it.
+
+**Verified live in Chromium**: Personal Dashboard is a real sidebar entry
+(not behind Customer Notification); Home/Leave/Claims/Pay Slip tabs all
+render; Apply for Leave's leave-type select and date range work; the
+Annual Leave balance row shows "19 days (incl. 7 carried forward)", matching
+Citra's 2025 usage; opening Krisna Wibisono's application from "Pending My
+Approval" shows only Reject/Approve (no Cancel); rejecting with an empty
+reason keeps Confirm disabled, filling it enables Confirm, and after
+confirming his row drops out of the queue (5 → 4) without a page reload.
+`npx tsc --noEmit` clean.
+
 ### Added — Personal Dashboard: the Leave tab (MOVE-3412), correcting the previous link
 
 The earlier "build it in Customer Notification" request had cited MOVE-4075

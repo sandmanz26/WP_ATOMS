@@ -24,6 +24,7 @@ import Roster4Page from '@/components/roster/Roster4Page'
 import LeavePage from '@/components/leave/LeavePage'
 import ManageLeaveTypesPage from '@/components/leave/ManageLeaveTypesPage'
 import LeaveProfilePage from '@/components/leave/LeaveProfilePage'
+import EmployeePortalPage from '@/components/employeeportal/EmployeePortalPage'
 import { Button } from 'antd'
 import { ArrowLeftOutlined } from '@ant-design/icons'
 
@@ -52,6 +53,7 @@ export type AppPage =
   | { type: 'leave' }
   | { type: 'leave-types' }
   | { type: 'leave-profile'; employeeId: string }
+  | { type: 'personal-dashboard' }
 
 export default function App() {
   const [page, setPage] = useState<AppPage>({ type: 'live-tracking-testing-2' })
@@ -274,6 +276,14 @@ export default function App() {
         onNavigate={navigate}
       >
         <LeaveProfilePage employeeId={page.employeeId} onNavigate={navigate} />
+      </AppLayout>
+    )
+  }
+
+  if (page.type === 'personal-dashboard') {
+    return (
+      <AppLayout activeKey="personal-dashboard" breadcrumbLabel="Personal Dashboard" onNavigate={navigate}>
+        <EmployeePortalPage />
       </AppLayout>
     )
   }
