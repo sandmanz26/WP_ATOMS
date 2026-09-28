@@ -14,6 +14,17 @@ minor).
 
 ## [Unreleased]
 
+### Changed — Personal Dashboard: tidied the Claims / Pay Slip placeholder (review feedback)
+
+The "not specified yet" placeholder on the Claims and Pay Slip tabs
+(`NotSpecifiedTab` in `EmployeePortalPage.tsx`) had its explanatory paragraph
+running the full width of the page — one long, hard-to-read line — with the
+cited ticket keys jammed into that same sentence. Capped the text block at
+440px and centered it under the `Empty` icon, and moved the ticket keys out
+of the sentence into small `Tag`s underneath, so the placeholder reads like a
+considered empty state instead of a dumped string. No scope or behavior
+change — still the same two tabs, same reasoning, same tickets cited.
+
 ### Added — Personal Dashboard: a real top-level menu, isolated from the earlier build (MOVE-3412)
 
 Judgment call from explicit feedback: *"pisahkan dengan personal dashboard

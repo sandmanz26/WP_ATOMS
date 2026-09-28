@@ -15,7 +15,7 @@
 //   Pay Slip MOVE-3953/3954 have empty descriptions — nothing to build from,
 //           so this tab is the same kind of placeholder.
 
-import { Card, Empty, Tabs, Typography } from 'antd'
+import { Card, Empty, Space, Tabs, Tag, Typography } from 'antd'
 import EmployeePortalLeaveTab from './EmployeePortalLeaveTab'
 
 const { Title, Text, Paragraph } = Typography
@@ -25,14 +25,18 @@ function NotSpecifiedTab({ title, tickets }: { title: string; tickets: string[] 
     <Card>
       <Empty
         image={Empty.PRESENTED_IMAGE_SIMPLE}
+        style={{ padding: '40px 0' }}
         description={
-          <div>
-            <Text strong>{title} is not specified yet.</Text>
-            <Paragraph type="secondary" style={{ marginTop: 8, marginBottom: 0, fontSize: 13 }}>
-              {tickets.join(', ')} carry no build-able requirements for this tab — they either have empty
-              descriptions or describe a separate module. Nothing is built here so this isn't mistaken for
-              a real spec.
+          <div style={{ maxWidth: 440, margin: '0 auto' }}>
+            <Text strong style={{ fontSize: 14 }}>{title} is not specified yet.</Text>
+            <Paragraph type="secondary" style={{ marginTop: 8, marginBottom: 14, fontSize: 13 }}>
+              These tickets carry no build-able requirements for this tab — they either have empty
+              descriptions or describe a separate module. Nothing is built here so this isn't mistaken
+              for a real spec.
             </Paragraph>
+            <Space size={[6, 6]} wrap style={{ width: '100%', justifyContent: 'center' }}>
+              {tickets.map((t) => <Tag key={t}>{t}</Tag>)}
+            </Space>
           </div>
         }
       />
