@@ -14,6 +14,101 @@ minor).
 
 ## [Unreleased]
 
+### Added — Personal Dashboard: the Claims tab, correcting an earlier misread (MOVE-3776, MOVE-3943, MOVE-3945, MOVE-3958, MOVE-3964)
+
+**This corrects a mistake, not a Jira change.** The Claims tab shipped as an
+honest-looking "not specified yet" placeholder, reasoning that its tickets
+"describe the Claims module itself (a separate domain, not part of this
+epic's own build)". Asked to re-check why Claims was still empty when the
+requirement already existed, re-reading all five tickets in full shows that
+reasoning was wrong: every one of them carries a complete field table,
+statuses and acceptance criteria — the same shape as the Leave tickets this
+epic's Leave tab was already built from. Only MOVE-3944 (`[x]`, a cancelled
+duplicate) and MOVE-3960/MOVE-3963 (`[KIV]`, notifications) are genuinely
+empty; that part of the earlier read was right. Built now, from the tickets:
+
+- **MOVE-3776 (Create Claims Submission)** — Claims Type select (ERP /
+  Carpark / Taxi Claims / Others, with a required free-text field for
+  Others); Receipt Date/Time shown only for Taxi Claims (date can't be
+  future; time can't be future when the date is today); Bus Number shown for
+  ERP/Carpark, Route shown for ERP only (not Carpark — the field table is
+  explicit about the difference); Amount as a 2-decimal number input;
+  Remarks (240 chars); a required attachment capped at 2MB. Bus Number/Route
+  aren't stored as their own columns — per biz req 3 they're auto-appended
+  into the Remarks string that the listing and details drawer actually show
+  (`composeClaimRemarks` in `claims/claimsLogic.ts`). Same "no approver on
+  file → created already approved" exception as Leave's MOVE-3956, because
+  MOVE-3776 biz req 4 states the identical rule for claims.
+- **MOVE-3943 (Submitted Claims Listing)** — "My Claims" and "Pending My
+  Approval" sub-tabs, each with its own search bar, filters (Claim Type,
+  Status, Applied On range, plus Employee/Department on the approval tab)
+  and sort (Status alphabetical, Applied On and Last Updated On
+  chronological, Last Updated On newest-first by default) — independently,
+  per biz req 2/3.
+- **MOVE-3964 (Claims Submission Details Drawer)** — the same isolated-drawer
+  pattern as Leave's details drawer, with the attachment shown behind the
+  same "prototype — nothing to download" honesty note already used there.
+- **MOVE-3945 / MOVE-3958 (Approve/Reject, Cancel)** — same "manage own
+  dashboard" scoping bug-fixed on Leave already: an approver reviewing
+  someone else's claim from "Pending My Approval" gets Approve/Reject only,
+  never Cancel. **Cancel's reason is required** (MOVE-3958's own acceptance
+  criteria say so explicitly) while **Reject's is left optional**, since
+  neither MOVE-3945 nor MOVE-3964 states it's required — this is a real
+  difference from Leave, where a later ticket revision made rejection's
+  reason required; nothing here claims Claims should match that unless a
+  ticket says so.
+
+**Judgment calls, made explicit:**
+- No separate Employees-module approver field exists in this prototype, so
+  the claim approver reuses `leaveApprover` (`claimApproverOf` in
+  `claims/claimsLogic.ts`) rather than inventing a second, disconnected
+  approver graph — the same five employees who already have pending leave
+  approvals from Citra Dewi also seed her "Pending My Approval" claims.
+- The Bus Number dropdown reuses the vehicle numbers already seeded in the
+  Notification module (`SBS1234A` etc.) instead of inventing new plate
+  numbers; the Route dropdown is a fresh, small mock list — no route data
+  exists anywhere else in this codebase.
+- MOVE-3964's action table says Cancel is enabled "only if pending approval",
+  but MOVE-3958's own acceptance criteria say "Pending Approval **and**
+  Approved". Followed MOVE-3958 as the more specific, authoritative source —
+  same resolution pattern used for Leave's MOVE-3965-vs-MOVE-3889 conflict.
+- "Paid" is a real status in the field table but no ticket in this batch ever
+  transitions a claim into it (no payroll-integration ticket exists yet), so
+  it only appears as seed data — nothing in the UI can produce it. Flagged as
+  an open item below.
+- MOVE-3964's Receipt Date/Time row literally says "if no remarks → display
+  '-'", which reads like a copy-paste leftover from a different field's
+  remark. Implemented as "if not applicable (category ≠ Taxi Claims) →
+  '-'", the reading that actually makes sense, and flagged for the PM rather
+  than followed literally.
+
+**New files**: `claims/claimsData.ts`, `claims/claimsLogic.ts` (the Claims
+domain's data + business rules, parallel to `leave/`), plus
+`employeeportal/EmployeePortalClaimsDrawers.tsx` and
+`EmployeePortalClaimsTab.tsx` — same isolation rule as the Leave tab: fresh
+AntD UI, no shared component with `personaldashboard/` or the HR module.
+`employeeportal/employeePortalIdentity.ts` is new too — pulled the "which
+employee am I" constant (Citra Dewi, `lv-3`) out of `EmployeePortalLeaveTab.tsx`
+into its own file so the Leave and Claims tabs can't drift onto different
+"self" employees.
+
+**Verified live in Chromium**: My Claims shows all 5 statuses including Paid;
+Pending My Approval lists all 5 employees' claims with a working Review
+action; reviewing someone else's claim shows Approve/Reject but never
+Cancel; rejecting with no reason still enables Confirm (optional, as coded);
+cancelling my own claim keeps Confirm disabled until a reason is entered,
+then enabled; the Submit Claim drawer's fields correctly change for ERP
+(Bus Number + Route), Carpark (Bus Number only), Taxi Claims (Receipt
+Date/Time), and Others (free-text type). `npx tsc --noEmit` clean.
+
+**Open items for the PM**
+- Should "Paid" be reachable from the UI (e.g. a payroll-linked action), or
+  is it intentionally outside this ticket batch's scope?
+- Should Reject require a reason like Leave's does, or is Claims' silence on
+  this intentional? (Currently: optional.)
+- MOVE-3964's Receipt Date/Time remark ("if no remarks → display '-'") likely
+  needs correcting in Jira — it was read as a copy-paste artifact here.
+
 ### Added — `FIGMA_DESIGN_SYSTEM.md`, a reference doc for the Figma design system
 
 At the user's request: a living template doc (tokens, Figma→AntD component

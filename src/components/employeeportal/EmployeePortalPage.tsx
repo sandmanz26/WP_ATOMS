@@ -9,14 +9,19 @@
 //   Home    MOVE-3949 — ticket description is empty, so this is a light
 //           welcome/quick-links panel rather than an invented dashboard.
 //   Leave   MOVE-3946/3947/3948/3950/3952/3956/3965 — built out fully.
-//   Claims  MOVE-3776/3943/3945/3958/3964 all describe the Claims module
-//           itself (a separate domain, not part of this epic's own build),
-//           so this tab stays an honest "not specified here" placeholder.
+//   Claims  MOVE-3776/3943/3945/3958/3964 — built out fully. An earlier pass
+//           called these "a separate domain, not part of this epic's own
+//           build" and left the tab as a placeholder; that was a misreading,
+//           caught on review — all five carry complete field tables and
+//           acceptance criteria, the same shape as the Leave tickets. Only
+//           MOVE-3944 ([x], cancelled) and MOVE-3960/MOVE-3963 ([KIV],
+//           notifications) are genuinely empty.
 //   Pay Slip MOVE-3953/3954 have empty descriptions — nothing to build from,
 //           so this tab is the same kind of placeholder.
 
 import { Card, Empty, Space, Tabs, Tag, Typography } from 'antd'
 import EmployeePortalLeaveTab from './EmployeePortalLeaveTab'
+import EmployeePortalClaimsTab from './EmployeePortalClaimsTab'
 
 const { Title, Text, Paragraph } = Typography
 
@@ -65,11 +70,7 @@ export default function EmployeePortalPage() {
         items={[
           { key: 'home', label: 'Home', children: <HomeTab /> },
           { key: 'leave', label: 'Leave', children: <EmployeePortalLeaveTab /> },
-          {
-            key: 'claims',
-            label: 'Claims',
-            children: <NotSpecifiedTab title="Claims" tickets={['MOVE-3776', 'MOVE-3943', 'MOVE-3945', 'MOVE-3958', 'MOVE-3964']} />,
-          },
+          { key: 'claims', label: 'Claims', children: <EmployeePortalClaimsTab /> },
           {
             key: 'payslip',
             label: 'Pay Slip',

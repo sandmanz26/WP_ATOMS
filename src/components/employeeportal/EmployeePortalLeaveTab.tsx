@@ -27,14 +27,9 @@ import {
 } from '../leave/leaveData'
 import { balancesFor, formatDays, formatEntitlement, formatValidity, type BalanceRow } from '../leave/leaveLogic'
 import { CreateLeaveApplicationDrawer, LeaveApplicationDetailsDrawer, LeaveStatusTag } from './EmployeePortalLeaveDrawers'
+import { PORTAL_SELF_ID } from './employeePortalIdentity'
 
 const { Text } = Typography
-
-// MOVE-3412's tickets do not say which employee is signed in — there is no
-// login in this prototype — so "self" is fixed to one seed employee who has
-// both her own applications and applications pending on her approval, giving
-// both halves of this tab something real to show.
-const SELF_ID = 'lv-3'
 
 const STATUS_OPTIONS: LeaveStatus[] = ['Pending Approval', 'Approved', 'Rejected', 'Cancelled']
 
@@ -47,7 +42,7 @@ export default function EmployeePortalLeaveTab() {
   const [revision, setRevision] = useState(0)
   const bump = () => setRevision((r) => r + 1)
 
-  const self = LEAVE_EMPLOYEES.find((e) => e.id === SELF_ID) as LeaveEmployee
+  const self = LEAVE_EMPLOYEES.find((e) => e.id === PORTAL_SELF_ID) as LeaveEmployee
 
   const [balanceYear, setBalanceYear] = useState<'this' | 'next'>('this')
   const [filters, setFilters] = useState<Filters>({ leaveTypeIds: [], statuses: [] })
