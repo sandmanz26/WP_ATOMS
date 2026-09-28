@@ -14,6 +14,16 @@ minor).
 
 ## [Unreleased]
 
+### Fixed — Personal Dashboard: missing page padding (review feedback)
+
+`EmployeePortalPage.tsx` rendered its `Tabs` straight into `AppLayout`'s
+`Content`, which itself carries no padding — every other page supplies its
+own via a wrapping `<div style={{ padding: 24 }}>` (see `LeavePage.tsx`), and
+this one didn't. The tab bar and every card under it sat flush against the
+right edge of the viewport instead of matching the left-side gutter. Added
+the same wrapping div so Personal Dashboard now has the page's standard
+24px gutter on both sides.
+
 ### Changed — Personal Dashboard: tidied the Claims / Pay Slip placeholder (review feedback)
 
 The "not specified yet" placeholder on the Claims and Pay Slip tabs

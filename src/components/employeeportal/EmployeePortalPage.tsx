@@ -59,22 +59,24 @@ function HomeTab() {
 
 export default function EmployeePortalPage() {
   return (
-    <Tabs
-      defaultActiveKey="leave"
-      items={[
-        { key: 'home', label: 'Home', children: <HomeTab /> },
-        { key: 'leave', label: 'Leave', children: <EmployeePortalLeaveTab /> },
-        {
-          key: 'claims',
-          label: 'Claims',
-          children: <NotSpecifiedTab title="Claims" tickets={['MOVE-3776', 'MOVE-3943', 'MOVE-3945', 'MOVE-3958', 'MOVE-3964']} />,
-        },
-        {
-          key: 'payslip',
-          label: 'Pay Slip',
-          children: <NotSpecifiedTab title="Pay Slip" tickets={['MOVE-3953', 'MOVE-3954']} />,
-        },
-      ]}
-    />
+    <div style={{ padding: 24 }}>
+      <Tabs
+        defaultActiveKey="leave"
+        items={[
+          { key: 'home', label: 'Home', children: <HomeTab /> },
+          { key: 'leave', label: 'Leave', children: <EmployeePortalLeaveTab /> },
+          {
+            key: 'claims',
+            label: 'Claims',
+            children: <NotSpecifiedTab title="Claims" tickets={['MOVE-3776', 'MOVE-3943', 'MOVE-3945', 'MOVE-3958', 'MOVE-3964']} />,
+          },
+          {
+            key: 'payslip',
+            label: 'Pay Slip',
+            children: <NotSpecifiedTab title="Pay Slip" tickets={['MOVE-3953', 'MOVE-3954']} />,
+          },
+        ]}
+      />
+    </div>
   )
 }
