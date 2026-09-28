@@ -2,7 +2,11 @@
 
 Standing instructions for Claude sessions on this repo. Structural reference
 lives in `DEVELOPER_GUIDE.md`; module business rules live in
-`CLAUDE_SESSION_CONTEXT.md`.
+`CLAUDE_SESSION_CONTEXT.md`; the Figma design system (tokens, component
+mapping to AntD, naming conventions) lives in `FIGMA_DESIGN_SYSTEM.md` — read
+it before building or styling any screen, and before pushing a new pattern
+into Figma from code. It's a living template: fill in gaps found while
+building, in the same change that finds them.
 
 ## Changelog
 

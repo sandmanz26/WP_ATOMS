@@ -14,6 +14,18 @@ minor).
 
 ## [Unreleased]
 
+### Added — `FIGMA_DESIGN_SYSTEM.md`, a reference doc for the Figma design system
+
+At the user's request: a living template doc (tokens, Figma→AntD component
+mapping, naming conventions, states, known deviations) for the user to fill
+in with the actual Figma design system, so future work — building a screen
+from Figma, or pushing a pattern from code back into Figma — has a single
+place to check instead of re-deriving it each time. Wired into `CLAUDE.md`
+alongside `DEVELOPER_GUIDE.md` and `CLAUDE_SESSION_CONTEXT.md` as a standing
+reference to read before UI work. Currently mostly empty placeholders — the
+one confirmed value is the 24px page gutter already in use across every page
+component (e.g. `LeavePage.tsx`'s `padding: 24` wrapper).
+
 ### Fixed — Personal Dashboard: missing page padding (review feedback)
 
 `EmployeePortalPage.tsx` rendered its `Tabs` straight into `AppLayout`'s
