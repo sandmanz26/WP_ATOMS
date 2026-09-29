@@ -116,6 +116,40 @@ a drift.
 | `Empty State` | `Empty` | `image={Empty.PRESENTED_IMAGE_SIMPLE}` everywhere, never the default illustration | |
 | `Tab/Tab Group` (ATOM Business Component, [node 424:16506](https://www.figma.com/design/ZpEYnJ4POb86CDMAM3BWCG/%F0%9F%92%8E-ATOM---Business-Component?node-id=424-16506)) | `common/PageTabs.tsx` (wraps `Anchor`, **not** `Tabs`) | The component's own Code Connect note maps it to AntD `Anchor` with `direction="horizontal"` — every tab item carries its own underline segment (colored active / faint default), not `Tabs`' shared baseline + ink bar. `PageTabs` adds one real deviation: items are stretched to equal width (Anchor sizes to content by default) to match the Figma spec. **Always use `PageTabs` for a page-level top tab bar** — this was called out explicitly as a standing rule, not a one-off. | Used in `employeeportal/EmployeePortalPage.tsx`'s Home/Leave/Claims/Pay Slip bar. Not yet retrofitted onto other pages' top-level tab bars (e.g. Claims' own "My Claims"/"Pending My Approval" sub-tabs still use plain `Tabs` — that's a nested in-panel toggle, arguably a different case, but worth a call if this component is meant to cover that shape too). |
 | `Side Navbar` (ATOM Business Component, [node 425:16539](https://www.figma.com/design/ZpEYnJ4POb86CDMAM3BWCG/%F0%9F%92%8E-ATOM---Business-Component?node-id=425-16539)) | `layout/AppLayout.tsx`'s `Sider` | See `FIGMA_COMPONENT_INDEX.md` for the full token breakdown (item height/radius/margin, sub-item indent and tint) — kept there rather than duplicated here since that file is the one read before any further sidebar work. | An earlier pass joined an expanded section's sub-items into one seamless block; the real component keeps each sub-item independently, fully rounded, with the same small gap as every other row — just tinted and indented further. Fixed once actually read from Figma instead of a screenshot alone. |
+| `FilterBar 3.0` (ATOM Business Component, [node 21:9490](https://www.figma.com/design/ZpEYnJ4POb86CDMAM3BWCG/%F0%9F%92%8E-ATOM---Business-Component?node-id=21-9490)) | No single AntD component — a composable toolbar row, see §3.2 | Not built from yet; recorded ahead of an explicit request ("bisa jadi saya akan minta kamu... di leave module") so the slot breakdown is ready when asked for. | The row already under `LeavePage.tsx`'s title (Last Updated On + Search Employees) is this component's shape, arrived at independently — see §3.2 for whether it matches slot-for-slot. |
+
+### 3.2 Table toolbar (`FilterBar 3.0`) — a composable row, not a single component
+
+Sits directly under a page's title (see §3.1) whenever that page's table has
+its own filters/actions — **not on every page**, per the user: "tidak selalu
+tergantung module nya apa" (not always, depends on the module). It is a bag
+of optional slots, each an existing AntD primitive, laid out `display:flex,
+gap:8px, alignItems:center`, every control **32px tall**:
+
+| Slot (Figma prop) | AntD equivalent | Notes |
+|---|---|---|
+| `noEmpty` — Date Selector | `<Text>{label}:</Text>` + `<DatePicker.RangePicker />` | Label right-aligned, colon at 2px/8px inline margins. Default example label "Last Updated"; `secondaryDatepicker` (version 2.0 only) adds a **second** one before the search box, own label (e.g. "Date Announcement") — two independent range filters, not one. |
+| `search` — Table Query Searchbar | `<Input placeholder="Search for X.." />` | Fixed width **222px**. |
+| `filterIcon10` / `filterIcon20` — Table Filter with Buttons | `<Button icon={<FilterOutlined />} />` | Icon-only, 32×32. Two Figma variants (`10`/`20`) render identically in this instance — likely alternate states/contexts, not a visual difference worth encoding until a second real case shows one. |
+| `downloadButton` | `<Button icon={<VerticalAlignBottomOutlined />} />` | Icon-only. |
+| `downloadButtonAlt` | `<Button icon={<VerticalAlignBottomOutlined />}>Download Trip</Button>` | Same icon, with a label — pick one per context, not both. |
+| `secondaryButton` | `<Button>{label}</Button>` | Default-style button; this instance's example label is "Cancel" but the attached `showMenu` state (a floating option list — "Route" / "Route Point") shows it can also act as a dropdown trigger, not literally a cancel action. Read the actual use before assuming which. |
+| trailing primary button (always present when `version` renders) | `<Button type="primary" icon={<PlusOutlined />}>Create new <DownOutlined /></Button>` | The chevron implies a dropdown of create options, not a plain click — pair with AntD `Dropdown` if the real use needs one. |
+
+**Component-file quirk, not necessarily to replicate**: the default/secondary
+buttons use `borderRadius: 6` (`button/global/borderRadius`) while the
+"Cancel" and primary "Create new" buttons use `8` (`modal/global/
+borderRadiusLg` — a modal token, reused here, probably a copy/paste
+artifact rather than an intentional two-radius button system). Flag this if
+it ever produces a visibly inconsistent row rather than copying it
+blindly.
+
+**Already built independently, not yet reconciled against this component**:
+`LeavePage.tsx`'s toolbar (`Last Updated On :` + `RangePicker` + `Search
+Employees` `Input`) is the same shape as the `noEmpty` + `search` slots
+above, arrived at before this component was read from Figma. Worth a pass
+to confirm it lines up control-for-control (32px height, 8px gaps, 222px
+search width) next time that page is touched, rather than assumed.
 
 **When Figma introduces a new component not in this table**: before writing
 custom UI for it, check whether it's actually a variant of something AntD

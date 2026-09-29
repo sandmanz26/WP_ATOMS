@@ -14,6 +14,26 @@ minor).
 
 ## [Unreleased]
 
+### Added — `FilterBar 3.0` (table toolbar) recorded in `FIGMA_DESIGN_SYSTEM.md`, no build yet
+
+At the user's request ("saya mau kamu save ini karena bisa jadi saya akan
+minta kamu... di leave module") — training/recording only, no page changed.
+Read the "FilterBar 3.0" ATOM Business Component (node 21:9490): the row
+that sits under a page's title whenever its table has its own filters/
+actions, **not every page** — the user was explicit that it depends on the
+module. It's a composable bag of optional slots (a Date Selector, a search
+`Input`, an icon-only filter `Button`, download buttons plain/labelled, a
+secondary button that can double as a dropdown trigger, a primary "Create
+new ▾" button), every control 32px tall, 8px gaps — documented slot-by-slot
+in `FIGMA_DESIGN_SYSTEM.md` §3.2, each already mapped to the AntD primitive
+it's built from.
+
+Flagged, not fixed: `LeavePage.tsx`'s existing toolbar (Last Updated On +
+Search Employees) is independently the same shape as this component's
+`noEmpty` + `search` slots, arrived at before this component was read from
+Figma — worth reconciling control-for-control next time that page is
+touched, not assumed to already match.
+
 ### Added — `FIGMA_COMPONENT_INDEX.md`, the code → Figma direction
 
 At the user's request: a dedicated index, separate from
