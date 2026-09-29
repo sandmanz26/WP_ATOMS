@@ -19,7 +19,9 @@
 //   Pay Slip MOVE-3953/3954 have empty descriptions — nothing to build from,
 //           so this tab is the same kind of placeholder.
 
-import { Card, Empty, Space, Tabs, Tag, Typography } from 'antd'
+import { useState } from 'react'
+import { Card, Empty, Space, Tag, Typography } from 'antd'
+import PageTabs from '../common/PageTabs'
 import EmployeePortalLeaveTab from './EmployeePortalLeaveTab'
 import EmployeePortalClaimsTab from './EmployeePortalClaimsTab'
 
@@ -62,22 +64,35 @@ function HomeTab() {
   )
 }
 
+const TAB_KEYS = ['home', 'leave', 'claims', 'payslip'] as const
+type TabKey = (typeof TAB_KEYS)[number]
+
 export default function EmployeePortalPage() {
+  const [activeKey, setActiveKey] = useState<TabKey>('leave')
+
   return (
     <div style={{ padding: 24 }}>
-      <Tabs
-        defaultActiveKey="leave"
+      <PageTabs
+        activeKey={activeKey}
+        onChange={(key) => setActiveKey(key as TabKey)}
         items={[
-          { key: 'home', label: 'Home', children: <HomeTab /> },
-          { key: 'leave', label: 'Leave', children: <EmployeePortalLeaveTab /> },
-          { key: 'claims', label: 'Claims', children: <EmployeePortalClaimsTab /> },
-          {
-            key: 'payslip',
-            label: 'Pay Slip',
-            children: <NotSpecifiedTab title="Pay Slip" tickets={['MOVE-3953', 'MOVE-3954']} />,
-          },
+          { key: 'home', label: 'Home' },
+          { key: 'leave', label: 'Leave' },
+          { key: 'claims', label: 'Claims' },
+          { key: 'payslip', label: 'Pay Slip' },
         ]}
       />
+
+      {/* Every panel stays mounted (display:none when inactive) rather than
+          unmounting on switch, matching AntD Tabs' own default behaviour —
+          so a tab's local state (open filters, an open drawer) survives
+          switching away and back. */}
+      <div style={{ display: activeKey === 'home' ? 'block' : 'none' }}><HomeTab /></div>
+      <div style={{ display: activeKey === 'leave' ? 'block' : 'none' }}><EmployeePortalLeaveTab /></div>
+      <div style={{ display: activeKey === 'claims' ? 'block' : 'none' }}><EmployeePortalClaimsTab /></div>
+      <div style={{ display: activeKey === 'payslip' ? 'block' : 'none' }}>
+        <NotSpecifiedTab title="Pay Slip" tickets={['MOVE-3953', 'MOVE-3954']} />
+      </div>
     </div>
   )
 }

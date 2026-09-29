@@ -14,6 +14,52 @@ minor).
 
 ## [Unreleased]
 
+### Added — `common/PageTabs.tsx`, the ATOM Business Component tab bar; applied to Personal Dashboard
+
+At the user's request: Personal Dashboard's top tab bar (Home/Leave/Claims/
+Pay Slip) now uses a new shared component built from the Figma "ATOM -
+Business Component" library's `Tab/Tab Group` ([node 424:16506](https://www.figma.com/design/ZpEYnJ4POb86CDMAM3BWCG/%F0%9F%92%8E-ATOM---Business-Component?node-id=424-16506)),
+replacing the plain AntD `Tabs` it shipped with.
+
+**The component's own Code Connect note maps it to `Anchor`, not `Tabs`.**
+Figma's node description ships the exact intended code
+(`<Anchor direction="horizontal" items={...} />`), and that is also *why* the
+design looks the way it does: every tab item carries its own underline
+segment — a full-width faint baseline plus a colored 2px segment that slides
+under the active item — rather than `Tabs`' single shared baseline and ink
+bar. Per the design-to-code rule ("apply Code Connect precisely at its
+mapped node, reuse the connected component unless it truly can't express the
+design"), `PageTabs` wraps `Anchor` rather than reskinning `Tabs` to look
+similar.
+
+`Anchor` is built for in-page scroll-spy navigation, so `PageTabs` adapts it
+into ordinary content-switching tabs: clicks are intercepted
+(`preventDefault`, so the browser never jumps to a `#hash`) and turned into a
+controlled `activeKey` the caller owns — same shape as `Tabs`'
+`items`/`activeKey`/`onChange`. The one real visual deviation from stock
+`Anchor` is that Figma's items stretch to fill the bar in equal-width
+segments (`Anchor` normally sizes to content and left-aligns), so that's the
+only CSS override added — the baseline and active-segment behaviour are
+already exactly right out of the box and are left untouched.
+
+**`EmployeePortalPage.tsx` now holds `activeKey` itself** rather than letting
+`Tabs` manage it internally, and renders every panel always-mounted
+(`display:none` when inactive) rather than conditionally — preserving `Tabs`'
+own default behaviour of not resetting a tab's local state (open filters, an
+open drawer) when switching away and back. Verified live: switching to
+Claims, typing into its search box, switching to Leave and back left the
+search text intact.
+
+**Standing rule, recorded in `FIGMA_DESIGN_SYSTEM.md`**: use `PageTabs` for
+any page-level top tab bar going forward, not `Tabs` directly — this was
+asked for explicitly, not just for this one page. Not retrofitted onto
+Claims' own nested "My Claims"/"Pending My Approval" sub-tabs in this pass
+(a different shape — an in-panel toggle, not a page-level section switch) or
+onto any other page's tab bar; flagged in the doc's mapping table as a call
+worth making if this component is meant to cover that shape too.
+
+`npx tsc --noEmit` clean.
+
 ### Added — Personal Dashboard: the Claims tab, correcting an earlier misread (MOVE-3776, MOVE-3943, MOVE-3945, MOVE-3958, MOVE-3964)
 
 **This corrects a mistake, not a Jira change.** The Claims tab shipped as an

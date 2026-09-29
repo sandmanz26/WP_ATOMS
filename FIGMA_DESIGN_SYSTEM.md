@@ -26,7 +26,8 @@ ask, or read the live Figma file for that one thing.
 
 | File / Library | Link | What it covers |
 |---|---|---|
-<!-- fill in -->
+| "💎 ATOM - Business Component" | `https://www.figma.com/design/ZpEYnJ4POb86CDMAM3BWCG/%F0%9F%92%8E-ATOM---Business-Component` | The shared business-component library (e.g. `Tab/Tab Group`, §3). **Always check this file first** when a screen needs a component that isn't a plain AntD primitive — it's the one confirmed shared library so far. |
+<!-- fill in the rest -->
 | e.g. "WLA Design System" | `https://figma.com/design/...` | Core tokens, base components |
 | e.g. "WLA — Leave Module" | `https://figma.com/design/...` | Screens for the Leave epic (MOVE-3410) |
 
@@ -111,6 +112,7 @@ a drift.
 | `Table/Data Table` | `Table` | `size="small"`, no zebra striping | |
 | `Drawer/Form` | `Drawer` + `Form` | Width fixed per drawer (`480`/`520`), not responsive | |
 | `Empty State` | `Empty` | `image={Empty.PRESENTED_IMAGE_SIMPLE}` everywhere, never the default illustration | |
+| `Tab/Tab Group` (ATOM Business Component, [node 424:16506](https://www.figma.com/design/ZpEYnJ4POb86CDMAM3BWCG/%F0%9F%92%8E-ATOM---Business-Component?node-id=424-16506)) | `common/PageTabs.tsx` (wraps `Anchor`, **not** `Tabs`) | The component's own Code Connect note maps it to AntD `Anchor` with `direction="horizontal"` — every tab item carries its own underline segment (colored active / faint default), not `Tabs`' shared baseline + ink bar. `PageTabs` adds one real deviation: items are stretched to equal width (Anchor sizes to content by default) to match the Figma spec. **Always use `PageTabs` for a page-level top tab bar** — this was called out explicitly as a standing rule, not a one-off. | Used in `employeeportal/EmployeePortalPage.tsx`'s Home/Leave/Claims/Pay Slip bar. Not yet retrofitted onto other pages' top-level tab bars (e.g. Claims' own "My Claims"/"Pending My Approval" sub-tabs still use plain `Tabs` — that's a nested in-panel toggle, arguably a different case, but worth a call if this component is meant to cover that shape too). |
 
 **When Figma introduces a new component not in this table**: before writing
 custom UI for it, check whether it's actually a variant of something AntD
