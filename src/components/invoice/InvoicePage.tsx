@@ -11,7 +11,7 @@ import type { ColumnsType } from 'antd/es/table'
 import { INVOICES, type Invoice, type InvoiceStatus } from './invoiceData'
 import type { AppPage } from '@/App'
 
-const { Text, Title } = Typography
+const { Text } = Typography
 const { RangePicker } = DatePicker
 
 const STATUS_CONFIG: Record<InvoiceStatus, { color: string; bg: string; border: string }> = {
@@ -226,9 +226,8 @@ export default function InvoicePage({ onNavigate }: Props) {
 
   return (
     <div style={{ padding: 24 }}>
-      {/* Title */}
-      <Title level={2} style={{ marginBottom: 20, fontWeight: 700 }}>Invoice</Title>
-
+      {/* Title now lives in AppLayout's page header (pageTitle prop), so
+          every page's header follows the same breadcrumb + bold title shape. */}
       {/* KPI stat cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 20 }}>
         {[

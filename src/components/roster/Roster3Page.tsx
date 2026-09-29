@@ -56,7 +56,7 @@ import ManageStandbyModal, { type StandbyTarget } from './ManageStandbyModal'
 import LeaveDetailsPopover from './LeaveDetailsPopover'
 import { PAST_MONTH_TOOLTIP, canEditMonth, useRosterEdit } from './useRosterEdit'
 
-const { Text, Title } = Typography
+const { Text } = Typography
 
 const CELL_WIDTH = 48
 const NAME_COL_WIDTH = 210
@@ -170,12 +170,10 @@ export default function Roster3Page() {
   return (
     <div style={{ padding: 24 }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
-        <div>
-          <Title level={4} style={{ margin: 0 }}>Roster Calendar 3.0</Title>
-          <Text type="secondary" style={{ fontSize: 13 }}>
-            Operations department — coverage-first monthly view
-          </Text>
-        </div>
+        {/* Title now lives in AppLayout's page header (pageTitle prop). */}
+        <Text type="secondary" style={{ fontSize: 13 }}>
+          Operations department — coverage-first monthly view
+        </Text>
         {!edit.editing && (
           <Space>
             <Button icon={<SettingOutlined />} onClick={() => setDrawerOpen(true)}>Manage Shift Patterns</Button>

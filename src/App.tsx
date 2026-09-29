@@ -74,7 +74,7 @@ export default function App() {
 
   if (page.type === 'live-tracking') {
     return (
-      <AppLayout activeKey="live-tracking" breadcrumbLabel="Live Tracking" onNavigate={navigate}>
+      <AppLayout activeKey="live-tracking" breadcrumbLabel="Live Tracking" pageTitle="Live Tracking" onNavigate={navigate}>
         <LiveTrackingPage />
       </AppLayout>
     )
@@ -82,7 +82,7 @@ export default function App() {
 
   if (page.type === 'live-tracking-legacy') {
     return (
-      <AppLayout activeKey="live-tracking-legacy" breadcrumbLabel="Live Tracking Legacy" onNavigate={navigate}>
+      <AppLayout activeKey="live-tracking-legacy" breadcrumbLabel="Live Tracking Legacy" pageTitle="Live Tracking Legacy" onNavigate={navigate}>
         <LiveTrackingLegacyPage />
       </AppLayout>
     )
@@ -90,7 +90,7 @@ export default function App() {
 
   if (page.type === 'live-tracking-testing') {
     return (
-      <AppLayout activeKey="live-tracking-testing" breadcrumbLabel="Live Tracking Testing" onNavigate={navigate}>
+      <AppLayout activeKey="live-tracking-testing" breadcrumbLabel="Live Tracking Testing" pageTitle="Live Tracking Testing" onNavigate={navigate}>
         <LiveTrackingTestingPage />
       </AppLayout>
     )
@@ -98,7 +98,12 @@ export default function App() {
 
   if (page.type === 'live-tracking-testing-2') {
     return (
-      <AppLayout activeKey="live-tracking-testing-2" breadcrumbLabel="Live Tracking Testing 2" onNavigate={navigate}>
+      <AppLayout
+        activeKey="live-tracking-testing-2"
+        breadcrumbLabel="Live Tracking Testing 2"
+        pageTitle="Sales Module Live Tracking 2.0"
+        onNavigate={navigate}
+      >
         <LiveTrackingTesting2Page />
       </AppLayout>
     )
@@ -106,7 +111,7 @@ export default function App() {
 
   if (page.type === 'tracking-2') {
     return (
-      <AppLayout activeKey="tracking-2" breadcrumbLabel="Tracking 2.0" onNavigate={navigate}>
+      <AppLayout activeKey="tracking-2" breadcrumbLabel="Tracking 2.0" pageTitle="Tracking 2.0" onNavigate={navigate}>
         <Tracking2Page />
       </AppLayout>
     )
@@ -114,7 +119,7 @@ export default function App() {
 
   if (page.type === 'testing') {
     return (
-      <AppLayout activeKey="testing" breadcrumbLabel="Testing" onNavigate={navigate}>
+      <AppLayout activeKey="testing" breadcrumbLabel="Testing" pageTitle="Testing" onNavigate={navigate}>
         <TestingPage />
       </AppLayout>
     )
@@ -122,7 +127,7 @@ export default function App() {
 
   if (page.type === 'invoice') {
     return (
-      <AppLayout activeKey="invoice" breadcrumbLabel="Invoice" onNavigate={navigate}>
+      <AppLayout activeKey="invoice" breadcrumbLabel="Invoice" pageTitle="Sales Module Invoice" onNavigate={navigate}>
         <InvoicePage onNavigate={navigate} />
       </AppLayout>
     )
@@ -152,7 +157,7 @@ export default function App() {
 
   if (page.type === 'invoice-testing-2') {
     return (
-      <AppLayout activeKey="invoice-testing-2" breadcrumbLabel="Invoice 2.0" onNavigate={navigate}>
+      <AppLayout activeKey="invoice-testing-2" breadcrumbLabel="Invoice 2.0" pageTitle="Sales Module Invoice 2.0" onNavigate={navigate}>
         <InvoiceTesting2Page onNavigate={navigate} />
       </AppLayout>
     )
@@ -182,13 +187,17 @@ export default function App() {
 
   if (page.type === 'notification') {
     return (
-      <AppLayout activeKey="notification" breadcrumbLabel="Notifications" onNavigate={navigate}>
+      <AppLayout activeKey="notification" breadcrumbLabel="Notifications" pageTitle="Notifications" onNavigate={navigate}>
         <NotificationPage />
       </AppLayout>
     )
   }
 
   if (page.type === 'customer-notification') {
+    // No `pageTitle` — CustomerNotificationPage's own title switches on an
+    // internal `surface` toggle (Customer Notifications / the driver-leave
+    // and personal-dashboard prototypes riding along behind it), which this
+    // route can't see, so the page keeps rendering its own title inline.
     return (
       <AppLayout activeKey="customer-notification" breadcrumbLabel="Customer Notification" onNavigate={navigate}>
         <CustomerNotificationPage onNavigate={navigate} />
@@ -226,7 +235,7 @@ export default function App() {
 
   if (page.type === 'roster') {
     return (
-      <AppLayout activeKey="roster" breadcrumbLabel="Roster Calendar" onNavigate={navigate}>
+      <AppLayout activeKey="roster" breadcrumbLabel="Roster Calendar" pageTitle="Operations Roster Calendar" onNavigate={navigate}>
         <RosterPage />
       </AppLayout>
     )
@@ -234,7 +243,7 @@ export default function App() {
 
   if (page.type === 'roster-3') {
     return (
-      <AppLayout activeKey="roster-3" breadcrumbLabel="Roster 3.0" onNavigate={navigate}>
+      <AppLayout activeKey="roster-3" breadcrumbLabel="Roster 3.0" pageTitle="Roster Calendar 3.0" onNavigate={navigate}>
         <Roster3Page />
       </AppLayout>
     )
@@ -242,7 +251,7 @@ export default function App() {
 
   if (page.type === 'roster-4') {
     return (
-      <AppLayout activeKey="roster-4" breadcrumbLabel="Roster" onNavigate={navigate}>
+      <AppLayout activeKey="roster-4" breadcrumbLabel="Roster" pageTitle="Operations Roster" onNavigate={navigate}>
         <Roster4Page />
       </AppLayout>
     )
@@ -250,7 +259,7 @@ export default function App() {
 
   if (page.type === 'leave') {
     return (
-      <AppLayout activeKey="leave" breadcrumbLabel="Leave" onNavigate={navigate}>
+      <AppLayout activeKey="leave" breadcrumbLabel="Leave" pageTitle="Leave" onNavigate={navigate}>
         <LeavePage onNavigate={navigate} />
       </AppLayout>
     )
@@ -261,6 +270,7 @@ export default function App() {
       <AppLayout
         activeKey="leave"
         breadcrumbItems={['Leave', 'Manage Leave Types']}
+        pageTitle="Manage Leave Types"
         onNavigate={navigate}
       >
         <ManageLeaveTypesPage onNavigate={navigate} />
@@ -282,14 +292,14 @@ export default function App() {
 
   if (page.type === 'personal-dashboard') {
     return (
-      <AppLayout activeKey="personal-dashboard" breadcrumbLabel="Personal Dashboard" onNavigate={navigate}>
+      <AppLayout activeKey="personal-dashboard" breadcrumbLabel="Personal Dashboard" pageTitle="Personal Dashboard" onNavigate={navigate}>
         <EmployeePortalPage />
       </AppLayout>
     )
   }
 
   return (
-    <AppLayout activeKey="customer-contracts" breadcrumbLabel="Customer Contracts" onNavigate={navigate}>
+    <AppLayout activeKey="customer-contracts" breadcrumbLabel="Customer Contracts" pageTitle="Customer Contracts" onNavigate={navigate}>
       <CustomerContractsPage onNavigate={navigate} />
     </AppLayout>
   )

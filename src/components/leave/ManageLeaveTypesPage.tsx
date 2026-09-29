@@ -21,7 +21,7 @@ import PaginationBar from './PaginationBar'
 import { Mark, WhatsNewBanner } from './WhatsNew'
 import type { AppPage } from '@/App'
 
-const { Text, Title } = Typography
+const { Text } = Typography
 
 export default function ManageLeaveTypesPage({ onNavigate }: { onNavigate: (page: AppPage) => void }) {
   const [messageApi, contextHolder] = message.useMessage()
@@ -142,8 +142,8 @@ export default function ManageLeaveTypesPage({ onNavigate }: { onNavigate: (page
         Return to Leave
       </Button>
 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-        <Title level={2} style={{ margin: 0, fontWeight: 700 }}>Manage Leave Types</Title>
+      {/* Title now lives in AppLayout's page header (pageTitle prop). */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 20 }}>
         <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
           Create Leave Type
         </Button>

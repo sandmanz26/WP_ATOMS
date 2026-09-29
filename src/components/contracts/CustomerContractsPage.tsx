@@ -247,10 +247,7 @@ export default function CustomerContractsPage({ onNavigate }: CustomerContractsP
 
   return (
     <div style={{ padding: '28px 32px', minHeight: '100vh', background: '#f5f5f5' }}>
-      {/* Page Title */}
-      <Text style={{ fontSize: 26, fontWeight: 700, display: 'block', marginBottom: 20, color: '#1a1a1a' }}>
-        Customer Contracts
-      </Text>
+      {/* Title now lives in AppLayout's page header (pageTitle prop). */}
 
       {/* Stat Cards */}
       <div style={{ display: 'flex', gap: 16, marginBottom: 24 }}>

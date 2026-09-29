@@ -26,7 +26,7 @@ import PaginationBar from './PaginationBar'
 import { WhatsNewBanner } from './WhatsNew'
 import type { AppPage } from '@/App'
 
-const { Text, Title } = Typography
+const { Text } = Typography
 const { RangePicker } = DatePicker
 
 /** "26 Aug 2026" — the format every other listing in the app prints. */
@@ -235,7 +235,7 @@ export default function LeavePage({ onNavigate }: { onNavigate: (page: AppPage) 
   return (
     <div style={{ padding: 24 }}>
       <WhatsNewBanner />
-      <Title level={2} style={{ marginBottom: 20, fontWeight: 700 }}>Leave</Title>
+      {/* Title now lives in AppLayout's page header (pageTitle prop). */}
 
       {/* Toolbar. The date range sits out here rather than in the popover
           because it is the listing's only date field and the reference layout

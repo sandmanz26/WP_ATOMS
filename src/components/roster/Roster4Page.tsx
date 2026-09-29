@@ -86,7 +86,7 @@ import RosterVariantSwitcher, {
 } from './RosterVariantSwitcher'
 import { PAST_MONTH_TOOLTIP, canEditMonth } from './useRosterEdit'
 
-const { Text, Title } = Typography
+const { Text } = Typography
 
 const MAX_MONTHS_AHEAD = 12
 const DAY_HEADERS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -194,10 +194,11 @@ export default function Roster4Page() {
     <ConfigProvider theme={themeToken ? { token: themeToken } : undefined}>
     <div style={{ padding: 24 }}>
       {/* Feedback 2 — the "Operations department — month grid…" subtitle is
-          gone; the sidebar and breadcrumb already say where you are. The page
-          is titled plainly "Roster": the 4.0 is a prototype variant number, not
-          something the product should say out loud. */}
-      <Title level={3} style={{ margin: '0 0 16px', fontWeight: 700 }}>Roster</Title>
+          gone; the sidebar and breadcrumb already say where you are. The title
+          itself now lives in AppLayout's page header (pageTitle prop) as
+          "Operations Roster" — plainly "Roster" in the breadcrumb, since the
+          4.0 is a prototype variant number, not something the product should
+          say out loud. */}
 
       {/* Highlights sit under the title as stat cards, on their own row above
           the calendar. They are still clickable filters. */}

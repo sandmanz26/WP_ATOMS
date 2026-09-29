@@ -14,6 +14,54 @@ minor).
 
 ## [Unreleased]
 
+### Changed — Every page header now follows one enforced shape (breadcrumb + bold title)
+
+At the user's request ("setiap page selalu punya struktur seperti ini... tolong
+di update dan camkan ini" — every page always has this structure, update it
+and remember it): `layout/AppLayout.tsx` gained a `pageTitle` prop that
+renders a large bold title directly beneath the breadcrumb, inside the same
+sticky header block, instead of each page rendering its own `<Title>` deeper
+in its content. Reference: a Roster listing page whose breadcrumb reads
+"Roster" but whose title reads "Operations Roster" — confirming the rule is
+**"{sidebar section} {page name}"** for anything grouped under a collapsible
+section (Operations, Sales Module), and just the page's own name for flat
+top-level items.
+
+**Migrated to `pageTitle` (own duplicate `<Title>` removed):** Live Tracking,
+Live Tracking Legacy, Live Tracking Testing, Tracking 2.0, Testing, Customer
+Contracts (`pageTitle="Customer Contracts"`), Leave (`"Leave"`), Manage Leave
+Types (`"Manage Leave Types"`, its "Create Leave Type" button now stands
+alone, right-aligned, in place of sitting beside the old inline title),
+Notifications (`"Notifications"`, its unread `Badge` now sits beside a small
+"Unread" label rather than beside the old inline title), Roster Calendar
+(`"Operations Roster Calendar"`), Roster Calendar 3.0 (`"Roster Calendar
+3.0"`, left unprefixed since it's already off the sidebar per the Roster
+module's own standing rule), **Roster 4.0 — `"Operations Roster"`, the exact
+case the reference screenshot showed**, Sales Module's Live Tracking 2.0,
+Invoice, Invoice 2.0, Personal Dashboard.
+
+**Deliberately left unmigrated, `pageTitle` unset, own header kept:**
+- Detail pages with a bespoke dynamic header (record name/number beside a
+  status tag or actions) — `ContractDetailPage`, `InvoiceDetailPage`,
+  `InvoiceDetailTesting2Page`, `CustomerNotificationDetailPage`,
+  `LeaveProfilePage`. A different shape entirely from a page-listing header;
+  flattening the tag/action row into a plain title would lose information,
+  not just restyle it.
+- `CustomerNotificationPage` — which title to show depends on its own
+  internal `surface` toggle (the hidden driver-leave / personal-dashboard
+  prototypes riding along behind it), which the route in `App.tsx` has no
+  visibility into.
+
+**Recorded as a standing rule** in `FIGMA_DESIGN_SYSTEM.md` §3.1, alongside
+the sidebar/tab conventions already there, so it's applied by default to
+every new page rather than rediscovered.
+
+Verified live in Chromium: Roster 4.0 matches the reference exactly
+(breadcrumb "Roster", title "Operations Roster"); Leave, Personal Dashboard,
+Invoice, and Manage Leave Types (button relocation) all render correctly;
+Customer Notification correctly keeps its thin breadcrumb-only header with
+its own inline title untouched. `npx tsc --noEmit` clean.
+
 ### Changed — Sidebar restyled to match a supplied reference screenshot exactly
 
 At the user's request, with an explicit "must not differ" — only the menu's

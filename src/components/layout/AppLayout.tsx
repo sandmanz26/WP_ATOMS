@@ -13,7 +13,7 @@ import type { AppPage } from '@/App'
 import { version as appVersion } from '../../../package.json'
 
 const { Sider, Content } = Layout
-const { Text } = Typography
+const { Text, Title } = Typography
 
 /**
  * Sidebar collapse toggle — matches the reference sidebar's header icon
@@ -65,6 +65,16 @@ interface AppLayoutProps {
   activeKey?: string
   breadcrumbLabel?: string
   breadcrumbItems?: string[]
+  /**
+   * The large bold heading every page's header carries below its breadcrumb
+   * (reference: a plain listing page like Roster, whose breadcrumb reads
+   * "Roster" but whose title reads "Operations Roster" — the sidebar
+   * section name prefixed onto the page name). Left unset on pages with
+   * their own bespoke, dynamic detail header (a record's name/number, often
+   * beside a status tag or actions) — those are a different shape entirely,
+   * not a page-listing header, so they keep rendering their own title inline.
+   */
+  pageTitle?: React.ReactNode
   topBarRight?: React.ReactNode
   onNavigate?: (page: AppPage) => void
 }
@@ -74,6 +84,7 @@ export default function AppLayout({
   activeKey = 'live-tracking-testing-2',
   breadcrumbLabel = 'Live Tracking 2.0',
   breadcrumbItems,
+  pageTitle,
   topBarRight,
   onNavigate,
 }: AppLayoutProps) {
@@ -255,30 +266,46 @@ export default function AppLayout({
       </Sider>
 
       <Layout style={{ marginLeft: collapsed ? 80 : 250, transition: 'margin-left 0.2s' }}>
-        {/* Top breadcrumb */}
+        {/* Page header — every page carries the same shape: a small
+            breadcrumb trail, then (when `pageTitle` is set) a large bold
+            title directly beneath it. Pages with their own dynamic detail
+            header (a record's name/number, often beside a status tag or
+            actions — a different shape entirely) leave `pageTitle` unset and
+            keep rendering their own title inline; this block then holds only
+            the breadcrumb, exactly as it always has. */}
         <div
           style={{
-            padding: '0 32px',
-            height: 48,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
+            padding: pageTitle ? '20px 32px 24px' : '0 32px',
+            height: pageTitle ? undefined : 48,
             background: '#f5f5f5',
             position: 'sticky',
             top: 0,
             zIndex: 10,
           }}
         >
-          {/* The trail is rooted in a home icon, matching the target design. */}
-          <Text style={{ fontSize: 13, color: '#8c8c8c', display: 'inline-flex', alignItems: 'center' }}>
-            <HomeOutlined style={{ marginRight: 4 }} />
-            {breadcrumbItems
-              ? breadcrumbItems.map((item, i) => (
-                  <span key={i}>{i === 0 ? ' / ' : ' / '}{item}</span>
-                ))
-              : ` / ${breadcrumbLabel}`}
-          </Text>
-          {topBarRight ?? <Text style={{ fontSize: 12, color: '#bfbfbf' }}>v{appVersion}</Text>}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              height: pageTitle ? undefined : '100%',
+              marginBottom: pageTitle ? 12 : 0,
+            }}
+          >
+            {/* The trail is rooted in a home icon, matching the target design. */}
+            <Text style={{ fontSize: 13, color: '#8c8c8c', display: 'inline-flex', alignItems: 'center' }}>
+              <HomeOutlined style={{ marginRight: 4 }} />
+              {breadcrumbItems
+                ? breadcrumbItems.map((item, i) => (
+                    <span key={i}>{i === 0 ? ' / ' : ' / '}{item}</span>
+                  ))
+                : ` / ${breadcrumbLabel}`}
+            </Text>
+            {topBarRight ?? <Text style={{ fontSize: 12, color: '#bfbfbf' }}>v{appVersion}</Text>}
+          </div>
+          {pageTitle && (
+            <Title level={2} style={{ margin: 0, fontWeight: 700, fontSize: 28 }}>{pageTitle}</Title>
+          )}
         </div>
 
         <Content style={{ background: '#f5f5f5' }}>{children}</Content>

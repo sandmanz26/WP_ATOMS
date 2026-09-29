@@ -119,6 +119,38 @@ custom UI for it, check whether it's actually a variant of something AntD
 already ships (most "custom" cards/badges/toggles usually are). Add the row
 here once it's settled either way.
 
+### 3.1 Page header (standing structural rule, not a single component)
+
+**Every page's header is a small breadcrumb trail, then a large bold title
+directly beneath it — enforced from `layout/AppLayout.tsx`'s `pageTitle`
+prop, not left to each page to reimplement.** Confirmed against a reference
+screenshot (Figma dev-mode inspect, no shared link this time): a Roster
+listing page whose breadcrumb reads "Roster" but whose title reads
+"Operations Roster" — **the sidebar section name gets prefixed onto the page
+name** for anything grouped under a collapsible section (Operations, Sales
+Module); flat top-level items (Leave, Personal Dashboard) use just their own
+name.
+
+- Pass `pageTitle="..."` on every `<AppLayout>` call in `App.tsx`; do not
+  also render the page's own duplicate `<Title>` — delete it (see the same
+  commit that added this rule for the full list of pages migrated).
+- **Exception — pages with their own dynamic detail header** (a record's
+  name/number, often beside a status tag or actions — `ContractDetailPage`,
+  `InvoiceDetailPage`/`InvoiceDetailTesting2Page`,
+  `CustomerNotificationDetailPage`, `LeaveProfilePage`) leave `pageTitle`
+  unset and keep their bespoke inline header. That's a different shape
+  entirely, not a page-listing header — forcing it through `pageTitle` would
+  mean flattening out the tag/action row beside it for no visual gain.
+- **Exception — `CustomerNotificationPage`** also keeps its own inline
+  title: which text to show depends on an internal `surface` toggle (the
+  hidden driver-leave / personal-dashboard prototypes riding along behind
+  it) that `App.tsx`'s route can't see.
+- A page-level primary action button that used to sit inline beside the old
+  per-page title (e.g. Manage Leave Types' "Create Leave Type") moves to sit
+  alone, right-aligned, in the page's own content — not into `topBarRight`
+  (that slot sits next to the *breadcrumb*, a level up, and is really for
+  page-level navigation like "Return to X", not a content action).
+
 ---
 
 ## 4. Figma file conventions

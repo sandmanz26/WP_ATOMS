@@ -11,7 +11,7 @@ import {
   SettingOutlined,
 } from '@ant-design/icons'
 
-const { Text, Title } = Typography
+const { Text } = Typography
 
 type NotifType = 'invoice' | 'payment' | 'overdue' | 'system' | 'alert'
 type NotifStatus = 'unread' | 'read'
@@ -319,15 +319,17 @@ export default function NotificationPage() {
 
   return (
     <div style={{ padding: 24 }}>
-      {/* Header */}
+      {/* Header — title now lives in AppLayout's page header (pageTitle prop). */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <Title level={2} style={{ margin: 0, fontWeight: 700 }}>Notifications</Title>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {unreadCount > 0 && (
-            <Badge
-              count={unreadCount}
-              style={{ background: '#1677ff', fontSize: 12, fontWeight: 600 }}
-            />
+            <>
+              <Text type="secondary" style={{ fontSize: 13 }}>Unread</Text>
+              <Badge
+                count={unreadCount}
+                style={{ background: '#1677ff', fontSize: 12, fontWeight: 600 }}
+              />
+            </>
           )}
         </div>
         <div style={{ display: 'flex', gap: 8 }}>

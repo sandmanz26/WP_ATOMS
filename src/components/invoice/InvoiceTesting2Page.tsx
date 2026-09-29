@@ -14,7 +14,7 @@ import { StatusBadge, computeStatusFromBalance, canMarkAsSent, canLogPayment, ma
 import LogPaymentModal, { type LogPaymentPayload } from './LogPaymentModal'
 import type { AppPage } from '@/App'
 
-const { Text, Title } = Typography
+const { Text } = Typography
 const { RangePicker } = DatePicker
 
 function fmt(n: number) {
@@ -357,9 +357,8 @@ export default function InvoiceTesting2Page({ onNavigate }: Props) {
 
   return (
     <div style={{ padding: 24 }}>
-      {/* Title */}
-      <Title level={2} style={{ marginBottom: 20, fontWeight: 700 }}>Invoice</Title>
-
+      {/* Title now lives in AppLayout's page header (pageTitle prop), so
+          every page's header follows the same breadcrumb + bold title shape. */}
       {/* KPI stat cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 20 }}>
         {[
