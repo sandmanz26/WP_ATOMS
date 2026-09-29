@@ -14,6 +14,41 @@ minor).
 
 ## [Unreleased]
 
+### Changed — Sidebar restyled to match a supplied reference screenshot exactly
+
+At the user's request, with an explicit "must not differ" — only the menu's
+own content (our actual pages) was kept as-is; every structural/style detail
+of the reference was replicated in `layout/AppLayout.tsx`:
+
+- **Brand mark** — a hollow blue ring (`border: 4px solid`, transparent
+  center), replacing the filled circle with a "C" initial.
+- **Collapse toggle moved into the header row** as a small icon button
+  (a purpose-built SVG — two panels inside a rounded frame — since it isn't
+  one of AntD's stock icons), replacing `Sider`'s own default bottom-fixed
+  trigger bar (now disabled via `trigger={null}`). Stays visible in the
+  collapsed state too, or there would be no way back to expanded.
+- **Avatar gets a small red dot** (top-right corner) and its background
+  changed from blue to neutral gray, matching the reference exactly.
+- **Section chevrons flipped**: down while collapsed (the direction it will
+  open), up while expanded — the reference's convention is the opposite of
+  what this menu had (previously a sideways/down arrow pair; a small thing,
+  but "must not differ" means it too).
+- **Expanded sections now render their sub-items as one continuous
+  light-gray block** (rounded only at the group's outer top/bottom corners),
+  not as individually-styled rows with gaps between them — `groupedSubItem()`
+  computes each row's corner radius from its position (first/middle/last).
+
+**No menu content changed** — Leave, Personal Dashboard, Operations (Roster
+Calendar, Roster 4.0), Sales Module (Live Tracking 2.0, Invoice, Invoice 2.0,
+Customer Notification) are all the same destinations as before, just
+restyled to the reference's chrome. The reference's own example menu items
+(Notifications, Roles & Permissions, Tenant, Staff, Fleet Owners/Fleets/
+Drivers) were not copied in — this app has no such pages, and the ask was to
+match style, not invent navigation.
+
+Verified live in Chromium: expanded and collapsed states, and the Operations
+chevron flipping between up/down on toggle. `npx tsc --noEmit` clean.
+
 ### Added — `common/PageTabs.tsx`, the ATOM Business Component tab bar; applied to Personal Dashboard
 
 At the user's request: Personal Dashboard's top tab bar (Home/Leave/Claims/

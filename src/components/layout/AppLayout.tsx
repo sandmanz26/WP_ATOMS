@@ -6,14 +6,59 @@ import {
   DownOutlined,
   HomeOutlined,
   IdcardOutlined,
-  RightOutlined,
   SolutionOutlined,
+  UpOutlined,
 } from '@ant-design/icons'
 import type { AppPage } from '@/App'
 import { version as appVersion } from '../../../package.json'
 
 const { Sider, Content } = Layout
 const { Text } = Typography
+
+/**
+ * Sidebar collapse toggle — matches the reference sidebar's header icon
+ * exactly (two panels inside a rounded frame), not one of AntD's stock
+ * icons, so this is a small purpose-built SVG rather than an approximation.
+ */
+function SidebarToggleIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+      <rect x="3" y="4" width="18" height="16" rx="2.5" />
+      <line x1="9" y1="4" x2="9" y2="20" />
+    </svg>
+  )
+}
+
+/**
+ * The reference sidebar renders an expanded section's sub-items as one
+ * continuous light-gray block (rounded only at its outer top/bottom edges),
+ * not as individually-styled rows — so this computes each row's corner
+ * radius from its position in the group rather than a single shared style.
+ */
+function groupedSubItem(
+  key: string,
+  label: string,
+  onClick: () => void,
+  position: 'first' | 'middle' | 'last' | 'only',
+) {
+  const topRadius = position === 'first' || position === 'only' ? 8 : 0
+  const bottomRadius = position === 'last' || position === 'only' ? 8 : 0
+  return {
+    key,
+    label: <Text style={{ fontSize: 13, paddingLeft: 8 }}>{label}</Text>,
+    onClick,
+    style: {
+      background: '#fafafa',
+      margin: `0 8px ${position === 'last' || position === 'only' ? 1 : 0}px`,
+      borderRadius: 0,
+      borderTopLeftRadius: topRadius,
+      borderTopRightRadius: topRadius,
+      borderBottomLeftRadius: bottomRadius,
+      borderBottomRightRadius: bottomRadius,
+      width: 'calc(100% - 16px)',
+    },
+  }
+}
 
 interface AppLayoutProps {
   children: React.ReactNode
@@ -61,7 +106,10 @@ export default function AppLayout({
       label: (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span>Operations</span>
-          {operationsOpen ? <DownOutlined style={{ fontSize: 10 }} /> : <RightOutlined style={{ fontSize: 10 }} />}
+          {/* Reference convention: chevron points down while collapsed (the
+              direction it will open), up while expanded — the opposite of
+              this menu's previous own left/right-pointing arrow. */}
+          {operationsOpen ? <UpOutlined style={{ fontSize: 10 }} /> : <DownOutlined style={{ fontSize: 10 }} />}
         </div>
       ),
       onClick: () => setOperationsOpen(!operationsOpen),
@@ -72,20 +120,8 @@ export default function AppLayout({
           // for the live design. Roster 4.0 is the one that matches the PRD;
           // the 3.0 page stays in the code (and on its route) as a prior
           // exploration, just not as something a reviewer can wander into.
-          {
-            key: 'roster',
-            label: (
-              <Text style={{ fontSize: 13, paddingLeft: 8 }}>Roster Calendar</Text>
-            ),
-            onClick: () => onNavigate?.({ type: 'roster' }),
-          },
-          {
-            key: 'roster-4',
-            label: (
-              <Text style={{ fontSize: 13, paddingLeft: 8 }}>Roster 4.0</Text>
-            ),
-            onClick: () => onNavigate?.({ type: 'roster-4' }),
-          },
+          groupedSubItem('roster', 'Roster Calendar', () => onNavigate?.({ type: 'roster' }), 'first'),
+          groupedSubItem('roster-4', 'Roster 4.0', () => onNavigate?.({ type: 'roster-4' }), 'last'),
         ]
       : []),
     {
@@ -94,41 +130,17 @@ export default function AppLayout({
       label: (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span>Sales Module</span>
-          {salesOpen ? <DownOutlined style={{ fontSize: 10 }} /> : <RightOutlined style={{ fontSize: 10 }} />}
+          {salesOpen ? <UpOutlined style={{ fontSize: 10 }} /> : <DownOutlined style={{ fontSize: 10 }} />}
         </div>
       ),
       onClick: () => setSalesOpen(!salesOpen),
     },
     ...(salesOpen
       ? [
-          {
-            key: 'live-tracking-testing-2',
-            label: (
-              <Text style={{ fontSize: 13, paddingLeft: 8 }}>Live Tracking 2.0</Text>
-            ),
-            onClick: () => onNavigate?.({ type: 'live-tracking-testing-2' }),
-          },
-          {
-            key: 'invoice',
-            label: (
-              <Text style={{ fontSize: 13, paddingLeft: 8 }}>Invoice</Text>
-            ),
-            onClick: () => onNavigate?.({ type: 'invoice' }),
-          },
-          {
-            key: 'invoice-testing-2',
-            label: (
-              <Text style={{ fontSize: 13, paddingLeft: 8 }}>Invoice 2.0</Text>
-            ),
-            onClick: () => onNavigate?.({ type: 'invoice-testing-2' }),
-          },
-          {
-            key: 'customer-notification',
-            label: (
-              <Text style={{ fontSize: 13, paddingLeft: 8 }}>Customer Notification</Text>
-            ),
-            onClick: () => onNavigate?.({ type: 'customer-notification' }),
-          },
+          groupedSubItem('live-tracking-testing-2', 'Live Tracking 2.0', () => onNavigate?.({ type: 'live-tracking-testing-2' }), 'first'),
+          groupedSubItem('invoice', 'Invoice', () => onNavigate?.({ type: 'invoice' }), 'middle'),
+          groupedSubItem('invoice-testing-2', 'Invoice 2.0', () => onNavigate?.({ type: 'invoice-testing-2' }), 'middle'),
+          groupedSubItem('customer-notification', 'Customer Notification', () => onNavigate?.({ type: 'customer-notification' }), 'last'),
         ]
       : []),
   ]
@@ -137,9 +149,8 @@ export default function AppLayout({
     <Layout style={{ minHeight: '100vh' }}>
       <Sider
         width={250}
-        collapsible
         collapsed={collapsed}
-        onCollapse={setCollapsed}
+        trigger={null}
         style={{
           background: '#fff',
           borderRight: '1px solid #f0f0f0',
@@ -156,26 +167,36 @@ export default function AppLayout({
             padding: '16px 20px',
             display: 'flex',
             alignItems: 'center',
+            justifyContent: collapsed ? 'center' : 'space-between',
             gap: 10,
             borderBottom: '1px solid #f0f0f0',
           }}
         >
-          <div
-            style={{
-              width: 28,
-              height: 28,
-              borderRadius: '50%',
-              background: '#1677ff',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <span style={{ color: '#fff', fontSize: 13, fontWeight: 700 }}>C</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div
+              style={{
+                width: 24,
+                height: 24,
+                borderRadius: '50%',
+                border: '4px solid #1677ff',
+                boxSizing: 'border-box',
+                flexShrink: 0,
+              }}
+            />
+            {!collapsed && (
+              <Text strong style={{ fontSize: 14 }}>Company</Text>
+            )}
           </div>
-          {!collapsed && (
-            <Text strong style={{ fontSize: 14 }}>Company</Text>
-          )}
+          {/* Reference moves the collapse trigger up here as an icon button,
+              in place of Sider's own default bottom-fixed trigger bar
+              (disabled below via `trigger={null}`). Stays visible collapsed
+              too, else there would be no way back to the expanded state. */}
+          <div
+            onClick={() => setCollapsed(!collapsed)}
+            style={{ cursor: 'pointer', color: '#8c8c8c', display: 'flex', flexShrink: 0 }}
+          >
+            <SidebarToggleIcon />
+          </div>
         </div>
 
         {/* User */}
@@ -188,12 +209,25 @@ export default function AppLayout({
             borderBottom: '1px solid #f0f0f0',
           }}
         >
-          <Avatar
-            size={32}
-            style={{ background: '#597ef7', fontSize: 13, fontWeight: 600, flexShrink: 0 }}
-          >
-            HE
-          </Avatar>
+          <div style={{ position: 'relative', flexShrink: 0 }}>
+            <Avatar
+              size={32}
+              style={{ background: '#bfbfbf', fontSize: 13, fontWeight: 600 }}
+            >
+              HE
+            </Avatar>
+            <div
+              style={{
+                position: 'absolute',
+                top: -1,
+                right: -1,
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                background: '#ff4d4f',
+              }}
+            />
+          </div>
           {!collapsed && (
             <Text style={{ fontSize: 13, color: '#1a1a1a' }}>Heikke Ekkieh</Text>
           )}
@@ -206,10 +240,15 @@ export default function AppLayout({
           style={{ border: 'none', marginTop: 4 }}
           items={menuItems.map((item) => ({
             key: item.key,
-            icon: item.icon,
+            icon: (item as { icon?: React.ReactNode }).icon,
             label: item.label,
             onClick: (item as { onClick?: () => void }).onClick,
-            style: { borderRadius: 6, margin: '1px 8px', width: 'calc(100% - 16px)' },
+            style: {
+              borderRadius: 6,
+              margin: '1px 8px',
+              width: 'calc(100% - 16px)',
+              ...(item as { style?: React.CSSProperties }).style,
+            },
           }))}
         />
 
