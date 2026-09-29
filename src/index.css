@@ -30,6 +30,30 @@ body {
   white-space: nowrap !important;
 }
 
+/* Leave module's own Figma table spec (font-semibold header) — was only
+   applied per-page before (LeavePage/LeaveProfilePage/ManageLeaveTypesPage
+   each carried an identical scoped <style> block); made global so every
+   table gets it, not just the ones that happened to copy the hack. */
+.ant-table-thead > tr > th {
+  font-weight: 600;
+}
+
+/* The same three pages' vertical divider between header cells — a 0.5px
+   line at each column boundary, generalised the same way. */
+.ant-table-thead > tr > th {
+  position: relative;
+}
+.ant-table-thead > tr > th:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1px;
+  height: 18px;
+  background: #e8eaed;
+}
+
 .ant-table-column-sorters {
   white-space: nowrap;
 }

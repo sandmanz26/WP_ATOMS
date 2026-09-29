@@ -421,28 +421,13 @@ export default function CustomerNotificationPage({ onNavigate }: Props) {
         </Popover>
       </div>
 
-      {/* Table card */}
-      <div className="notif-table" style={{ background: '#fff', borderRadius: 10, border: '1px solid #f0f0f0', overflow: 'hidden' }}>
-        <style>{`
-          .notif-table .ant-table-thead > tr > th {
-            position: relative;
-          }
-          .notif-table .ant-table-thead > tr > th:not(:last-child)::after {
-            content: '';
-            position: absolute;
-            right: 0;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 1px;
-            height: 18px;
-            background: #e8eaed;
-          }
-        `}</style>
+      {/* Table card — 8px radius, header divider lines and font-weight now
+          come from index.css globally rather than a page-scoped <style>. */}
+      <div style={{ background: '#fff', borderRadius: 8, border: '1px solid #f0f0f0', overflow: 'hidden' }}>
         <Table<NotificationRow>
           columns={columns}
           dataSource={paged}
           rowKey="id"
-          size="middle"
           pagination={false}
           onRow={(rec) => ({
             onClick: () => onNavigate({ type: 'customer-notification-detail', notificationId: rec.id }),

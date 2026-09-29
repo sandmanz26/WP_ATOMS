@@ -222,7 +222,7 @@ export default function InvoiceDetailPage({ invoiceId }: Props) {
   const adjTotal  = invoice.adjustments.reduce((s, a) => a.type === 'Additional Payment' ? s + a.amount : s - a.amount, 0)
   const payTotal  = invoice.payments.reduce((s, p) => s + p.amount, 0)
 
-  const cardStyle: React.CSSProperties = { background: '#fff', border: '1px solid #f0f0f0', borderRadius: 10, overflow: 'hidden' }
+  const cardStyle: React.CSSProperties = { background: '#fff', border: '1px solid #f0f0f0', borderRadius: 8, overflow: 'hidden' }
   const sectionPad: React.CSSProperties = { padding: 24 }
   const sectionTitle = (label: string) => (
     <Text style={{ fontSize: 15, fontWeight: 700, display: 'block', marginBottom: 20 }}>{label}</Text>
@@ -392,7 +392,6 @@ export default function InvoiceDetailPage({ invoiceId }: Props) {
           dataSource={invoice.adjustments}
           rowKey={(_, i) => String(i)}
           pagination={false}
-          size="middle"
           locale={{ emptyText: 'No adjustments' }}
         />
       </div>
@@ -408,7 +407,6 @@ export default function InvoiceDetailPage({ invoiceId }: Props) {
           dataSource={invoice.payments}
           rowKey={(_, i) => String(i)}
           pagination={false}
-          size="middle"
           locale={{ emptyText: 'No payments recorded' }}
         />
       </div>

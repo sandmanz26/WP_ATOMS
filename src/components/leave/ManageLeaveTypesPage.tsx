@@ -106,12 +106,11 @@ export default function ManageLeaveTypesPage({ onNavigate }: { onNavigate: (page
         <Text strong style={{ fontSize: 14 }}>{heading}</Text>
         <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>{subtitle}</Text>
       </div>
-      <div className="leave-table" style={{ background: '#fff', borderRadius: 10, border: '1px solid #f0f0f0', overflow: 'hidden' }}>
+      <div style={{ background: '#fff', borderRadius: 8, border: '1px solid #f0f0f0', overflow: 'hidden' }}>
         <Table<LeaveType>
           columns={baseColumns(sortable)}
           dataSource={rows}
           rowKey="id"
-          size="middle"
           pagination={false}
           locale={empty ? { emptyText: empty } : undefined}
           // Biz req 3 — a row in either table opens the details drawer.
@@ -125,13 +124,7 @@ export default function ManageLeaveTypesPage({ onNavigate }: { onNavigate: (page
     <div style={{ padding: 24 }}>
       {contextHolder}
       <WhatsNewBanner />
-      <style>{`
-        .leave-table .ant-table-thead > tr > th { position: relative; }
-        .leave-table .ant-table-thead > tr > th:not(:last-child)::after {
-          content: ''; position: absolute; right: 0; top: 50%;
-          transform: translateY(-50%); width: 1px; height: 18px; background: #e8eaed;
-        }
-      `}</style>
+      {/* Header divider lines + font-weight now come from index.css globally. */}
 
       <Button
         type="link"

@@ -302,25 +302,16 @@ export default function LeavePage({ onNavigate }: { onNavigate: (page: AppPage) 
         </Button>
       </div>
 
-      <div className="leave-table" style={{ background: '#fff', borderRadius: 10, border: '1px solid #f0f0f0', overflow: 'hidden' }}>
-        <style>{`
-          .leave-table .ant-table-thead > tr > th { position: relative; }
-          .leave-table .ant-table-thead > tr > th:not(:last-child)::after {
-            content: '';
-            position: absolute;
-            right: 0;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 1px;
-            height: 18px;
-            background: #e8eaed;
-          }
-        `}</style>
+      {/* Leave module's own Figma table spec: 8px radius, header divider
+          lines and font-weight now come from index.css globally rather than
+          a per-page scoped <style> block; default (unset) size gives the
+          16/16 cell padding that spec calls for, not the 12/8 "middle" this
+          used to opt into. */}
+      <div style={{ background: '#fff', borderRadius: 8, border: '1px solid #f0f0f0', overflow: 'hidden' }}>
         <Table<LeaveEmployee>
           columns={columns}
           dataSource={paged}
           rowKey="id"
-          size="middle"
           pagination={false}
           onRow={(rec) => ({
             // Biz req 4 — a row opens the employee's leave profile (MOVE-3494),

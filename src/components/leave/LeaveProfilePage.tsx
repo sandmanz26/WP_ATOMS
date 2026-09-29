@@ -250,13 +250,7 @@ export default function LeaveProfilePage({
   return (
     <div style={{ padding: 24 }}>
       {contextHolder}
-      <style>{`
-        .leave-table .ant-table-thead > tr > th { position: relative; }
-        .leave-table .ant-table-thead > tr > th:not(:last-child)::after {
-          content: ''; position: absolute; right: 0; top: 50%;
-          transform: translateY(-50%); width: 1px; height: 18px; background: #e8eaed;
-        }
-      `}</style>
+      {/* Header divider lines + font-weight now come from index.css globally. */}
 
       <WhatsNewBanner />
 
@@ -313,12 +307,11 @@ export default function LeaveProfilePage({
           Click a row for its full details.
         </Text>
       </div>
-      <div className="leave-table" style={{ background: '#fff', borderRadius: 10, border: '1px solid #f0f0f0', overflow: 'hidden', marginBottom: 28 }}>
+      <div style={{ background: '#fff', borderRadius: 8, border: '1px solid #f0f0f0', overflow: 'hidden', marginBottom: 28 }}>
         <Table<BalanceRow>
           columns={balanceColumns}
           dataSource={balances}
           rowKey={(r) => r.leaveType.id}
-          size="middle"
           pagination={false}
           // MOVE-4137 biz req 1 — the row is the way into the details drawer.
           onRow={(rec) => ({ onClick: () => setDetailTypeId(rec.leaveType.id), style: { cursor: 'pointer' } })}
@@ -382,12 +375,11 @@ export default function LeaveProfilePage({
           />
         </Space>
       </div>
-      <div className="leave-table" style={{ background: '#fff', borderRadius: 10, border: '1px solid #f0f0f0', overflow: 'hidden' }}>
+      <div style={{ background: '#fff', borderRadius: 8, border: '1px solid #f0f0f0', overflow: 'hidden' }}>
         <Table<LeaveApplication>
           columns={applicationColumns}
           dataSource={pagedApplications}
           rowKey="id"
-          size="middle"
           pagination={false}
           onRow={(rec) => ({ onClick: () => setOpenAppId(rec.id), style: { cursor: 'pointer' } })}
           locale={{

@@ -422,28 +422,13 @@ export default function InvoiceTesting2Page({ onNavigate }: Props) {
         </Popover>
       </div>
 
-      {/* Table card */}
-      <div className="invoice2-table" style={{ background: '#fff', borderRadius: 10, border: '1px solid #f0f0f0', overflow: 'hidden' }}>
-        <style>{`
-          .invoice2-table .ant-table-thead > tr > th {
-            position: relative;
-          }
-          .invoice2-table .ant-table-thead > tr > th:not(:last-child)::after {
-            content: '';
-            position: absolute;
-            right: 0;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 1px;
-            height: 18px;
-            background: #e8eaed;
-          }
-        `}</style>
+      {/* Table card — 8px radius, header divider lines and font-weight now
+          come from index.css globally rather than a page-scoped <style>. */}
+      <div style={{ background: '#fff', borderRadius: 8, border: '1px solid #f0f0f0', overflow: 'hidden' }}>
         <Table<Invoice>
           columns={columns}
           dataSource={paged}
           rowKey="id"
-          size="middle"
           pagination={false}
           onRow={(rec) => ({
             onClick: () => setDrawerInvoiceId(rec.id),

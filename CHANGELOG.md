@@ -14,6 +14,51 @@ minor).
 
 ## [Unreleased]
 
+### Changed — Every main data table restyled app-wide to the Leave module's own Figma spec
+
+At the user's request: read the Leave HR Module Figma file's own listing
+table in detail (size, padding, spacing, margin), then applied it
+everywhere — "content jelas mengikuti apa yang ada di module itu" (each
+table's own columns/data stay exactly as they are; only the sizing changed).
+
+- **Removed `size="middle"` from every main listing table** (Leave,
+  Manage Leave Types, Leave Profile's balances/applications, Invoice,
+  Invoice 2.0, Invoice Detail's adjustments/payments, Customer
+  Notification(s), Customer Contracts) so they fall back to AntD Table's
+  actual default padding (16px block/inline) — which **already matches**
+  the Figma spec exactly; the deviation was ever opting into "middle"
+  (12px/8px) in the first place, not a missing token.
+- `main.tsx`'s `ConfigProvider` `Table.headerColor` corrected from `#595959`
+  to the exact token, `rgba(0,0,0,0.88)`.
+- `index.css` gained two global rules — header font-weight 600, and a
+  vertical divider line at each column boundary — replacing three
+  independent page-scoped copies of the same hack (`leave-table`,
+  `notif-table`, `invoice2-table` classes, each with its own duplicated
+  `<style>` block) that had drifted into existence before this was traced
+  to one Figma spec.
+- Table container radius corrected `10px → 8px` app-wide (`CustomerContractsPage.tsx`'s
+  border color `#e8e8e8 → #f0f0f0` too, another small pre-existing drift).
+- Incidental fix while in `main.tsx` for the same reason: `Menu.itemHeight`
+  was `36`, 4px off the Side Navbar component's actual `40px` spec from a
+  previous pass — corrected.
+
+**Deliberately not touched** (see `FIGMA_DESIGN_SYSTEM.md` §3.3 for the
+full reasoning): tables using `size="small"` (nested/drawer trip lists,
+month-usage tables — a different, intentionally compact shape, not what
+this spec covers); `personaldashboard/PersonalDashboardLeaveTab.tsx` (excluded
+per a standing instruction to leave that file alone); per-cell inline font
+sizes (many cells hardcode 13px where the spec wants 12px — inline styles
+can't be overridden by a CSS rule, so fixing this for real means editing
+every column's `render` function, not done in this pass).
+
+Recorded in `FIGMA_DESIGN_SYSTEM.md` §3.3, including a note that the Leave
+HR Module Figma file is a different file from the ATOM Business Component
+library §3.1/§3.2 came from.
+
+Verified live in Chromium across two different modules (Leave, Invoice) to
+confirm the fix is genuinely global, not page-local. `npx tsc --noEmit`
+clean.
+
 ### Added — `FilterBar 3.0` (table toolbar) recorded in `FIGMA_DESIGN_SYSTEM.md`, no build yet
 
 At the user's request ("saya mau kamu save ini karena bisa jadi saya akan

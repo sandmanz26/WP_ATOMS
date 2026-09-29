@@ -28,10 +28,10 @@ ask, or read the live Figma file for that one thing.
 
 | File / Library | Link | What it covers |
 |---|---|---|
-| "💎 ATOM - Business Component" | `https://www.figma.com/design/ZpEYnJ4POb86CDMAM3BWCG/%F0%9F%92%8E-ATOM---Business-Component` | The shared business-component library (e.g. `Tab/Tab Group`, §3). **Always check this file first** when a screen needs a component that isn't a plain AntD primitive — it's the one confirmed shared library so far. |
+| "💎 ATOM - Business Component" | `https://www.figma.com/design/ZpEYnJ4POb86CDMAM3BWCG/%F0%9F%92%8E-ATOM---Business-Component` | The shared business-component library (e.g. `Tab/Tab Group`, `Side Navbar`, `FilterBar 3.0`, §3). **Always check this file first** when a screen needs a component that isn't a plain AntD primitive — it's the one confirmed shared library so far. |
+| "👩🏻‍🚀 Leave - HR Module" | `https://www.figma.com/design/VYGulw8yaudo3FRAWh4sEh/%F0%9F%91%A9%F0%9F%8F%BB%E2%80%8D%F0%9F%9A%80-Leave---HR-Module-` | Real screens for the Leave epic (MOVE-3410) — a different file from the Business Component library above. The **data table** spec in §3.3 was read from here (its Leave listing table) and applies app-wide, not just to Leave. |
 <!-- fill in the rest -->
 | e.g. "WLA Design System" | `https://figma.com/design/...` | Core tokens, base components |
-| e.g. "WLA — Leave Module" | `https://figma.com/design/...` | Screens for the Leave epic (MOVE-3410) |
 
 **Which file is the source of truth for tokens vs. for screens?**
 <!-- fill in — if they're different files, say which wins when they disagree -->
@@ -187,6 +187,37 @@ name.
   alone, right-aligned, in the page's own content — not into `topBarRight`
   (that slot sits next to the *breadcrumb*, a level up, and is really for
   page-level navigation like "Return to X", not a content action).
+
+### 3.3 Data table — read from the Leave module's own Figma file, applies app-wide
+
+Read from the "👩🏻‍🚀 Leave - HR Module" file's Leave listing table (§1) —
+this is a **different Figma file** from the ATOM Business Component library
+that §3.1/§3.2 came from, but the same table shape is used everywhere in
+this app, so the spec applies globally, not just to Leave.
+
+| Property | Value | Where it's enforced |
+|---|---|---|
+| Cell padding | **16px block, 16px inline** (`cellPaddingBlock`/`cellPaddingInline`) | AntD `Table`'s *default* size already is this — the fix was **removing `size="middle"`** (which reads the 12px/8px `...MD` tokens instead) from every main listing table, not adding a token override. |
+| Row height | 54px for a single-line cell (16 + 22 line-height + 16) | Falls out of the padding + `Typography`'s line-height once the size prop above is corrected; a cell with its own two-line content (e.g. a "time ago" caption under a date) is taller by design, not a bug. |
+| Border color | `#f0f0f0` (`components/table/component/bordercolor`) | Already correct almost everywhere via `main.tsx`'s `ConfigProvider` Table token; one page (`CustomerContractsPage.tsx`) had drifted to `#e8e8e8` and was corrected to match. |
+| Header background / text | `#fafafa` bg, **`rgba(0,0,0,0.88)`** text, **font-weight 600** | `headerColor` in `main.tsx`'s `ConfigProvider` was `#595959` (a judgment call made before this was read from Figma) — corrected to the exact token. Font-weight has no Table component token in AntD, so it's a global CSS rule in `index.css` instead. |
+| Column divider | A 0.5–1px vertical line at each header cell boundary | Was reinvented three times independently as page-scoped `<style>` blocks with three different class names (`leave-table`, `notif-table`, `invoice2-table`) before this was traced to one Figma spec — consolidated into one global rule in `index.css`, removed from every page that had its own copy. |
+| Table container | White bg, `1px solid #f0f0f0` border, **8px** radius, `overflow: hidden` | Every main listing table already wrapped itself this way independently; the radius was consistently `10px` (another pre-Figma judgment call) — corrected to `8px` app-wide. |
+
+**Deliberately not touched**:
+- Tables using `size="small"` (trip lists inside drawers/detail-page nested
+  cards, month-usage tables, etc.) — this spec is for the page-level "Main"
+  listing table (the Figma instance's own `table` prop is literally
+  `"Main"`), not every nested compact list. Bumping those to 16/16 padding
+  would blow out drawer layouts for no benefit the reference asked for.
+- `personaldashboard/PersonalDashboardLeaveTab.tsx` — excluded per a
+  standing, explicit instruction to leave that file alone (it's slated for a
+  separate rebuild), even though its three tables still say `size="middle"`.
+- Per-cell inline font sizes (many cells render `<Text style={{ fontSize:
+  13 }}>` where the spec calls for 12px) — inline styles win over any CSS
+  rule, so a real fix means editing each column's `render` function, not a
+  global rule. Not done in this pass; flagged here rather than silently
+  left inconsistent.
 
 ---
 

@@ -16,14 +16,19 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         },
         components: {
           Table: {
+            // headerColor matches the Leave module's own Figma table spec
+            // (`components/table/component/headercolor`, `rgba(0,0,0,0.88)`)
+            // — not an arbitrary gray.
             headerBg: '#fafafa',
-            headerColor: '#595959',
+            headerColor: 'rgba(0,0,0,0.88)',
             headerSplitColor: '#f0f0f0',
             rowHoverBg: '#f5f9ff',
             borderColor: '#f0f0f0',
           },
           Menu: {
-            itemHeight: 36,
+            // Matches the Side Navbar component's own `h-[40px]` item row —
+            // was 36, off by 4px against the actual Figma spec.
+            itemHeight: 40,
           },
         },
       }}

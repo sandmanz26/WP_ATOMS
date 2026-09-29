@@ -248,7 +248,7 @@ export default function InvoicePage({ onNavigate }: Props) {
       </div>
 
       {/* Table card */}
-      <div style={{ background: '#fff', borderRadius: 10, border: '1px solid #f0f0f0', overflow: 'hidden' }}>
+      <div style={{ background: '#fff', borderRadius: 8, border: '1px solid #f0f0f0', overflow: 'hidden' }}>
         {/* Filter row */}
         <div style={{ padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 12, borderBottom: '1px solid #f0f0f0' }}>
           <Text style={{ fontSize: 13, color: '#595959', flexShrink: 0 }}>Last updated on:</Text>
@@ -292,7 +292,6 @@ export default function InvoicePage({ onNavigate }: Props) {
           columns={columns}
           dataSource={filtered}
           rowKey="id"
-          size="middle"
           pagination={{
             current: page,
             pageSize: 10,

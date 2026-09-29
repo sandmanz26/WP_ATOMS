@@ -259,8 +259,8 @@ export default function CustomerContractsPage({ onNavigate }: CustomerContractsP
       <div
         style={{
           background: '#fff',
-          border: '1px solid #e8e8e8',
-          borderRadius: 10,
+          border: '1px solid #f0f0f0',
+          borderRadius: 8,
           overflow: 'hidden',
         }}
       >
@@ -332,7 +332,6 @@ export default function CustomerContractsPage({ onNavigate }: CustomerContractsP
           dataSource={filtered}
           columns={columns}
           rowKey="id"
-          size="middle"
           scroll={{ x: 1400 }}
           /* PRD A.1 — row checkboxes only in grouping mode */
           rowSelection={

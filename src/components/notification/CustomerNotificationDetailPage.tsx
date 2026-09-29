@@ -320,7 +320,7 @@ export default function CustomerNotificationDetailPage({ notificationId, onSelec
       </div>
 
       {/* ── Trips in Daily Schedule ── */}
-      <div ref={sectionRefs.trips} style={{ background: '#fff', border: '1px solid #f0f0f0', borderRadius: 10, overflow: 'hidden', marginTop: 16 }}>
+      <div ref={sectionRefs.trips} style={{ background: '#fff', border: '1px solid #f0f0f0', borderRadius: 8, overflow: 'hidden', marginTop: 16 }}>
         <div style={{ padding: '20px 24px 0' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 16 }}>
             <Text style={{ fontSize: 15, fontWeight: 700 }}>Trips in Daily Schedule</Text>
@@ -333,7 +333,6 @@ export default function CustomerNotificationDetailPage({ notificationId, onSelec
             dataSource={trips}
             rowKey={(_, i) => String(i)}
             pagination={false}
-            size="middle"
             rowSelection={
               sendMode === 'email' ? {
                 type: 'checkbox',
