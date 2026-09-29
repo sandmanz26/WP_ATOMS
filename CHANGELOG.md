@@ -14,6 +14,53 @@ minor).
 
 ## [Unreleased]
 
+### Added — `FIGMA_COMPONENT_INDEX.md`, the code → Figma direction
+
+At the user's request: a dedicated index, separate from
+`FIGMA_DESIGN_SYSTEM.md` (which is Figma → code — building a screen from an
+existing design). This one is the other direction — before pushing this
+app's UI *into* Figma ("vibe code to Figma"), read this index first so an
+existing library component gets reused instead of a fresh lookalike shape
+getting drawn. The user adds a row when they've identified which Figma
+component a piece of app UI should be built from; Claude fills in the "Key
+details" column the first time that row is actually used, by reading the
+node from Figma rather than guessing.
+
+Seeded with the two ATOM Business Components already identified this
+session — `Side Navbar` (node 425:16539) and `Tab/Tab Group` (node
+424:16506) — with their token-level detail already written in, so the next
+code → Figma task on either has something to start from immediately.
+
+`CLAUDE.md` and `FIGMA_DESIGN_SYSTEM.md` both now point to it, and
+`FIGMA_DESIGN_SYSTEM.md`'s component-mapping table gained a `Side Navbar`
+row (kept brief, pointing at the index for the full breakdown).
+
+### Fixed — Sidebar sub-item spacing, corrected against the real Figma component
+
+Follow-up after the previous restyle: asked to check again why the sidebar
+still didn't match, this time reading the actual "Side Navbar" component
+node (425:16539) instead of working from a screenshot alone turned up the
+real spec — and it was different from what got built:
+
+- **Every sub-item is its own fully-rounded row** (`itemBorderRadius` 8px on
+  all four corners), on a faint tint (`submenuitembg`,
+  `rgba(0,0,0,0.02)`), indented to `pl-48` — double a top-level item's own
+  24px indent — with the **same 4px gap between rows as everywhere else in
+  the menu**. The previous pass had joined an expanded section's sub-items
+  into one seamless block (radius only at the group's outer top/bottom
+  edges, no gap between rows) — a reasonable-looking guess from the
+  screenshot, but not what the component actually specifies.
+- Bumped the whole menu's item radius from 6px to the component's actual
+  8px, and the gap between every row (top-level included) from ~2px to the
+  component's actual 4px (`margin: '2px 8px'` per item, so adjacent items'
+  margins add up to 4px).
+- The avatar's notification dot shrank from 8px to the component's actual
+  6px and moved to match its exact top/right offset.
+
+Verified live in Chromium: sub-items now render as individually rounded,
+gapped, indented rows rather than one joined block. `npx tsc --noEmit`
+clean.
+
 ### Changed — Every page header now follows one enforced shape (breadcrumb + bold title)
 
 At the user's request ("setiap page selalu punya struktur seperti ini... tolong

@@ -7,11 +7,13 @@ below, and whoever writes code or Figma designs reads them first.
 
 > **How this gets used:** before building a new screen or component, read the
 > relevant sections here — tokens, the component mapping table, naming rules —
-> and match them. Before pushing a new pattern into Figma from code, check
-> here first so a new one-off doesn't get invented where an existing token or
-> component already covers it. When something here goes stale (a token
-> renamed, a component's Figma variants changed), update this file in the same
-> change that causes the drift, the same rule `CHANGELOG.md` follows.
+> and match them. When something here goes stale (a token renamed, a
+> component's Figma variants changed), update this file in the same change
+> that causes the drift, the same rule `CHANGELOG.md` follows.
+>
+> **This file is Figma → code.** Going the other way — pushing this app's UI
+> *into* Figma — reads `FIGMA_COMPONENT_INDEX.md` instead, so an existing
+> library component gets reused rather than a fresh one-off getting drawn.
 
 Everything below is a **template**. Sections marked `<!-- fill in -->` are
 empty on purpose — they get their real values from whoever maintains the
@@ -113,6 +115,7 @@ a drift.
 | `Drawer/Form` | `Drawer` + `Form` | Width fixed per drawer (`480`/`520`), not responsive | |
 | `Empty State` | `Empty` | `image={Empty.PRESENTED_IMAGE_SIMPLE}` everywhere, never the default illustration | |
 | `Tab/Tab Group` (ATOM Business Component, [node 424:16506](https://www.figma.com/design/ZpEYnJ4POb86CDMAM3BWCG/%F0%9F%92%8E-ATOM---Business-Component?node-id=424-16506)) | `common/PageTabs.tsx` (wraps `Anchor`, **not** `Tabs`) | The component's own Code Connect note maps it to AntD `Anchor` with `direction="horizontal"` — every tab item carries its own underline segment (colored active / faint default), not `Tabs`' shared baseline + ink bar. `PageTabs` adds one real deviation: items are stretched to equal width (Anchor sizes to content by default) to match the Figma spec. **Always use `PageTabs` for a page-level top tab bar** — this was called out explicitly as a standing rule, not a one-off. | Used in `employeeportal/EmployeePortalPage.tsx`'s Home/Leave/Claims/Pay Slip bar. Not yet retrofitted onto other pages' top-level tab bars (e.g. Claims' own "My Claims"/"Pending My Approval" sub-tabs still use plain `Tabs` — that's a nested in-panel toggle, arguably a different case, but worth a call if this component is meant to cover that shape too). |
+| `Side Navbar` (ATOM Business Component, [node 425:16539](https://www.figma.com/design/ZpEYnJ4POb86CDMAM3BWCG/%F0%9F%92%8E-ATOM---Business-Component?node-id=425-16539)) | `layout/AppLayout.tsx`'s `Sider` | See `FIGMA_COMPONENT_INDEX.md` for the full token breakdown (item height/radius/margin, sub-item indent and tint) — kept there rather than duplicated here since that file is the one read before any further sidebar work. | An earlier pass joined an expanded section's sub-items into one seamless block; the real component keeps each sub-item independently, fully rounded, with the same small gap as every other row — just tinted and indented further. Fixed once actually read from Figma instead of a screenshot alone. |
 
 **When Figma introduces a new component not in this table**: before writing
 custom UI for it, check whether it's actually a variant of something AntD

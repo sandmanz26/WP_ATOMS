@@ -4,9 +4,15 @@ Standing instructions for Claude sessions on this repo. Structural reference
 lives in `DEVELOPER_GUIDE.md`; module business rules live in
 `CLAUDE_SESSION_CONTEXT.md`; the Figma design system (tokens, component
 mapping to AntD, naming conventions) lives in `FIGMA_DESIGN_SYSTEM.md` — read
-it before building or styling any screen, and before pushing a new pattern
-into Figma from code. It's a living template: fill in gaps found while
-building, in the same change that finds them.
+it before building or styling any screen. Both are living templates: fill in
+gaps found while building, in the same change that finds them.
+
+Direction matters for which doc to read: building a screen *from* Figma
+reads `FIGMA_DESIGN_SYSTEM.md`. Pushing this app's UI *into* Figma ("vibe
+code to Figma") reads `FIGMA_COMPONENT_INDEX.md` instead — it's the user's
+index of which Figma component a given piece of this app's UI should be
+built from, so a real library component gets reused instead of a fresh
+lookalike shape getting drawn.
 
 ## Changelog
 

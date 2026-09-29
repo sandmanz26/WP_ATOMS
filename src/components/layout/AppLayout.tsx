@@ -30,32 +30,25 @@ function SidebarToggleIcon() {
 }
 
 /**
- * The reference sidebar renders an expanded section's sub-items as one
- * continuous light-gray block (rounded only at its outer top/bottom edges),
- * not as individually-styled rows — so this computes each row's corner
- * radius from its position in the group rather than a single shared style.
+ * A sub-item of an expanded section. Read directly off the "Side Navbar"
+ * business component (Figma node 425:16539): each sub-item is its own fully
+ * rounded row (`itemBorderRadius` 8px on every corner, not just the group's
+ * outer edges) on a faint `submenuitembg` tint (`rgba(0,0,0,0.02)`), indented
+ * to `pl-[48px]` — double a top-level item's own `paddingLg` (24px) indent —
+ * with the same `itemMarginBlock` (4px) gap between rows as everywhere else
+ * in the menu. Earlier this joined sub-items into one seamless block with
+ * radius only at the group's ends and no gap between rows, which is not what
+ * the component actually specifies — that reading is why the spacing looked
+ * off next to the real thing.
  */
-function groupedSubItem(
-  key: string,
-  label: string,
-  onClick: () => void,
-  position: 'first' | 'middle' | 'last' | 'only',
-) {
-  const topRadius = position === 'first' || position === 'only' ? 8 : 0
-  const bottomRadius = position === 'last' || position === 'only' ? 8 : 0
+function groupedSubItem(key: string, label: string, onClick: () => void) {
   return {
     key,
-    label: <Text style={{ fontSize: 13, paddingLeft: 8 }}>{label}</Text>,
+    label: <Text style={{ fontSize: 13, paddingLeft: 24 }}>{label}</Text>,
     onClick,
     style: {
-      background: '#fafafa',
-      margin: `0 8px ${position === 'last' || position === 'only' ? 1 : 0}px`,
-      borderRadius: 0,
-      borderTopLeftRadius: topRadius,
-      borderTopRightRadius: topRadius,
-      borderBottomLeftRadius: bottomRadius,
-      borderBottomRightRadius: bottomRadius,
-      width: 'calc(100% - 16px)',
+      background: 'rgba(0,0,0,0.02)',
+      borderRadius: 8,
     },
   }
 }
@@ -131,8 +124,8 @@ export default function AppLayout({
           // for the live design. Roster 4.0 is the one that matches the PRD;
           // the 3.0 page stays in the code (and on its route) as a prior
           // exploration, just not as something a reviewer can wander into.
-          groupedSubItem('roster', 'Roster Calendar', () => onNavigate?.({ type: 'roster' }), 'first'),
-          groupedSubItem('roster-4', 'Roster 4.0', () => onNavigate?.({ type: 'roster-4' }), 'last'),
+          groupedSubItem('roster', 'Roster Calendar', () => onNavigate?.({ type: 'roster' })),
+          groupedSubItem('roster-4', 'Roster 4.0', () => onNavigate?.({ type: 'roster-4' })),
         ]
       : []),
     {
@@ -148,10 +141,10 @@ export default function AppLayout({
     },
     ...(salesOpen
       ? [
-          groupedSubItem('live-tracking-testing-2', 'Live Tracking 2.0', () => onNavigate?.({ type: 'live-tracking-testing-2' }), 'first'),
-          groupedSubItem('invoice', 'Invoice', () => onNavigate?.({ type: 'invoice' }), 'middle'),
-          groupedSubItem('invoice-testing-2', 'Invoice 2.0', () => onNavigate?.({ type: 'invoice-testing-2' }), 'middle'),
-          groupedSubItem('customer-notification', 'Customer Notification', () => onNavigate?.({ type: 'customer-notification' }), 'last'),
+          groupedSubItem('live-tracking-testing-2', 'Live Tracking 2.0', () => onNavigate?.({ type: 'live-tracking-testing-2' })),
+          groupedSubItem('invoice', 'Invoice', () => onNavigate?.({ type: 'invoice' })),
+          groupedSubItem('invoice-testing-2', 'Invoice 2.0', () => onNavigate?.({ type: 'invoice-testing-2' })),
+          groupedSubItem('customer-notification', 'Customer Notification', () => onNavigate?.({ type: 'customer-notification' })),
         ]
       : []),
   ]
@@ -227,13 +220,16 @@ export default function AppLayout({
             >
               HE
             </Avatar>
+            {/* Size/position straight off the Side Navbar component's own
+                Badge/Basic "dot" variant on the 32px avatar: 6px, sitting on
+                the top edge and just past the right edge. */}
             <div
               style={{
                 position: 'absolute',
-                top: -1,
-                right: -1,
-                width: 8,
-                height: 8,
+                top: 0,
+                right: -2,
+                width: 6,
+                height: 6,
                 borderRadius: '50%',
                 background: '#ff4d4f',
               }}
@@ -255,8 +251,11 @@ export default function AppLayout({
             label: item.label,
             onClick: (item as { onClick?: () => void }).onClick,
             style: {
-              borderRadius: 6,
-              margin: '1px 8px',
+              // `itemBorderRadius` (8px) and `itemMarginBlock` (4px, split as
+              // 2px top + 2px bottom so adjacent rows land on 4px between
+              // them) straight off the Side Navbar component.
+              borderRadius: 8,
+              margin: '2px 8px',
               width: 'calc(100% - 16px)',
               ...(item as { style?: React.CSSProperties }).style,
             },
