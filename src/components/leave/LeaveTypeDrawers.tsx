@@ -8,7 +8,7 @@
 
 import { useEffect, useState } from 'react'
 import {
-  Button, DatePicker, Drawer, Input, InputNumber, Radio, Select, Space, Tag, Typography,
+  Button, DatePicker, Drawer, Input, InputNumber, Radio, Select, Space, Tag, Typography, message,
 } from 'antd'
 import dayjs, { type Dayjs } from 'dayjs'
 import { EditOutlined } from '@ant-design/icons'
@@ -156,15 +156,23 @@ export function CreateLeaveTypeDrawer({
     trimmed.length > 0 && LEAVE_TYPES.some((t) => t.name.toLowerCase() === trimmed.toLowerCase())
   const missingName = trimmed.length === 0
   const missingDates = !effective || !end
-  // Biz req 2 — end date must be after effective date, not merely different.
-  const badRange = !!effective && !!end && !end.isAfter(effective, 'day')
+  // Biz req 2 — MOVE-3221 (edited 29 Sep 2026): end date must be the same as
+  // or after effective date, no longer strictly after.
+  const badRange = !!effective && !!end && end.isBefore(effective, 'day')
   const invalid = missingName || duplicate || missingDates || badRange || entitlement === null
 
   const nameError = touched && (missingName || duplicate)
 
   const save = () => {
     setTouched(true)
-    if (invalid) return
+    if (invalid) {
+      message.error(
+        duplicate
+          ? 'Unable to create leave type — a leave type with this name already exists'
+          : 'Unable to create leave type — please fill in all required fields',
+      )
+      return
+    }
     const now = dayjs().format('YYYY-MM-DDTHH:mm:ss')
     const created: LeaveType = {
       id: nextId('lt'),
@@ -206,47 +214,57 @@ export function CreateLeaveTypeDrawer({
       extra={
         <Space>
           <Button onClick={onClose}>Cancel</Button>
-          <Button type="primary" onClick={save}>Save</Button>
+          {/* MOVE-3221 (edited 21 Sep 2026) — "Save" renamed to "Create"
+              throughout biz req 4, matching the Figma Create Leave Type
+              component (Personal Dashboard - HR Module, 39282:89715). */}
+          <Button type="primary" onClick={save}>Create</Button>
         </Space>
       }
     >
-      <Field label="Leave Type">
-        <Input
-          value={name}
-          maxLength={LEAVE_TYPE_NAME_MAX}
-          showCount
-          status={nameError ? 'error' : undefined}
-          placeholder="e.g. Study Leave"
-          onChange={(e) => setName(e.target.value)}
-        />
-        {touched && duplicate && (
-          <Text type="danger" style={{ fontSize: 12 }}>A leave type with this name already exists.</Text>
-        )}
-        {touched && missingName && (
-          <Text type="danger" style={{ fontSize: 12 }}>Leave type name is required.</Text>
-        )}
-      </Field>
-
-      <Field label="Entitlement">
-        <Space.Compact style={{ width: '100%' }}>
-          {/* Biz req 2 — integers only, and 0 is a legitimate entitlement. */}
-          <InputNumber
-            min={0}
-            precision={0}
-            style={{ width: '60%' }}
-            value={entitlement}
-            onChange={(v) => setEntitlement(v)}
-          />
-          <Select
-            style={{ width: '40%' }}
-            value={unit}
-            onChange={(v) => setUnit(v as EntitlementUnit)}
-            options={UNIT_OPTIONS}
-          />
-        </Space.Compact>
-      </Field>
-
+      {/* Leave Type and Entitlement sit side by side (Figma: Frame 2608910),
+          not stacked — the field-row pairing is part of the component, not a
+          styling choice. */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <Field label="Leave Type">
+          <Input
+            value={name}
+            maxLength={LEAVE_TYPE_NAME_MAX}
+            showCount
+            status={nameError ? 'error' : undefined}
+            placeholder="e.g. Study Leave"
+            onChange={(e) => setName(e.target.value)}
+          />
+          {touched && duplicate && (
+            <Text type="danger" style={{ fontSize: 12 }}>A leave type with this name already exists.</Text>
+          )}
+          {touched && missingName && (
+            <Text type="danger" style={{ fontSize: 12 }}>Leave type name is required.</Text>
+          )}
+        </Field>
+
+        <Field label="Entitlement">
+          {/* Figma shows two independently-rounded controls with an 8px gap,
+              not a Space.Compact merged-border pair. */}
+          <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+            {/* Biz req 2 — integers only, and 0 is a legitimate entitlement. */}
+            <InputNumber
+              min={0}
+              precision={0}
+              style={{ flex: 1, minWidth: 0 }}
+              value={entitlement}
+              onChange={(v) => setEntitlement(v)}
+            />
+            <Select
+              style={{ width: 90, flexShrink: 0 }}
+              value={unit}
+              onChange={(v) => setUnit(v as EntitlementUnit)}
+              options={UNIT_OPTIONS}
+            />
+          </div>
+        </Field>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
         <Field label="Effective Date">
           <DatePicker
             style={{ width: '100%' }}
@@ -262,14 +280,16 @@ export function CreateLeaveTypeDrawer({
             onChange={setEnd}
             status={touched && (!end || badRange) ? 'error' : undefined}
             // Cheaper than an error message: the invalid half of the calendar
-            // is simply not offered.
-            disabledDate={(d) => (effective ? !d.isAfter(effective, 'day') : false)}
+            // is simply not offered. MOVE-3221 (edited 29 Sep 2026) — same day
+            // as effective date is now allowed, so only strictly-earlier days
+            // are disabled.
+            disabledDate={(d) => (effective ? d.isBefore(effective, 'day') : false)}
           />
         </Field>
       </div>
       {touched && badRange && (
         <Text type="danger" style={{ fontSize: 12, display: 'block', marginTop: -8, marginBottom: 12 }}>
-          End date must be after the effective date.
+          End date must be the same as or after the effective date.
         </Text>
       )}
 
@@ -290,17 +310,17 @@ export function CreateLeaveTypeDrawer({
       </Field>
 
       <Field label="Employee Eligibility">
-        {/* Biz req 3 — this choice decides whether the type is auto-added to
-            profiles or has to be added by hand per employee. */}
-        <Radio.Group
+        {/* MOVE-3221 (edited 14 Sep 2026) — field type changed from Radio to
+            Dropdown; the Figma component (39282:89715) backs this up with a
+            single-select combobox, not a stacked radio list. Biz req 3 — this
+            choice decides whether the type is auto-added to profiles or has
+            to be added by hand per employee. */}
+        <Select
+          style={{ width: '100%' }}
           value={eligibility}
-          onChange={(e) => setEligibility(e.target.value)}
-          style={{ display: 'flex', flexDirection: 'column', gap: 6 }}
-        >
-          {ELIGIBILITY_OPTIONS.map((v) => (
-            <Radio key={v} value={v}>{ELIGIBILITY_LABEL[v]}</Radio>
-          ))}
-        </Radio.Group>
+          onChange={(v) => setEligibility(v as EmployeeEligibility)}
+          options={ELIGIBILITY_OPTIONS.map((v) => ({ value: v, label: ELIGIBILITY_LABEL[v] }))}
+        />
         <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 6 }}>
           {eligibility === 'selected'
             ? 'Not added automatically — you add it per employee from their leave profile.'
@@ -368,7 +388,9 @@ export function EditLeaveTypeDrawer({
   const t = leaveType
   const can = editableFields(t)
 
-  const badRange = !t.system && !!effective && !!end && !end.isAfter(effective, 'day')
+  // MOVE-3221/3559 (edited 29 Sep 2026) — same business rule as Create: end
+  // date may equal the effective date, not just come strictly after it.
+  const badRange = !t.system && !!effective && !!end && end.isBefore(effective, 'day')
   const invalid = entitlement === null || badRange || (!t.system && (!effective || !end))
 
   const save = () => {
@@ -415,23 +437,25 @@ export function EditLeaveTypeDrawer({
       </div>
 
       <Field label="Entitlement">
-        <Space.Compact style={{ width: '100%' }}>
+        {/* Same independently-rounded, 8px-gap pair as Create (Figma: no
+            Space.Compact merged border). */}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
           <InputNumber
             min={0}
             precision={0}
             disabled={!can.entitlement}
-            style={{ width: '60%' }}
+            style={{ flex: 1, minWidth: 0 }}
             value={entitlement}
             onChange={(v) => setEntitlement(v)}
           />
           <Select
-            style={{ width: '40%' }}
+            style={{ width: 90, flexShrink: 0 }}
             disabled={!can.entitlement}
             value={unit}
             onChange={(v) => setUnit(v as EntitlementUnit)}
             options={UNIT_OPTIONS}
           />
-        </Space.Compact>
+        </div>
       </Field>
 
       {t.system ? (
@@ -442,7 +466,7 @@ export function EditLeaveTypeDrawer({
         </Field>
       ) : (
         <>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
             <Field label="Effective Date">
               <DatePicker
                 style={{ width: '100%' }}
@@ -458,13 +482,13 @@ export function EditLeaveTypeDrawer({
                 value={end}
                 onChange={setEnd}
                 status={touched && badRange ? 'error' : undefined}
-                disabledDate={(d) => (effective ? !d.isAfter(effective, 'day') : false)}
+                disabledDate={(d) => (effective ? d.isBefore(effective, 'day') : false)}
               />
             </Field>
           </div>
           {touched && badRange && (
             <Text type="danger" style={{ fontSize: 12, display: 'block', marginTop: -8, marginBottom: 12 }}>
-              End date must be after the effective date.
+              End date must be the same as or after the effective date.
             </Text>
           )}
         </>

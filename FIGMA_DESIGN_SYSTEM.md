@@ -30,6 +30,7 @@ ask, or read the live Figma file for that one thing.
 |---|---|---|
 | "💎 ATOM - Business Component" | `https://www.figma.com/design/ZpEYnJ4POb86CDMAM3BWCG/%F0%9F%92%8E-ATOM---Business-Component` | The shared business-component library (e.g. `Tab/Tab Group`, `Side Navbar`, `FilterBar 3.0`, §3). **Always check this file first** when a screen needs a component that isn't a plain AntD primitive — it's the one confirmed shared library so far. |
 | "👩🏻‍🚀 Leave - HR Module" | `https://www.figma.com/design/VYGulw8yaudo3FRAWh4sEh/%F0%9F%91%A9%F0%9F%8F%BB%E2%80%8D%F0%9F%9A%80-Leave---HR-Module-` | Real screens for the Leave epic (MOVE-3410) — a different file from the Business Component library above. The **data table** spec in §3.3 was read from here (its Leave listing table) and applies app-wide, not just to Leave. |
+| "👩🏻‍🚀 Personal Dashboard - HR Module" | `https://www.figma.com/design/1FCRdGhHru6czP5P6h06kH/%F0%9F%91%A9%F0%9F%8F%BB%E2%80%8D%F0%9F%9A%80-Personal-Dashboard---HR-Module-` | Real screens for the Personal Dashboard epic (MOVE-3412) — a third file, distinct from both of the above. The **Drawers Template / form field-row** spec in §3.4 (the "Create Leave Type" component, nodes `39283:133569` / `39282:89715`) was read from here. |
 <!-- fill in the rest -->
 | e.g. "WLA Design System" | `https://figma.com/design/...` | Core tokens, base components |
 
@@ -231,6 +232,22 @@ this app, so the spec applies globally, not just to Leave.
   global rule. Not done in this pass; flagged here rather than silently
   left inconsistent.
 
+### 3.4 Drawers Template / form field-row pairing — read from "Personal Dashboard - HR Module"
+
+Read from the "Create Leave Type" business component (§1, nodes
+`39283:133569` / `39282:89715`) while auditing `LeaveTypeDrawers.tsx` against
+it. Applies to every drawer built from the same vertical-form pattern
+(`_Form / Form Item / Vertical` fields stacked in a `Drawer`), not just Leave
+Type — check a new form drawer against this before inventing its row layout.
+
+| Property | Value | Where it's enforced |
+|---|---|---|
+| Field row pairing | Two related fields that fit side by side (e.g. a name + its own entitlement-like field) sit in the **same row**, not stacked as two full-width fields | `CreateLeaveTypeDrawer`'s Leave Type + Entitlement were two stacked full-width `Field`s before this was read from Figma; now a `grid-template-columns: 1fr 1fr` row, 12px gap. |
+| Date-range row gap | **16px** between two fields that are always a pair (e.g. Effective Date / End Date) | Was `12px` (a guess) in both `CreateLeaveTypeDrawer` and `EditLeaveTypeDrawer`; corrected to the measured Figma gap in both. |
+| A number input + its unit selector | Two **independently-rounded** controls with an **8px** gap — not an AntD `Space.Compact` merged-border pair | Both drawers used `Space.Compact` (square inner corners) before this was read; now a plain flex row, `gap: 8`, each control keeping its own `border-radius`. |
+| Single-choice field with >2 options | A `Select` (dropdown), not a `Radio.Group` list, once there are more than 2 options | `Employee Eligibility` (4 options) was a `Radio.Group` — wrong independently of Figma, since `MOVE-3221`'s own field table says "Dropdown"; the Figma component confirms it as a single-select combobox. `Supporting Document` (2 options, Required/Optional) correctly stays `Radio.Group` — Figma and the ticket both still call it Radio there. |
+| Drawer width / outer padding | Figma's own frame reads 684px wide with 32px padding | **Deliberately not copied onto the `Drawer` width.** Every drawer in the app (17+ call sites) uses the established 480/520 convention; this looks like the mockup canvas size for this one component, not an instruction to widen every drawer in the app. Only the internal field layout above was corrected. |
+
 ---
 
 ## 4. Figma file conventions
@@ -276,6 +293,10 @@ during the next Figma-vs-code comparison pass.
 
 <!-- fill in, e.g. -->
 - <!-- ticket / area --> — code does X, Figma shows Y, because <!-- reason -->.
+- `MOVE-3221`/`MOVE-3559` drawers (`LeaveTypeDrawers.tsx`) — code uses the
+  app-wide 480/520 drawer-width convention; the "Create Leave Type" Figma
+  component's own frame is 684px wide with 32px padding. Treated as that
+  component's mockup canvas size, not a width to copy — see §3.4.
 
 ---
 

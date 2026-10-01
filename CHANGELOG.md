@@ -14,6 +14,59 @@ minor).
 
 ## [Unreleased]
 
+### Fixed — Create/Edit Leave Type drawers brought in line with Figma + missed `MOVE-3221` edits
+
+The user introduced a new Figma pattern (Personal Dashboard - HR Module file,
+`39283:133569` / `39282:89715`, both resolving to the "Create Leave Type"
+component's two interaction states) and asked for a careful six-point audit —
+layout arrangement, position, components, padding/spacing, pixel-perfect
+sizing, color/design-system tokens — against `LeaveTypeDrawers.tsx`, under the
+explicit rule that layout must not change on a future content change, only
+content may. They also asked for a full re-sweep of ticket coverage, which
+surfaced three `MOVE-3221` edits since the drawer was first built (14, 21 and
+29 Sep 2026) that had been missed.
+
+- **Leave Type + Entitlement now share a row** (`CreateLeaveTypeDrawer`),
+  matching the Figma component's two-column pairing — they were two stacked
+  full-width fields before.
+- **Entitlement + unit is a plain 8px-gap flex row**, not `Space.Compact` —
+  Figma shows two independently-rounded controls, not a merged-border pair.
+  Fixed in both Create and Edit, since both hand-rolled the same field.
+- **Effective Date / End Date grid gap corrected `12px → 16px`** in both
+  drawers, read directly off the Figma frame's measured gap.
+- **Employee Eligibility changed from a `Radio.Group` to a `Select`**
+  (`CreateLeaveTypeDrawer`) — this was wrong even before the Figma reference:
+  `MOVE-3221`'s own field table was edited 14 Sep 2026, changing this field's
+  type from Radio to Dropdown, which the ticket-coverage re-sweep had missed
+  until this pass. The Figma component confirms it as a single-select
+  combobox.
+- **Primary button relabelled `"Save" → "Create"`** — `MOVE-3221` was edited
+  21 Sep 2026 to rename "Save create" to "Create" throughout biz req 4
+  ("When user clicks 'create'"), matching what the Figma component and the
+  user's screenshot both already showed.
+- **Validation relaxed to allow the end date to equal the effective date** —
+  `MOVE-3221` was edited 29 Sep 2026, "end date must be after" →
+  "must be the same as or after". Fixed in both drawers (`badRange` and each
+  `DatePicker`'s `disabledDate`).
+- **Added the missing error toast on an invalid create/duplicate-name
+  submit** (`message.error`, matching the pattern already used by
+  `CreateGroupModal.tsx` etc.) — `MOVE-3221`'s acceptance criteria call for
+  one on both outcomes; only the inline field states existed before.
+- Checked `isActiveForLeave` (`leaveLogic.ts`) against the 29 Sep edit's
+  clarification that "all active employees" means "status = active or
+  suspended" — already correct (`MOVE-1975`/`MOVE-3890`), no change needed.
+- **Judgment call, scoped deliberately:** the Figma frame's own width (684)
+  and padding (32px) were *not* copied onto the Drawer itself. Every other
+  drawer in the app (17+ call sites, Contracts/Notification/Invoice/Leave/
+  EmployeePortal) uses the established 480/520 convention; the Figma canvas
+  size here reads as this one mockup's frame, not an instruction to widen
+  every drawer. Internal field layout was corrected; outer chrome was not.
+
+Verified live in Chromium: Leave Type/Entitlement render side by side,
+Employee Eligibility is a working combobox whose value flows through to the
+table, a same-day effective/end date now saves successfully, and the
+duplicate-name path shows the new error toast. `npx tsc --noEmit` clean.
+
 ### Added — `common/DataTable.tsx`, the shared standard-table component; applied to Leave
 
 At the user's request, annotated directly on a screenshot of the Leave
