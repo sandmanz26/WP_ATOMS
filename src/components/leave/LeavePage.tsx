@@ -6,7 +6,7 @@
 // pattern; the point is that Leave looks like every other listing.
 
 import { useMemo, useState } from 'react'
-import { Typography, Table, Button, Input, Select, DatePicker, Popover, Tag, Tooltip } from 'antd'
+import { Typography, Button, Input, Select, DatePicker, Popover, Tag, Tooltip } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import type { Dayjs } from 'dayjs'
 import dayjs from 'dayjs'
@@ -22,6 +22,7 @@ import {
   type LeaveEmployee,
 } from './leaveData'
 import { listingBalance } from './leaveLogic'
+import DataTable from '../common/DataTable'
 import PaginationBar from './PaginationBar'
 import { WhatsNewBanner } from './WhatsNew'
 import type { AppPage } from '@/App'
@@ -237,90 +238,78 @@ export default function LeavePage({ onNavigate }: { onNavigate: (page: AppPage) 
       <WhatsNewBanner />
       {/* Title now lives in AppLayout's page header (pageTitle prop). */}
 
-      {/* Toolbar. The date range sits out here rather than in the popover
-          because it is the listing's only date field and the reference layout
-          keeps "Last Updated On" beside the search. */}
-      <div
-        style={{
-          padding: '0 4px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'flex-end',
-          gap: 12,
-          marginBottom: 16,
-        }}
-      >
-        <Text style={{ fontSize: 13, color: '#1a1a1a', flexShrink: 0 }}>Last Updated On :</Text>
-        <RangePicker
-          size="small"
-          style={{ borderRadius: 6 }}
-          value={lastUpdatedRange}
-          onChange={(v) => {
-            setLastUpdatedRange(v as [Dayjs, Dayjs] | null)
-            setPage(1)
-          }}
-          placeholder={['Start of time', 'End date']}
-        />
-        <Input
-          size="small"
-          placeholder="Search Employees"
-          style={{ width: 200, borderRadius: 6 }}
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value)
-            setPage(1)
-          }}
-          allowClear
-        />
-        <Popover
-          content={filterContent}
-          trigger="click"
-          open={filterOpen}
-          onOpenChange={setFilterOpen}
-          placement="bottomRight"
-          arrow={false}
-        >
-          <Button
-            size="small"
-            icon={<FilterOutlined />}
-            style={{
-              borderRadius: 6,
-              borderColor: hasFilter ? '#1677ff' : undefined,
-              color: hasFilter ? '#1677ff' : undefined,
-            }}
-          />
-        </Popover>
-        {/* Biz req 4 — the listing's primary CTA. MOVE-1977 is not built, so
-            the button says so rather than opening an empty page. */}
-        <Button
-          type="primary"
-          size="small"
-          icon={<SettingOutlined />}
-          onClick={() => onNavigate({ type: 'leave-types' })}
-        >
-          Manage Leave Types
-        </Button>
-      </div>
-
-      {/* Leave module's own Figma table spec: 8px radius, header divider
-          lines and font-weight now come from index.css globally rather than
-          a per-page scoped <style> block; default (unset) size gives the
-          16/16 cell padding that spec calls for, not the 12/8 "middle" this
-          used to opt into. */}
-      <div style={{ background: '#fff', borderRadius: 8, border: '1px solid #f0f0f0', overflow: 'hidden' }}>
-        <Table<LeaveEmployee>
-          columns={columns}
-          dataSource={paged}
-          rowKey="id"
-          pagination={false}
-          onRow={(rec) => ({
-            // Biz req 4 — a row opens the employee's leave profile (MOVE-3494),
-            // which is its own ticket and not built here.
-            onClick: () => onNavigate({ type: 'leave-profile', employeeId: rec.id }),
-            style: { cursor: 'pointer' },
-          })}
-        />
-      </div>
+      {/* Standard table shape (common/DataTable.tsx): toolbar glued to the
+          same bordered card as the table, divider in between — not a
+          separate floating row above a separately-bordered table box. The
+          date range sits out here rather than in the popover because it is
+          the listing's only date field and the reference layout keeps "Last
+          Updated On" beside the search. */}
+      <DataTable<LeaveEmployee>
+        toolbar={
+          <>
+            <Text style={{ fontSize: 13, color: '#1a1a1a', flexShrink: 0 }}>Last Updated On :</Text>
+            <RangePicker
+              size="small"
+              style={{ borderRadius: 6 }}
+              value={lastUpdatedRange}
+              onChange={(v) => {
+                setLastUpdatedRange(v as [Dayjs, Dayjs] | null)
+                setPage(1)
+              }}
+              placeholder={['Start of time', 'End date']}
+            />
+            <Input
+              size="small"
+              placeholder="Search Employees"
+              style={{ width: 200, borderRadius: 6 }}
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value)
+                setPage(1)
+              }}
+              allowClear
+            />
+            <Popover
+              content={filterContent}
+              trigger="click"
+              open={filterOpen}
+              onOpenChange={setFilterOpen}
+              placement="bottomRight"
+              arrow={false}
+            >
+              <Button
+                size="small"
+                icon={<FilterOutlined />}
+                style={{
+                  borderRadius: 6,
+                  borderColor: hasFilter ? '#1677ff' : undefined,
+                  color: hasFilter ? '#1677ff' : undefined,
+                }}
+              />
+            </Popover>
+            {/* Biz req 4 — the listing's primary CTA. MOVE-1977 is not built,
+                so the button says so rather than opening an empty page. */}
+            <Button
+              type="primary"
+              size="small"
+              icon={<SettingOutlined />}
+              onClick={() => onNavigate({ type: 'leave-types' })}
+            >
+              Manage Leave Types
+            </Button>
+          </>
+        }
+        columns={columns}
+        dataSource={paged}
+        rowKey="id"
+        pagination={false}
+        onRow={(rec) => ({
+          // Biz req 4 — a row opens the employee's leave profile (MOVE-3494),
+          // which is its own ticket and not built here.
+          onClick: () => onNavigate({ type: 'leave-profile', employeeId: rec.id }),
+          style: { cursor: 'pointer' },
+        })}
+      />
 
       <PaginationBar
         noun="Employee"

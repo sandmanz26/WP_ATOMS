@@ -14,6 +14,46 @@ minor).
 
 ## [Unreleased]
 
+### Added — `common/DataTable.tsx`, the shared standard-table component; applied to Leave
+
+At the user's request, annotated directly on a screenshot of the Leave
+listing: (1) use the same table component everywhere, since more "standard
+tables" are coming; (2) a table's toolbar (date range filter, search, filter
+icon, primary action) should always sit glued to the table, not floating in
+its own row above it; (3) a sort icon only where the column is genuinely
+sortable; (4) the pagination footer's own styling.
+
+- **New `common/DataTable.tsx`** wraps the bordered/8px-radius card and, when
+  passed a `toolbar`, glues it to the top of that same card with a one-line
+  divider — matching how `InvoicePage.tsx` etc. already did this
+  independently, but now as one shared component instead of each page
+  re-implementing the wrapper by hand.
+- **`LeavePage.tsx` migrated to it.** Its toolbar ("Last Updated On" +
+  search + filter + "Manage Leave Types") previously sat in its own
+  un-bordered row above a separately-bordered table — exactly what the
+  annotation's circle-and-arrow was pointing at. Now one card.
+- **Sort icons** — checked against the code rather than assumed: Leave's
+  Employee/Hiring Company/Department/Last Updated On columns already define
+  `sorter` and AL/ML Balance deliberately don't (a biz-req decision, not an
+  oversight) — AntD's `Table` already only renders the icon where `sorter`
+  exists, and `DataTable` doesn't touch that, so this was already correct;
+  recorded as a requirement on the new component so it stays that way.
+- **`PaginationBar.tsx`**'s card radius corrected `10px → 8px` — the one real
+  drift found in the pagination footer, missed in the previous table-styling
+  pass since this file lives outside any of the tables themselves.
+
+Checked `MOVE-3412`'s 21 child tickets for changes since last read (item 5)
+— none since 14 Sep 2026, nothing to apply.
+
+Recorded in `FIGMA_DESIGN_SYSTEM.md` §3.3: `DataTable` is the component to
+use for every new standard table going forward; not yet retrofitted onto
+Invoice/Customer Contracts/etc., which already independently match most of
+the spec but still hand-roll their own wrapper.
+
+Verified live in Chromium: toolbar and table now render as one card;
+searching "Ahmad" still filters to one row (filter wiring unchanged).
+`npx tsc --noEmit` clean.
+
 ### Changed — Every main data table restyled app-wide to the Leave module's own Figma spec
 
 At the user's request: read the Leave HR Module Figma file's own listing

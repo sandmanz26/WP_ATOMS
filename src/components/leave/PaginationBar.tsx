@@ -54,7 +54,7 @@ export default function PaginationBar({
       style={{
         background: '#fff',
         border: '1px solid #f0f0f0',
-        borderRadius: 10,
+        borderRadius: 8,
         marginTop: 16,
         padding: '13px 20px',
         display: 'flex',

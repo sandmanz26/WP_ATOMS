@@ -190,6 +190,18 @@ name.
 
 ### 3.3 Data table — read from the Leave module's own Figma file, applies app-wide
 
+**Use `common/DataTable.tsx` for every new standard listing table.** It
+wraps the bordered/radius-8 card and, when a `toolbar` is passed, glues it to
+the top of that same card with a divider — never a toolbar floating in its
+own row above a separately-bordered table, which is what `LeavePage.tsx` did
+before this was corrected. Built explicitly so "the same table component" is
+true going forward, not just a shared spec every page re-implements by hand.
+Migrated so far: `LeavePage.tsx`. Not yet retrofitted onto the other pages
+listed in the table below (Invoice, Customer Contracts, etc.) — they already
+match most of this spec independently (see the per-file fixes two commits
+back) but still hand-roll their own wrapper div rather than using the shared
+component; worth doing next time one of them is touched.
+
 Read from the "👩🏻‍🚀 Leave - HR Module" file's Leave listing table (§1) —
 this is a **different Figma file** from the ATOM Business Component library
 that §3.1/§3.2 came from, but the same table shape is used everywhere in
