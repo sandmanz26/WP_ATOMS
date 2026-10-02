@@ -114,6 +114,17 @@ export function ApplyLeaveDrawer({
     if (isTimeOff && startDate) setEndDate(startDate)
   }, [isTimeOff, startDate])
 
+  // MOVE-3777 (23 Sep 2026 revision) — changing the start date invalidates
+  // whatever end date was already picked against the old start, so it's
+  // cleared rather than left stale. Time Off keeps its own end date derived
+  // from start date (above), so it's excluded here rather than having the two
+  // effects fight over the same field.
+  useEffect(() => {
+    if (isTimeOff) return
+    setEndDate(null)
+    setEndHalf('PM')
+  }, [startDate, isTimeOff])
+
   /**
    * Biz req 2 — dates outside the type's validity period are not selectable.
    * For a recurring type that means the viewing year's window *or* the next
@@ -209,16 +220,19 @@ export function ApplyLeaveDrawer({
       }
     >
       <Field label="Leave Type">
-        <Select
-          showSearch
-          optionFilterProp="label"
-          placeholder="Select leave type"
-          style={{ width: '100%' }}
-          value={leaveTypeId}
-          onChange={(v) => { setLeaveTypeId(v); setStartDate(null); setEndDate(null) }}
-          status={touched && !leaveTypeId ? 'error' : undefined}
-          options={rows.map((r) => ({ value: r.leaveType.id, label: r.leaveType.name }))}
-        />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Select
+            showSearch
+            optionFilterProp="label"
+            placeholder="Select leave type"
+            style={{ flex: 1, minWidth: 0 }}
+            value={leaveTypeId}
+            onChange={(v) => { setLeaveTypeId(v); setStartDate(null); setEndDate(null) }}
+            status={touched && !leaveTypeId ? 'error' : undefined}
+            options={rows.map((r) => ({ value: r.leaveType.id, label: r.leaveType.name }))}
+          />
+          <Mark id="apply-field-gating" />
+        </div>
       </Field>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -237,7 +251,7 @@ export function ApplyLeaveDrawer({
               value={startHalf}
               onChange={(v) => setStartHalf(v as HalfDay)}
               options={HALF_OPTIONS}
-              disabled={isTimeOff}
+              disabled={!leaveTypeId || isTimeOff}
             />
           </Space.Compact>
         </Field>
@@ -256,7 +270,7 @@ export function ApplyLeaveDrawer({
               value={endHalf}
               onChange={(v) => setEndHalf(v as HalfDay)}
               options={HALF_OPTIONS}
-              disabled={isTimeOff}
+              disabled={!leaveTypeId || isTimeOff}
             />
           </Space.Compact>
         </Field>
@@ -319,7 +333,12 @@ export function ApplyLeaveDrawer({
                 </Text>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                <Text style={{ fontSize: 12, color: '#595959' }}>Deduction</Text>
+                {/* MOVE-3777 (22 Sep 2026 revision) — "Deduction" renamed to
+                    "To Deduct" throughout biz req 3. */}
+                <Space size={6}>
+                  <Text style={{ fontSize: 12, color: '#595959' }}>To Deduct</Text>
+                  <Mark id="apply-to-deduct" />
+                </Space>
                 <Text style={{ fontSize: 12 }}>{formatDays(blk.deduction)}</Text>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 6, borderTop: '1px solid #e8eaed' }}>
@@ -350,6 +369,7 @@ export function ApplyLeaveDrawer({
           rows={2}
           maxLength={120}
           showCount
+          disabled={!leaveTypeId}
           value={remarks}
           onChange={(e) => setRemarks(e.target.value)}
           placeholder="Optional"
@@ -363,6 +383,7 @@ export function ApplyLeaveDrawer({
         <Upload
           maxCount={1}
           accept=".pdf,.jpg,.jpeg,.png"
+          disabled={!leaveTypeId}
           beforeUpload={(file) => {
             setFileName(file.name)
             // Nothing is uploaded anywhere — this prototype has no backend, so
@@ -372,7 +393,7 @@ export function ApplyLeaveDrawer({
           onRemove={() => setFileName(null)}
           fileList={fileName ? [{ uid: '1', name: fileName, status: 'done' as const }] : []}
         >
-          <Button icon={<UploadOutlined />} danger={touched && docRequired && !fileName}>
+          <Button icon={<UploadOutlined />} disabled={!leaveTypeId} danger={touched && docRequired && !fileName}>
             Select file
           </Button>
         </Upload>

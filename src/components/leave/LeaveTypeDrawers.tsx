@@ -24,6 +24,7 @@ import {
   type LeaveType,
   type SupportingDocumentRule,
 } from './leaveData'
+import { Mark } from './WhatsNew'
 
 const { Text, Title } = Typography
 
@@ -395,7 +396,13 @@ export function EditLeaveTypeDrawer({
 
   const save = () => {
     setTouched(true)
-    if (invalid) return
+    if (invalid) {
+      // MOVE-3559 (21 Sep 2026 revision) — biz req 2 calls for an error toast
+      // on an invalid save, same as Create; only the inline field states
+      // existed before.
+      message.error('Unable to save leave type — please fill in all required fields')
+      return
+    }
     // Biz req 3 — edits take effect immediately for every eligible employee.
     // Mutating in place is what makes that true here: the balances table reads
     // this same object.
@@ -421,6 +428,7 @@ export function EditLeaveTypeDrawer({
       title={`Edit ${t.name}`}
       extra={
         <Space>
+          <Mark id="edit-leave-type-toast" />
           <Button onClick={onClose}>Cancel</Button>
           <Button type="primary" onClick={save}>Save</Button>
         </Space>
@@ -516,12 +524,16 @@ export function EditLeaveTypeDrawer({
       </Field>
 
       <Title level={5} style={{ fontSize: 12, color: '#8c8c8c', fontWeight: 600, marginTop: 20 }}>
-        What changes when you save
+        What changes when you save <Mark id="edit-leave-type-overrides-note" />
       </Title>
       {/* Biz req 3 in plain words — the consequences differ per field, and the
           encashment one is a real "nothing happens yet", worth saying. */}
       <ul style={{ margin: '6px 0 0 18px', padding: 0, color: '#595959', fontSize: 12 }}>
         <li>Entitlement and dates apply immediately to every eligible employee’s leave profile. Existing applications are untouched.</li>
+        {/* MOVE-3559 (29 Sep 2026 revision) — overrides a single employee's own
+            manually-edited entitlement (MOVE-3775), rather than leaving it as
+            a stale exception. */}
+        <li>This overrides any entitlement previously edited for a single employee (MOVE-3775).</li>
         <li>Supporting document applies immediately to the apply-leave drawer.</li>
         <li>Encashment has no effect yet (MVP 1).</li>
       </ul>

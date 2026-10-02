@@ -14,6 +14,66 @@ minor).
 
 ## [Unreleased]
 
+### Fixed — Applied a backlog of `MOVE-3410` ticket edits missed by the nightly Jira watch
+
+User asked to check for Personal Dashboard changes "in the last 4 days." Epic
+`MOVE-3412`'s own 21 child tickets genuinely have no edits (`updated` still
+reads 14 Sep 2026 on every one) — but a text search for "Personal Dashboard"
+turned up three `MOVE-3410` (Leave epic) tickets, edited as recently as
+1 Oct 2026, that implement screens surfaced in Personal Dashboard's Leave tab:
+`MOVE-3494` (Employee Leave Profile Details), `MOVE-3777` (Apply Leave), and
+`MOVE-3559` (Edit Leave Type). `CLAUDE.md`'s nightly routine only watches
+`MOVE-3410`, but its watermark (`WhatsNew.tsx`'s latest `on:` date) was stuck
+at 18 Sep 2026 — an 11+ day gap during which all three tickets kept changing.
+
+Most of the large structural changes (Edit Leave Entitlement/Change History
+moving off the page-level actions dropdown into the new `MOVE-4137` balance
+details drawer, Apply Leave becoming a secondary CTA) turned out to already
+be built — reading the diff-since-14-Sep in isolation would have over-stated
+the gap, since the pages were evidently last rebuilt against a later ticket
+snapshot than the watermark suggests. Re-reading each ticket's *current* text
+against the *current* code surfaced a smaller, concrete set of real gaps:
+
+- **`MOVE-3777` (22 Sep edit):** "Deduction" renamed to "To Deduct" in the
+  Apply Leave drawer's balance block.
+- **`MOVE-3777` (23 Sep edit):** every field but Leave Type now starts
+  disabled and enables once a type is picked (previously only the date
+  pickers were gated — the AM/PM selects, Remarks and Supporting Document
+  were always enabled). Changing the start date now also clears a
+  previously-picked end date, rather than leaving a stale one that may no
+  longer be valid against the new start.
+- **`MOVE-3494` (29 Sep edit):** the Leave Applications table's "Days Used"
+  column renamed to "Used"; a Time Off row now shows its hours used
+  (derived from `startTime`/`endTime`) instead of a bare dash.
+- **`MOVE-3559` (21 Sep edit):** Edit Leave Type was missing the error toast
+  on an invalid save that Create Leave Type already had — added, reusing the
+  same `message.error` pattern.
+- **`MOVE-3559` (29 Sep edit):** the Edit drawer's "what changes when you
+  save" list now notes that entitlement/date changes override any
+  entitlement previously edited for a single employee (`MOVE-3775`).
+- Checked "Childcare Leave" vs. "Unpaid Infant Care Leave" (21 Sep edit
+  looked like a rename at first glance) — they are two distinct, already
+  separately-modelled system leave types in `leaveData.ts`, not a rename.
+  No change needed.
+
+**Not done in this pass, flagged as open work:** `MOVE-4204` ("Apply Leave
+— For Specific Leave Types") is a large, scenario-heavy ticket spelling out
+leave-type-specific behaviour for all 10 leave types (validity-period
+splitting, carry-forward math, non-continuous birthday-leave windows, etc.).
+`ApplyLeaveDrawer`'s generic year-block logic already covers some of this
+generically, but a full line-by-line audit against `MOVE-4204` was out of
+scope for this pass given its size — needs its own dedicated session.
+
+Registered every fix above in `WhatsNew.tsx`'s `LEAVE_CHANGES` registry with
+a `<Mark>` on the control it affected, per the module's own convention.
+
+Verified live in Chromium: field gating disables/enables correctly around
+picking a leave type, changing the start date clears a stale end date,
+"To Deduct" renders in the balance block, the applications table's "Used"
+column renders, and the Edit Leave Type error toast fires on an invalid
+save. `npx tsc --noEmit` clean (after `npm install` — this container started
+with no `node_modules` at all).
+
 ### Fixed — Create/Edit Leave Type drawers brought in line with Figma + missed `MOVE-3221` edits
 
 The user introduced a new Figma pattern (Personal Dashboard - HR Module file,

@@ -213,7 +213,9 @@ export default function LeaveProfilePage({
       ),
     },
     {
-      title: 'Days Used',
+      // MOVE-3494 (29 Sep 2026 revision) — "Days Used" renamed to "Used", and
+      // a Time Off row now shows its hours used instead of a dash.
+      title: <Space size={6}>Used <Mark id="applications-days-used-label" /></Space>,
       key: 'days',
       width: 130,
       // Biz req 3 — the figure is the application's own deduction, so a
@@ -221,7 +223,12 @@ export default function LeaveProfilePage({
       // as a contradiction next to the balances table, which counts only this
       // year's share — so when the two differ, the share is named underneath.
       render: (_, a) => {
-        if (a.leaveTypeId === 'lt-timeoff') return <Text style={{ fontSize: 13 }}>-</Text>
+        if (a.leaveTypeId === 'lt-timeoff') {
+          const hours = a.startTime && a.endTime
+            ? dayjs(a.endTime, 'HH:mm').diff(dayjs(a.startTime, 'HH:mm'), 'minute') / 60
+            : 0
+          return <Text style={{ fontSize: 13 }}>{hours} hr</Text>
+        }
         const inYear = deductionInYear(employee, a.startDate, a.endDate, a.startHalf, a.endHalf, year)
         return (
           <div>
