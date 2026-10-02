@@ -14,6 +14,48 @@ minor).
 
 ## [Unreleased]
 
+### Fixed — Personal Dashboard's Apply Leave drawer rebuilt to match the HR Apply Leave drawer it's specified to copy
+
+Follow-up correction to the entry directly below. The user sent two
+screenshots of the still-unchanged "Apply for Leave" drawer in Personal
+Dashboard and asked why it hadn't moved — the previous pass had only
+evened out a `<Space>`-wrapped field pair, leaving the drawer's actual field
+*shape* untouched: a single `DatePicker.RangePicker` under "Leave Application
+Period", with a disconnected AM/PM-only row below it, rather than the HR
+module's two-column Start Date / End Date (each paired with its own AM/PM
+half). `MOVE-3946` §2 says outright "all fields and logic same as apply
+leave drawer in leave module (`MOVE-3777`)" — this isn't a style preference,
+it's what the ticket requires, and `leave/LeaveApplicationDrawers.tsx`'s
+`ApplyLeaveDrawer` is the already-fixed reference for that exact shape.
+
+Rebuilt `employeeportal/EmployeePortalLeaveDrawers.tsx`'s
+`CreateLeaveApplicationDrawer`:
+
+- Replaced the single `dateRange` RangePicker field with separate `startDate`
+  / `endDate` fields, each paired with its own AM/PM `Select` (not
+  `Radio.Group`), in a `1fr 1fr` grid with 16px gap — matching
+  `ApplyLeaveDrawer` field-for-field.
+- Every field but Leave Type now starts disabled and enables once a type is
+  picked; changing the start date clears a stale end date — same two fixes
+  already applied to the HR drawer for `MOVE-3777`'s 23 Sep revision.
+- The balance preview now shows **Available / To Deduct / Balance** per
+  year the application spans, replacing the single bare "Deduction" line —
+  matching `MOVE-3777`'s current field table exactly, not an earlier
+  snapshot of it.
+- Kept this file's own stated isolation rule (no shared component with the
+  HR drawer) — the fields are freshly written here, not imported, since that
+  rule is about not sharing *code*, not an excuse to drift from the ticket's
+  required *shape*.
+
+Recorded the correction in `FIGMA_DESIGN_SYSTEM.md` §3.4.
+
+Verified live in Chromium: Start Date / End Date now render side by side
+exactly like the HR drawer, the Available/To Deduct/Balance block renders
+correctly for a cross-field test (Annual Leave, 10–15 Oct 2026), end date
+clears on start date change, and a leave type requiring a document (Study
+Leave) still correctly blocks submit with both the inline error and the
+toast. `npx tsc --noEmit` clean.
+
 ### Fixed — Create Leave Type's drawer-pattern fixes extended to Personal Dashboard's two Create drawers
 
 User confirmed the "Create Leave Type" Figma pattern recorded in

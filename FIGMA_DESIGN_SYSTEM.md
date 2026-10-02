@@ -250,15 +250,34 @@ Type — check a new form drawer against this before inventing its row layout.
 | Invalid-submit feedback | A `message.error` toast, in addition to whatever inline field error already existed | Found missing on `EditLeaveTypeDrawer`, `CreateClaimDrawer` (Personal Dashboard Claims) and `CreateLeaveApplicationDrawer` (Personal Dashboard Leave) — each already had inline field states but no toast. Added to all three, same `message.error` pattern already used elsewhere in the app (`CreateGroupModal.tsx` etc.). |
 
 **Applied beyond Leave Type**, on request, to the two "Create X" form drawers
-in Personal Dashboard (`employeeportal/EmployeePortalClaimsDrawers.tsx`'s
-`CreateClaimDrawer`, `employeeportal/EmployeePortalLeaveDrawers.tsx`'s
-`CreateLeaveApplicationDrawer`): their own paired date/time fields were sitting
-in a plain `<Space>` (each control at its own intrinsic width) rather than an
-evenly-split row — converted to the same `grid-template-columns: 1fr 1fr`,
-16px-gap shape as Effective Date / End Date above. Their AM/PM half-day
-fields were left as `<Radio.Group>` (2 options, correctly so per the row
-above) and their Leave-Type/Claims-Type selects were already `Select`, so no
-change was needed there.
+in Personal Dashboard:
+
+- `employeeportal/EmployeePortalClaimsDrawers.tsx`'s `CreateClaimDrawer` —
+  Receipt Date/Receipt Time were sitting in a plain `<Space>` (each control at
+  its own intrinsic width) rather than an evenly-split row — converted to the
+  same `grid-template-columns: 1fr 1fr`, 16px-gap shape as Effective Date /
+  End Date above.
+- `employeeportal/EmployeePortalLeaveDrawers.tsx`'s `CreateLeaveApplicationDrawer`
+  needed more than a gap fix: its own ticket (`MOVE-3946` §2) says outright
+  "all fields and logic same as apply leave drawer in leave module
+  (`MOVE-3777`)", but it had drifted onto a single `DatePicker.RangePicker`
+  under one "Leave Application Period" label, with a separate, disconnected
+  AM/PM-only row below — not the two-column Start Date / End Date (each
+  paired with its own AM/PM half) that `leave/LeaveApplicationDrawers.tsx`'s
+  `ApplyLeaveDrawer` already has. Rebuilt to match: two `Form.Item`s in a
+  `1fr 1fr` grid, each wrapping a `noStyle` date field + half-day `Select` in
+  an 8px-gap flex row; every field but Leave Type disabled until a type is
+  picked; the end date clears when the start date changes; the balance
+  preview shows Available / To Deduct / Balance per year, not a bare single
+  "Deduction" line. A user screenshot of the still-old drawer is what caught
+  this — the earlier "just fix the gap" pass had read the file's own
+  isolation note (no shared component with the HR drawer) as license to leave
+  the field *shape* alone, which was wrong: isolation means no shared code,
+  not a different shape than the ticket specifies.
+
+Their AM/PM half-day fields stay `Select` (now matching the HR drawer, not
+`Radio.Group`), and the Leave-Type/Claims-Type fields were already `Select`,
+so no change was needed there.
 
 ---
 

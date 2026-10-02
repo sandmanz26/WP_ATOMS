@@ -23,7 +23,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import {
-  Button, DatePicker, Descriptions, Drawer, Form, Input, Modal, Radio, Select, Space, Tag, TimePicker, Tooltip, Typography, Upload, message,
+  Button, DatePicker, Descriptions, Drawer, Form, Input, Modal, Select, Space, Tag, TimePicker, Tooltip, Typography, Upload, message,
 } from 'antd'
 import dayjs, { type Dayjs } from 'dayjs'
 import { PaperClipOutlined, UploadOutlined } from '@ant-design/icons'
@@ -38,9 +38,11 @@ import {
 } from '../leave/leaveData'
 import {
   ISO,
+  balanceRow as balanceRowFor,
   balancesFor,
   deductionFor,
   deductionInYear,
+  availabilityNote,
   formatDays,
   isSelectableDate,
   leaveTypeById,
@@ -51,6 +53,11 @@ import {
 const { Text } = Typography
 
 const TIME_OFF_ID = 'lt-timeoff'
+
+const HALF_OPTIONS = [
+  { value: 'AM', label: 'AM' },
+  { value: 'PM', label: 'PM' },
+]
 
 export const STATUS_TAG_COLOR: Record<LeaveStatus, string> = {
   'Pending Approval': 'gold',
@@ -69,8 +76,9 @@ export function LeaveStatusTag({ status }: { status: LeaveStatus }) {
 
 interface ApplyFormValues {
   leaveTypeId: string
-  dateRange: [Dayjs, Dayjs]
+  startDate: Dayjs
   startHalf: HalfDay
+  endDate: Dayjs
   endHalf: HalfDay
   timeRange?: [Dayjs, Dayjs]
   remarks?: string
@@ -99,7 +107,8 @@ export function CreateLeaveApplicationDrawer({
   const eligibleTypes = useMemo(() => balancesFor(employee, year).map((r) => r.leaveType), [employee, year])
 
   const leaveTypeId = Form.useWatch('leaveTypeId', form)
-  const dateRange = Form.useWatch('dateRange', form)
+  const startDate = Form.useWatch('startDate', form)
+  const endDate = Form.useWatch('endDate', form)
   const startHalf = Form.useWatch('startHalf', form) ?? 'AM'
   const endHalf = Form.useWatch('endHalf', form) ?? 'PM'
 
@@ -116,13 +125,38 @@ export function CreateLeaveApplicationDrawer({
 
   // Time off is a single day — the end date always follows the start.
   useEffect(() => {
-    if (isTimeOff && dateRange?.[0]) {
-      form.setFieldValue('dateRange', [dateRange[0], dateRange[0]])
-    }
-  }, [isTimeOff, dateRange, form])
+    if (isTimeOff && startDate) form.setFieldValue('endDate', startDate)
+  }, [isTimeOff, startDate, form])
 
-  const [start, end] = dateRange ?? []
-  const yearsTouched = start && end ? yearsSpanned(start.format(ISO), end.format(ISO)) : []
+  // MOVE-3946 §2 ("same fields and logic as MOVE-3777") — MOVE-3777's 23 Sep
+  // 2026 revision clears a stale end date whenever the start date changes,
+  // same as the leave-module drawer this one must match.
+  useEffect(() => {
+    if (isTimeOff) return
+    form.setFieldValue('endDate', undefined)
+    form.setFieldValue('endHalf', 'PM')
+  }, [startDate, isTimeOff, form])
+
+  /** Same rule as the leave-module drawer: dates outside the type's validity
+   * period (the viewing year's window, or the next one) are not selectable. */
+  const outsideValidity = (d: Dayjs) => (type ? !isSelectableDate(employee, type, year, d) : false)
+
+  // MOVE-3777 biz req 3 — an application spanning two years shows one
+  // balance block per year, each computed against that year's own
+  // entitlement.
+  const spannedYears = startDate && endDate ? yearsSpanned(startDate.format(ISO), endDate.format(ISO)) : []
+  const yearBlocks =
+    !type || isTimeOff || !startDate || !endDate
+      ? []
+      : spannedYears
+          .map((y) => ({ year: y, row: balanceRowFor(employee, type.id, y) }))
+          .filter((x) => !!x.row && x.row.entitlementDays !== null)
+          .map(({ year: y, row: r }) => {
+            const ded = deductionInYear(employee, startDate.format(ISO), endDate.format(ISO), startHalf, endHalf, y)
+            const avail = r!.balance ?? 0
+            return { year: y, validity: r!.validity, available: avail, deduction: ded, projected: avail - ded }
+          })
+  const showBalance = yearBlocks.length > 0
 
   const submit = async () => {
     let values: ApplyFormValues
@@ -143,7 +177,6 @@ export function CreateLeaveApplicationDrawer({
       message.error('Unable to send leave application — a supporting document is required')
       return
     }
-    const [s, e] = values.dateRange
     const approver = employee.leaveApprover
     // MOVE-3956 — no approver on file means the application is created
     // already approved, rather than sitting pending forever.
@@ -153,13 +186,15 @@ export function CreateLeaveApplicationDrawer({
       id: nextId('la'),
       employeeId: employee.id,
       leaveTypeId: values.leaveTypeId,
-      startDate: s.format(ISO),
-      endDate: e.format(ISO),
+      startDate: values.startDate.format(ISO),
+      endDate: values.endDate.format(ISO),
       startHalf: values.startHalf,
       endHalf: values.endHalf,
       startTime: isTimeOff && values.timeRange ? values.timeRange[0].format('HH:mm') : undefined,
       endTime: isTimeOff && values.timeRange ? values.timeRange[1].format('HH:mm') : undefined,
-      days: isTimeOff ? 0 : deductionFor(employee, s.format(ISO), e.format(ISO), values.startHalf, values.endHalf),
+      days: isTimeOff
+        ? 0
+        : deductionFor(employee, values.startDate.format(ISO), values.endDate.format(ISO), values.startHalf, values.endHalf),
       remarks: values.remarks || undefined,
       documentName: fileName ?? undefined,
       status,
@@ -195,26 +230,37 @@ export function CreateLeaveApplicationDrawer({
           />
         </Form.Item>
 
-        <Form.Item
-          name="dateRange"
-          label="Leave Application Period"
-          rules={[{ required: true, message: 'Select the start and end date.' }]}
-        >
-          <DatePicker.RangePicker
-            style={{ width: '100%' }}
-            disabled={[false, isTimeOff]}
-            disabledDate={(d) => (type ? !isSelectableDate(employee, type, d.year(), d) : false)}
-          />
-        </Form.Item>
-
-        <Space size={24}>
-          <Form.Item name="startHalf" label="Start" style={{ marginBottom: 0 }}>
-            <Radio.Group options={[{ label: 'AM', value: 'AM' }, { label: 'PM', value: 'PM' }]} optionType="button" size="small" />
+        {/* MOVE-3946 §2 ("same fields and logic as MOVE-3777") — two separate
+            Start Date / End Date fields, each paired with its own AM/PM half,
+            split evenly (FIGMA_DESIGN_SYSTEM.md §3.4), not a single Range
+            Picker under one "Leave Application Period" label. Every field but
+            Leave Type starts disabled until a type is picked. */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          <Form.Item label="Start Date" required style={{ marginBottom: 0 }}>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Form.Item name="startDate" noStyle rules={[{ required: true, message: 'Select the start date.' }]}>
+                <DatePicker style={{ flex: 1, minWidth: 0 }} disabled={!leaveTypeId} disabledDate={outsideValidity} />
+              </Form.Item>
+              <Form.Item name="startHalf" noStyle>
+                <Select style={{ width: 90, flexShrink: 0 }} options={HALF_OPTIONS} disabled={!leaveTypeId || isTimeOff} />
+              </Form.Item>
+            </div>
           </Form.Item>
-          <Form.Item name="endHalf" label="End" style={{ marginBottom: 0 }}>
-            <Radio.Group options={[{ label: 'AM', value: 'AM' }, { label: 'PM', value: 'PM' }]} optionType="button" size="small" />
+          <Form.Item label="End Date" required style={{ marginBottom: 0 }}>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Form.Item name="endDate" noStyle rules={[{ required: true, message: 'Select the end date.' }]}>
+                <DatePicker
+                  style={{ flex: 1, minWidth: 0 }}
+                  disabled={!leaveTypeId || isTimeOff}
+                  disabledDate={(d) => outsideValidity(d) || (!!startDate && d.isBefore(startDate, 'day'))}
+                />
+              </Form.Item>
+              <Form.Item name="endHalf" noStyle>
+                <Select style={{ width: 90, flexShrink: 0 }} options={HALF_OPTIONS} disabled={!leaveTypeId || isTimeOff} />
+              </Form.Item>
+            </div>
           </Form.Item>
-        </Space>
+        </div>
 
         {/* MOVE-3946 §2 row 3 — only for Time Off, hidden otherwise. */}
         {isTimeOff && (
@@ -228,41 +274,68 @@ export function CreateLeaveApplicationDrawer({
           </Form.Item>
         )}
 
-        {/* MOVE-3946 §3 — the live balance preview, one block per year the
-            period touches, sliced the same way the balances table slices it. */}
-        {type && start && end && (
-          <div style={{ marginBottom: 20 }}>
-            {yearsTouched.map((y) => {
-              const inYear = isTimeOff ? 0 : deductionInYear(employee, start.format(ISO), end.format(ISO), startHalf, endHalf, y)
-              return (
-                <div
-                  key={y}
-                  style={{
-                    background: '#f6f8fa', border: '1px solid #e8eaed', borderRadius: 8,
-                    padding: '10px 14px', marginBottom: 8, display: 'flex', justifyContent: 'space-between',
-                  }}
-                >
-                  <Text style={{ fontSize: 12, color: '#595959' }}>{yearsTouched.length > 1 ? `Deduction (${y})` : 'Deduction'}</Text>
-                  <Text strong style={{ fontSize: 12 }}>{isTimeOff ? '-' : formatDays(inYear)}</Text>
+        {/* MOVE-3777 biz req 3 — hidden until there is something real to
+            compute; one block per year the period touches, each with its own
+            Available / To Deduct / Balance, matching the leave-module drawer. */}
+        {showBalance && (
+          <div style={{ marginBottom: 16, marginTop: 20 }}>
+            {yearBlocks.map((blk) => (
+              <div
+                key={blk.year}
+                style={{
+                  background: '#f6f8fa',
+                  border: '1px solid #e8eaed',
+                  borderRadius: 8,
+                  padding: '12px 14px',
+                  marginBottom: 8,
+                }}
+              >
+                {yearBlocks.length > 1 && (
+                  <Text strong style={{ fontSize: 12, display: 'block', marginBottom: 6 }}>{blk.year}</Text>
+                )}
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <Text style={{ fontSize: 12, color: '#595959' }}>Available</Text>
+                  <Text style={{ fontSize: 12 }}>
+                    {formatDays(blk.available)}
+                    {blk.validity.effective && (
+                      <Text type="secondary" style={{ fontSize: 11 }}>, {availabilityNote(blk.validity)}</Text>
+                    )}
+                  </Text>
                 </div>
-              )
-            })}
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <Text style={{ fontSize: 12, color: '#595959' }}>To Deduct</Text>
+                  <Text style={{ fontSize: 12 }}>{formatDays(blk.deduction)}</Text>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 6, borderTop: '1px solid #e8eaed' }}>
+                  <Text strong style={{ fontSize: 12 }}>Balance</Text>
+                  <Text strong style={{ fontSize: 12, color: blk.projected < 0 ? '#cf1322' : '#1a1a1a' }}>
+                    {formatDays(blk.projected)}
+                  </Text>
+                </div>
+                {blk.projected < 0 && (
+                  <Text type="danger" style={{ fontSize: 11, display: 'block', marginTop: 6 }}>
+                    {Math.abs(blk.projected)} day{Math.abs(blk.projected) === 1 ? '' : 's'} will be taken as unpaid leave and deducted from payroll.
+                  </Text>
+                )}
+              </div>
+            ))}
           </div>
         )}
 
         <Form.Item name="remarks" label="Remarks">
-          <Input.TextArea rows={3} maxLength={120} showCount />
+          <Input.TextArea rows={3} maxLength={120} showCount disabled={!leaveTypeId} />
         </Form.Item>
 
         <Form.Item label={`Supporting Document${docRequired ? '' : ' (optional)'}`}>
           <Upload
             maxCount={1}
             accept=".pdf,.jpg,.jpeg,.png"
+            disabled={!leaveTypeId}
             beforeUpload={(file) => { setFileName(file.name); return false }}
             onRemove={() => setFileName(null)}
             fileList={fileName ? [{ uid: '1', name: fileName, status: 'done' as const }] : []}
           >
-            <Button icon={<UploadOutlined />}>Select file</Button>
+            <Button icon={<UploadOutlined />} disabled={!leaveTypeId}>Select file</Button>
           </Upload>
           {docRequired && !fileName && (
             <Text type="danger" style={{ fontSize: 12, display: 'block', marginTop: 4 }}>
