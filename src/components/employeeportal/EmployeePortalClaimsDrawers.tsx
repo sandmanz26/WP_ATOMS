@@ -12,7 +12,7 @@
 
 import { useEffect, useState } from 'react'
 import {
-  Button, DatePicker, Descriptions, Drawer, Form, Input, InputNumber, Modal, Select, Space, Tag, TimePicker, Tooltip, Typography, Upload,
+  Button, DatePicker, Descriptions, Drawer, Form, Input, InputNumber, Modal, Select, Space, Tag, TimePicker, Tooltip, Typography, Upload, message,
 } from 'antd'
 import dayjs, { type Dayjs } from 'dayjs'
 import { PaperClipOutlined, UploadOutlined } from '@ant-design/icons'
@@ -101,9 +101,18 @@ export function CreateClaimDrawer({
   }, [open, form])
 
   const submit = async () => {
-    const values = await form.validateFields()
+    let values: ClaimFormValues
+    try {
+      values = await form.validateFields()
+    } catch {
+      // Create Leave Type pattern (FIGMA_DESIGN_SYSTEM.md §3.4) — an invalid
+      // submit gets a toast, not just AntD's own silent field-scroll.
+      message.error('Unable to submit claim — please fill in all required fields')
+      return
+    }
     if (!fileName) {
       setFileError('A supporting attachment is required.')
+      message.error('Unable to submit claim — a supporting attachment is required')
       return
     }
     const remarks = composeClaimRemarks(values.category, values.remarks, values.busNumber, values.route)
@@ -166,22 +175,25 @@ export function CreateClaimDrawer({
         )}
 
         {showReceiptFields && (
-          <Space size={16} style={{ width: '100%' }}>
+          // Create Leave Type pattern (FIGMA_DESIGN_SYSTEM.md §3.4) — a paired
+          // row of two related fields splits the row evenly (grid, 16px gap),
+          // not a <Space> that leaves each control at its own intrinsic width.
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
             <Form.Item
               name="receiptDate"
               label="Receipt Date"
               rules={[{ required: true, message: 'Select the receipt date.' }]}
             >
-              <DatePicker disabledDate={isSelectableReceiptDate} />
+              <DatePicker style={{ width: '100%' }} disabledDate={isSelectableReceiptDate} />
             </Form.Item>
             <Form.Item
               name="receiptTime"
               label="Receipt Time"
               rules={[{ required: true, message: 'Select the receipt time.' }]}
             >
-              <TimePicker format="h:mm A" minuteStep={5} {...disabledReceiptTime(receiptDate)} />
+              <TimePicker style={{ width: '100%' }} format="h:mm A" minuteStep={5} {...disabledReceiptTime(receiptDate)} />
             </Form.Item>
-          </Space>
+          </div>
         )}
 
         <Form.Item

@@ -14,6 +14,40 @@ minor).
 
 ## [Unreleased]
 
+### Fixed — Create Leave Type's drawer-pattern fixes extended to Personal Dashboard's two Create drawers
+
+User confirmed the "Create Leave Type" Figma pattern recorded in
+`FIGMA_DESIGN_SYSTEM.md` §3.4 and asked to apply it in Personal Dashboard.
+Audited the module's two "Create X" form drawers — `CreateClaimDrawer`
+(`employeeportal/EmployeePortalClaimsDrawers.tsx`) and
+`CreateLeaveApplicationDrawer` (`employeeportal/EmployeePortalLeaveDrawers.tsx`)
+— against the same checklist already used for Leave Type:
+
+- **Receipt Date / Receipt Time** (Claims, shown only for Taxi Claims) were
+  sitting in a `<Space size={16}>`, which leaves each `DatePicker`/`TimePicker`
+  at its own intrinsic width rather than splitting the row evenly. Converted
+  to the same `grid-template-columns: 1fr 1fr`, 16px-gap row used for
+  Effective Date / End Date.
+- **Missing error toast on an invalid submit** — both drawers had inline
+  field feedback already (AntD's own required-field highlighting, plus
+  Claims' own `fileError` text and Leave's own "requires a supporting
+  document" text) but no toast. Added `message.error` on a failed
+  `form.validateFields()` and on a missing required attachment, in both
+  drawers, matching the pattern already used elsewhere in the app. Also
+  removed a dead `form.setFields([{ name: 'leaveTypeId', errors: [] }])`
+  call in the Leave drawer that set an empty error array on an unrelated
+  field and had no visible effect.
+- Checked AM/PM (2 options → `Radio.Group` is correct) and the Leave
+  Type / Claims Type selects (already `Select`) — no change needed, since
+  the pattern's "Select once >2 options" rule doesn't apply to either.
+
+Recorded in `FIGMA_DESIGN_SYSTEM.md` §3.4 as the pattern's first reuse
+outside Leave Type.
+
+Verified live in Chromium: Receipt Date/Time now split evenly for Taxi
+Claims, and both drawers show an error toast on an invalid submit.
+`npx tsc --noEmit` clean.
+
 ### Fixed — Applied a backlog of `MOVE-3410` ticket edits missed by the nightly Jira watch
 
 User asked to check for Personal Dashboard changes "in the last 4 days." Epic

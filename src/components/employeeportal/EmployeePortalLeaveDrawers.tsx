@@ -23,7 +23,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import {
-  Button, DatePicker, Descriptions, Drawer, Form, Input, Modal, Radio, Select, Space, Tag, TimePicker, Tooltip, Typography, Upload,
+  Button, DatePicker, Descriptions, Drawer, Form, Input, Modal, Radio, Select, Space, Tag, TimePicker, Tooltip, Typography, Upload, message,
 } from 'antd'
 import dayjs, { type Dayjs } from 'dayjs'
 import { PaperClipOutlined, UploadOutlined } from '@ant-design/icons'
@@ -125,9 +125,22 @@ export function CreateLeaveApplicationDrawer({
   const yearsTouched = start && end ? yearsSpanned(start.format(ISO), end.format(ISO)) : []
 
   const submit = async () => {
-    const values = await form.validateFields()
+    let values: ApplyFormValues
+    try {
+      values = await form.validateFields()
+    } catch {
+      // Create Leave Type pattern (FIGMA_DESIGN_SYSTEM.md §3.4) — an invalid
+      // submit gets a toast, not just AntD's own silent field-scroll.
+      message.error('Unable to send leave application — please fill in all required fields')
+      return
+    }
     if (docRequired && !fileName) {
-      form.setFields([{ name: 'leaveTypeId', errors: [] }])
+      // The inline "requires a supporting document" text below the Upload
+      // already shows unconditionally once a doc-required type is picked —
+      // this used to also call form.setFields with an empty error array on
+      // an unrelated field, which did nothing visible. A toast is the one
+      // piece that was actually missing.
+      message.error('Unable to send leave application — a supporting document is required')
       return
     }
     const [s, e] = values.dateRange

@@ -247,6 +247,18 @@ Type — check a new form drawer against this before inventing its row layout.
 | A number input + its unit selector | Two **independently-rounded** controls with an **8px** gap — not an AntD `Space.Compact` merged-border pair | Both drawers used `Space.Compact` (square inner corners) before this was read; now a plain flex row, `gap: 8`, each control keeping its own `border-radius`. |
 | Single-choice field with >2 options | A `Select` (dropdown), not a `Radio.Group` list, once there are more than 2 options | `Employee Eligibility` (4 options) was a `Radio.Group` — wrong independently of Figma, since `MOVE-3221`'s own field table says "Dropdown"; the Figma component confirms it as a single-select combobox. `Supporting Document` (2 options, Required/Optional) correctly stays `Radio.Group` — Figma and the ticket both still call it Radio there. |
 | Drawer width / outer padding | Figma's own frame reads 684px wide with 32px padding | **Deliberately not copied onto the `Drawer` width.** Every drawer in the app (17+ call sites) uses the established 480/520 convention; this looks like the mockup canvas size for this one component, not an instruction to widen every drawer in the app. Only the internal field layout above was corrected. |
+| Invalid-submit feedback | A `message.error` toast, in addition to whatever inline field error already existed | Found missing on `EditLeaveTypeDrawer`, `CreateClaimDrawer` (Personal Dashboard Claims) and `CreateLeaveApplicationDrawer` (Personal Dashboard Leave) — each already had inline field states but no toast. Added to all three, same `message.error` pattern already used elsewhere in the app (`CreateGroupModal.tsx` etc.). |
+
+**Applied beyond Leave Type**, on request, to the two "Create X" form drawers
+in Personal Dashboard (`employeeportal/EmployeePortalClaimsDrawers.tsx`'s
+`CreateClaimDrawer`, `employeeportal/EmployeePortalLeaveDrawers.tsx`'s
+`CreateLeaveApplicationDrawer`): their own paired date/time fields were sitting
+in a plain `<Space>` (each control at its own intrinsic width) rather than an
+evenly-split row — converted to the same `grid-template-columns: 1fr 1fr`,
+16px-gap shape as Effective Date / End Date above. Their AM/PM half-day
+fields were left as `<Radio.Group>` (2 options, correctly so per the row
+above) and their Leave-Type/Claims-Type selects were already `Select`, so no
+change was needed there.
 
 ---
 
