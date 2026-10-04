@@ -14,6 +14,15 @@ index of which Figma component a given piece of this app's UI should be
 built from, so a real library component gets reused instead of a fresh
 lookalike shape getting drawn.
 
+The `figma-fidelity` skill (`.claude/skills/figma-fidelity/SKILL.md`) packages
+`FIGMA_DESIGN_SYSTEM.md` §3.4's drawer/form pattern as an enforced checklist —
+invoke it (or follow it directly) before building, editing, or auditing any
+screen/drawer/component against Figma, and whenever a ticket cites another
+ticket as "same fields/logic as X." It exists because "apply this pattern
+elsewhere" was once under-scoped to a surface-level spacing fix while the
+target's own ticket required a full structural match to a sibling
+implementation — don't repeat that.
+
 ## Changelog
 
 `CHANGELOG.md` must stay current. Every change that ships gets an entry **in the

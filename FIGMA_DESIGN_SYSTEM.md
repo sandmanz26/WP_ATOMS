@@ -283,10 +283,21 @@ so no change was needed there.
 
 ## 4. Figma file conventions
 
-<!-- fill in how the Figma file itself is organized, so reading it is fast:
-     - Are components built with Auto Layout? (assume yes unless told otherwise)
+**"👩🏻‍🚀 Personal Dashboard - HR Module" (`1FCRdGhHru6czP5P6h06kH`) page structure** — read via a page-discovery `use_figma` call before building anything here:
+
+| Page | Holds |
+|---|---|
+| `🧩 Component` | The file's local component library — Button, Select, DatePicker, Radio, Tag/Status, Input/Textarea, Upload/Button, Form Label/Item Vertical, Tab/Tab Group, Detail Page Template, and feature-specific sets like `Apply Leave`, `Create Leave Type`, `Leave Type Detail Drawer`, `Employee`. These are **local** components (not an imported team library — `get_libraries` on this file shows no business-component library added), so reuse them by `findOne`/traversal within this file, not `importComponentByKeyAsync` against a remote library. |
+| `🏭 Production` | Finished screens built from those components — includes multiple `Apply Leave` and `Create Leave Type` instances, and a `Leave Listing` full-page screen (sidebar + table). |
+| `🧑‍🍳 Kitchen` | Work-in-progress screens, not yet promoted to Production. |
+| Numbered pages (e.g. `Page 9`) | Blank pages the user hands over as a target for a specific code→Figma task — check `get_metadata` on the given node-id first; a `<canvas>` with no children means "build here." |
+
+**Code→Figma pushes land in their own page/frame, not inside Production/Kitchen**, unless the user says otherwise — see `FIGMA_COMPONENT_INDEX.md`'s entry for exactly what was pushed to `Page 9` and why the pre-existing `Apply Leave` component there was deliberately left untouched.
+
+**Critical `use_figma` gotcha found in this file — "SF Pro" does not rasterize for new text nodes.** Existing component instances in this file use "SF Pro" (Semibold/Regular) and it renders fine for them, and `figma.loadFontAsync({family:"SF Pro",...})` succeeds with no error — but any **new** `figma.createText()` node given that font reports `width: 0` forever (even after explicitly setting `layoutSizingHorizontal = 'HUG'` or calling `.resize()`), and renders as **fully invisible** in `get_screenshot` — structurally correct frames/tables/buttons all render, only the text glyphs are silently blank. Confirmed via `figma.listAvailableFontsAsync()` that "SF Pro" "Regular"/"Semibold" are listed (so it's not a missing-font-name issue) — the font just doesn't rasterize for plugin-created content in this environment. **Switch to `{family:"Inter", style:"Regular"}` / `{family:"Inter", style:"Semi Bold"}`** for any text created via `use_figma` — confirmed working (auto-measures correctly, renders correctly) with otherwise-identical code. Re-check this with a one-node smoke test (`createText`, set font+characters, read `.width` — non-zero means it works) before a big build if a different file/font is involved; don't assume it's fixed just because `loadFontAsync` didn't throw.
+
+<!-- fill in further as discovered:
      - Variant naming convention (e.g. `state=default/hover/disabled`)
-     - Which page/frame holds the component library vs. which holds screens
      - Any boolean/instance-swap props worth knowing about
 -->
 
