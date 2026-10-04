@@ -23,7 +23,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import {
-  Button, DatePicker, Descriptions, Drawer, Form, Input, Modal, Select, Space, Tag, TimePicker, Tooltip, Typography, Upload, message,
+  Button, DatePicker, Divider, Drawer, Form, Input, Modal, Select, Space, Tag, TimePicker, Tooltip, Typography, Upload, message,
 } from 'antd'
 import dayjs, { type Dayjs } from 'dayjs'
 import { PaperClipOutlined, UploadOutlined } from '@ant-design/icons'
@@ -51,6 +51,32 @@ import {
 } from '../leave/leaveLogic'
 
 const { Text } = Typography
+
+// Matches the "Leave Type Detail Drawer" Figma component's Basic/Additional
+// Information pattern (also used by ContractDetailPage.tsx etc.) — section
+// header + paired label/bold-value cells, divider between rows.
+const SECTION_TITLE: React.CSSProperties = { fontSize: 15, fontWeight: 600, color: '#1a1a1a', marginBottom: 16, display: 'block' }
+const LBL: React.CSSProperties = { fontSize: 12, color: '#8c8c8c', display: 'block', marginBottom: 3 }
+const VAL: React.CSSProperties = { fontSize: 13, display: 'block', fontWeight: 600, color: '#1a1a1a' }
+
+type DetailCell = { label: string; value: React.ReactNode }
+
+/** One row of the Basic/Additional Information pattern — 1 or 2 cells, divider unless `last`. */
+function DetailRow({ cells, last }: { cells: DetailCell[]; last?: boolean }) {
+  return (
+    <>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 40px', padding: '0 0 16px' }}>
+        {cells.map((c, i) => (
+          <div key={i}>
+            <Text style={LBL}>{c.label}</Text>
+            <Text style={VAL}>{c.value}</Text>
+          </div>
+        ))}
+      </div>
+      {!last && <Divider style={{ margin: '0 0 16px' }} />}
+    </>
+  )
+}
 
 const TIME_OFF_ID = 'lt-timeoff'
 
@@ -438,54 +464,79 @@ export function LeaveApplicationDetailsDrawer({
           </Space>
         }
       >
-        <Descriptions column={1} bordered size="small" style={{ marginBottom: 20 }}>
-          <Descriptions.Item label="Dates">
-            {dayjs(app.startDate).format('D MMM YYYY')} - {dayjs(app.endDate).format('D MMM YYYY')}
-            {isTimeOff && app.startTime && (
-              <div>
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  {dayjs(app.startTime, 'HH:mm').format('h:mm A')} - {dayjs(app.endTime, 'HH:mm').format('h:mm A')}
-                </Text>
-              </div>
-            )}
-          </Descriptions.Item>
-          <Descriptions.Item label="Days Used">{isTimeOff ? '-' : formatDays(app.days)}</Descriptions.Item>
-          <Descriptions.Item label="Remarks">{app.remarks || '-'}</Descriptions.Item>
-          <Descriptions.Item label="Supporting Document">
-            {app.documentName ? (
-              <Tooltip title="Prototype — the file name is recorded, nothing to download.">
-                <Space size={4}><PaperClipOutlined />{app.documentName}</Space>
-              </Tooltip>
-            ) : '-'}
-          </Descriptions.Item>
-        </Descriptions>
+        {(() => {
+          const basicRows: DetailCell[][] = [
+            [
+              {
+                label: 'Dates',
+                value: (
+                  <>
+                    {dayjs(app.startDate).format('D MMM YYYY')} - {dayjs(app.endDate).format('D MMM YYYY')}
+                    {isTimeOff && app.startTime && (
+                      <div>
+                        <Text type="secondary" style={{ fontSize: 12, fontWeight: 400 }}>
+                          {dayjs(app.startTime, 'HH:mm').format('h:mm A')} - {dayjs(app.endTime, 'HH:mm').format('h:mm A')}
+                        </Text>
+                      </div>
+                    )}
+                  </>
+                ),
+              },
+              { label: 'Days Used', value: isTimeOff ? '-' : formatDays(app.days) },
+            ],
+            [
+              { label: 'Remarks', value: app.remarks || '-' },
+              {
+                label: 'Supporting Document',
+                value: app.documentName ? (
+                  <Tooltip title="Prototype — the file name is recorded, nothing to download.">
+                    <Space size={4}><PaperClipOutlined />{app.documentName}</Space>
+                  </Tooltip>
+                ) : '-',
+              },
+            ],
+          ]
 
-        <Text strong style={{ fontSize: 12, color: '#8c8c8c' }}>Additional Information</Text>
-        <Descriptions column={1} bordered size="small" style={{ marginTop: 8 }}>
-          <Descriptions.Item label="Created On">{dayjs(app.appliedOn).format('D MMM YYYY, h:mm A')}</Descriptions.Item>
-          <Descriptions.Item label="Created By">{app.appliedBy}</Descriptions.Item>
-          {app.status === 'Approved' && (
+          const additionalRows: DetailCell[][] = [
+            [
+              { label: 'Created On', value: dayjs(app.appliedOn).format('D MMM YYYY, h:mm A') },
+              { label: 'Created By', value: app.appliedBy },
+            ],
+          ]
+          if (app.status === 'Approved') {
+            additionalRows.push([
+              { label: 'Approved On', value: app.approvedOn ? dayjs(app.approvedOn).format('D MMM YYYY, h:mm A') : '-' },
+              { label: 'Approved By', value: app.approvedBy ?? '-' },
+            ])
+          } else if (app.status === 'Rejected') {
+            additionalRows.push([
+              { label: 'Rejected On', value: app.rejectedOn ? dayjs(app.rejectedOn).format('D MMM YYYY, h:mm A') : '-' },
+              { label: 'Rejected By', value: app.rejectedBy ?? '-' },
+            ])
+            additionalRows.push([{ label: 'Reason for Rejection', value: app.rejectionReason || '-' }])
+          } else if (app.status === 'Cancelled') {
+            additionalRows.push([
+              { label: 'Cancelled On', value: app.cancelledOn ? dayjs(app.cancelledOn).format('D MMM YYYY, h:mm A') : '-' },
+              { label: 'Cancelled By', value: app.cancelledBy ?? '-' },
+            ])
+            additionalRows.push([{ label: 'Reason for Cancellation', value: app.cancellationReason || '-' }])
+          }
+          additionalRows.push([{ label: 'Employee', value: `${employee.givenName} ${employee.familyName}` }])
+
+          return (
             <>
-              <Descriptions.Item label="Approved On">{app.approvedOn ? dayjs(app.approvedOn).format('D MMM YYYY, h:mm A') : '-'}</Descriptions.Item>
-              <Descriptions.Item label="Approved By">{app.approvedBy ?? '-'}</Descriptions.Item>
+              <Text style={SECTION_TITLE}>Basic Information</Text>
+              {basicRows.map((cells, i) => (
+                <DetailRow key={i} cells={cells} last={i === basicRows.length - 1} />
+              ))}
+
+              <Text style={{ ...SECTION_TITLE, marginTop: 24 }}>Additional Information</Text>
+              {additionalRows.map((cells, i) => (
+                <DetailRow key={i} cells={cells} last={i === additionalRows.length - 1} />
+              ))}
             </>
-          )}
-          {app.status === 'Rejected' && (
-            <>
-              <Descriptions.Item label="Rejected On">{app.rejectedOn ? dayjs(app.rejectedOn).format('D MMM YYYY, h:mm A') : '-'}</Descriptions.Item>
-              <Descriptions.Item label="Rejected By">{app.rejectedBy ?? '-'}</Descriptions.Item>
-              <Descriptions.Item label="Reason for Rejection">{app.rejectionReason || '-'}</Descriptions.Item>
-            </>
-          )}
-          {app.status === 'Cancelled' && (
-            <>
-              <Descriptions.Item label="Cancelled On">{app.cancelledOn ? dayjs(app.cancelledOn).format('D MMM YYYY, h:mm A') : '-'}</Descriptions.Item>
-              <Descriptions.Item label="Cancelled By">{app.cancelledBy ?? '-'}</Descriptions.Item>
-              <Descriptions.Item label="Reason for Cancellation">{app.cancellationReason || '-'}</Descriptions.Item>
-            </>
-          )}
-          <Descriptions.Item label="Employee">{employee.givenName} {employee.familyName}</Descriptions.Item>
-        </Descriptions>
+          )
+        })()}
       </Drawer>
 
       <Modal

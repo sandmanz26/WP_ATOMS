@@ -14,6 +14,35 @@ minor).
 
 ## [Unreleased]
 
+### Fixed — Leave Application Details drawer (MOVE-3965) rebuilt to match its Figma component instead of a generic bordered table
+
+User flagged, with a screenshot of the running app, that this drawer's layout
+was wrong — it used AntD `Descriptions column={1} bordered`, a single-column
+label/value table, when the actual Figma reference ("Leave Type Detail
+Drawer") is a "Basic Information" / "Additional Information" pattern: a bold
+section header followed by 2-column rows (label above bold value, two per
+row), with a divider between rows and further rows that show or hide
+depending on how much data there is.
+
+`EmployeePortalLeaveDrawers.tsx`'s `LeaveApplicationDetailsDrawer`:
+
+- Added `DetailRow`/`DetailCell` plus `LBL`/`VAL`/`SECTION_TITLE` style
+  constants, matching the label/bold-value/divider pattern `ContractDetailPage.tsx`
+  and other existing pages already use for the same Figma component — this
+  reuses an established app convention, it isn't a new one.
+- **Basic Information**: Dates + Days Used (row 1), Remarks + Supporting
+  Document (row 2) — same fields as before, now paired instead of stacked.
+- **Additional Information**: Created On + Created By always; then exactly one
+  of Approved On/By, Rejected On/By (+ a Reason for Rejection row), or
+  Cancelled On/By (+ a Reason for Cancellation row), depending on
+  `app.status`; Employee always last. This is the hide/show behavior the
+  Figma component's own hidden `Group Content Cell` rows are built for.
+
+Verified in the browser (Pending Approval shows 2 rows; Approved reveals the
+extra Approved On/By row) and in Figma, where the drawer was rebuilt from the
+real `Drawers Template` + `Group Content Cell` components — see
+`FIGMA_COMPONENT_INDEX.md` and `FIGMA_DESIGN_SYSTEM.md` §4.3.
+
 ### Fixed — Personal Dashboard's Apply Leave drawer rebuilt to match the HR Apply Leave drawer it's specified to copy
 
 Follow-up correction to the entry directly below. The user sent two

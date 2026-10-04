@@ -23,6 +23,18 @@ elsewhere" was once under-scoped to a surface-level spacing fix while the
 target's own ticket required a full structural match to a sibling
 implementation — don't repeat that.
 
+For the "👩🏻‍🚀 Personal Dashboard - HR Module" file (`1FCRdGhHru6czP5P6h06kH`),
+use the **Figma Desktop Bridge plugin** (`mcp__Figma_Southleft__*` —
+`figma_execute`/`figma_capture_screenshot`/`figma_pair_plugin`) for writes and
+verification, not the official Figma MCP's `use_figma`/`get_screenshot`. See
+`FIGMA_DESIGN_SYSTEM.md` §4.2 for why: the official MCP's screenshot tool
+looked stale/wrong in this file even when the document was already correct,
+while the Desktop Bridge's `figma_capture_screenshot` (renders the user's own
+live document) matched immediately and consistently. If `figma_diagnose`
+reports the bridge disconnected, re-pair with `figma_pair_plugin` (6-character
+code, 5-minute expiry, entered into the plugin's Cloud Mode toggle) rather
+than falling back to the official MCP.
+
 ## Changelog
 
 `CHANGELOG.md` must stay current. Every change that ships gets an entry **in the
