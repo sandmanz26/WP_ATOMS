@@ -41,10 +41,9 @@ standalone Cancel button (`Cancel Leave` → `Cancel`). Registered in
 `WhatsNew.tsx` (`action-labels-trimmed`) and pinned to the Actions dropdown,
 and the registry's watermark/window moved to 4 Oct 2026.
 
-**Open item**: the Figma "Leave Application Details" drawer built earlier
-today still shows "Cancel Leave" on its button — the Desktop Bridge plugin
-was disconnected when this fix landed, so it wasn't re-synced. Fix it next
-time the plugin is paired.
+The Figma "Leave Application Details" drawer's button was re-synced to
+"Cancel" too, once the Desktop Bridge plugin was re-paired (it had
+disconnected partway through this fix).
 
 ### Fixed — Leave Application Details drawer (MOVE-3965) rebuilt to match its Figma component instead of a generic bordered table
 
