@@ -504,9 +504,9 @@ export function LeaveApplicationDrawer({
 
   const statusWord = app.status.toLowerCase()
   const menuItems = [
-    item('approve', 'Approve Leave', canApproveReject, `Only a pending application can be approved — this one is ${statusWord}.`),
-    item('reject', 'Reject Leave', canApproveReject, `Only a pending application can be rejected — this one is ${statusWord}.`),
-    item('cancel', 'Cancel Leave', canCancel, `A ${statusWord} application cannot be cancelled.`, true),
+    item('approve', 'Approve', canApproveReject, `Only a pending application can be approved — this one is ${statusWord}.`),
+    item('reject', 'Reject', canApproveReject, `Only a pending application can be rejected — this one is ${statusWord}.`),
+    item('cancel', 'Cancel', canCancel, `A ${statusWord} application cannot be cancelled.`, true),
   ]
 
   return (
@@ -523,17 +523,20 @@ export function LeaveApplicationDrawer({
         }
         // Biz req 2 — no primary CTA; everything sits under an actions menu.
         extra={
-          <Dropdown
-            menu={{
-              items: menuItems,
-              onClick: ({ key }) => { setPending(key as PendingAction); setReasonInput('') },
-            }}
-            trigger={['click']}
-          >
-            <Button>
-              Actions <DownOutlined />
-            </Button>
-          </Dropdown>
+          <Space>
+            <Mark id="action-labels-trimmed" />
+            <Dropdown
+              menu={{
+                items: menuItems,
+                onClick: ({ key }) => { setPending(key as PendingAction); setReasonInput('') },
+              }}
+              trigger={['click']}
+            >
+              <Button>
+                Actions <DownOutlined />
+              </Button>
+            </Dropdown>
+          </Space>
         }
       >
         {!canApproveReject && !canCancel && (

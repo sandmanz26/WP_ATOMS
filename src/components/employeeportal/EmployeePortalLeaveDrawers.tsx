@@ -454,7 +454,7 @@ export function LeaveApplicationDetailsDrawer({
         width={480}
         extra={
           <Space>
-            {canCancel && <Button danger onClick={() => openAction('cancel')}>Cancel Leave</Button>}
+            {canCancel && <Button danger onClick={() => openAction('cancel')}>Cancel</Button>}
             {canApproveReject && (
               <>
                 <Button danger onClick={() => openAction('reject')}>Reject</Button>

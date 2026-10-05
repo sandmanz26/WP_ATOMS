@@ -14,6 +14,38 @@ minor).
 
 ## [Unreleased]
 
+### Fixed — Applied `MOVE-3779`/`MOVE-3893` edits (Sunday morning backlog check)
+
+User asked for a check of every Personal Dashboard-related ticket from
+Sunday morning onward, since the nightly `MOVE-3410` watch hadn't moved its
+watermark past 29 Sep. Three tickets had edited descriptions in that window:
+
+- **`MOVE-3779`** ([Leave Profile] Cancel Leave, edited 04 Oct 01:14) — the
+  Actions-menu label is "Cancel", not "Cancel Leave".
+- **`MOVE-3893`** ([Leave Profile] Approve/Reject Leave Application, edited
+  04 Oct 01:03/01:08) — "Approve"/"Reject", not "Approve Leave"/"Reject
+  Leave"; a wording-only clarification to "in additional information
+  *section*" needs no code change.
+- **`MOVE-3889`** (Leave Application Details Drawer, edited 04 Oct 00:49/00:50)
+  — one edit was pure table reflow (no real change); the other formalizes
+  "Reason for Rejection"/"Reason for Cancellation" falling back to `-` when
+  blank, which the drawer (rebuilt earlier this session) already does.
+
+Renamed the menu/button labels in both places that mirror this HR-side
+spec: `leave/LeaveApplicationDrawers.tsx`'s Actions dropdown (`Approve Leave`
+→ `Approve`, `Reject Leave` → `Reject`, `Cancel Leave` → `Cancel` — all
+three move together even though only `MOVE-3779`'s diff literally mentions
+"Cancel", since `MOVE-3893`'s own edit made the identical change to the
+other two items in the same menu) and `employeeportal/EmployeePortalLeaveDrawers.tsx`'s
+standalone Cancel button (`Cancel Leave` → `Cancel`). Registered in
+`WhatsNew.tsx` (`action-labels-trimmed`) and pinned to the Actions dropdown,
+and the registry's watermark/window moved to 4 Oct 2026.
+
+**Open item**: the Figma "Leave Application Details" drawer built earlier
+today still shows "Cancel Leave" on its button — the Desktop Bridge plugin
+was disconnected when this fix landed, so it wasn't re-synced. Fix it next
+time the plugin is paired.
+
 ### Fixed — Leave Application Details drawer (MOVE-3965) rebuilt to match its Figma component instead of a generic bordered table
 
 User flagged, with a screenshot of the running app, that this drawer's layout

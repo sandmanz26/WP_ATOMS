@@ -208,12 +208,21 @@ export const LEAVE_CHANGES = {
     ticketKey: 'MOVE-3559',
     on: '29 Sep 2026',
   },
+  'action-labels-trimmed': {
+    kind: 'changed',
+    area: 'Leave Profile',
+    what: 'The details drawer\'s Actions menu reads "Approve" / "Reject" / "Cancel" — the standalone Cancel button in Personal Dashboard\'s own leave drawer (employeeportal/EmployeePortalLeaveDrawers.tsx) was trimmed the same way.',
+    was: '"Approve Leave" / "Reject Leave" / "Cancel Leave".',
+    ticket: 'MOVE-3893 biz req 2.1 & 2.2 · MOVE-3779',
+    ticketKey: 'MOVE-3779',
+    on: '04 Oct 2026',
+  },
 } satisfies Record<string, LeaveChange>
 
 export type ChangeId = keyof typeof LEAVE_CHANGES
 
 /** The window this batch covers, shown on the banner. */
-export const CHANGE_WINDOW = '10 – 18 Sep 2026'
+export const CHANGE_WINDOW = '10 Sep – 4 Oct 2026'
 
 const jiraUrl = (key: string) => `https://westpoint.atlassian.net/browse/${key}`
 
