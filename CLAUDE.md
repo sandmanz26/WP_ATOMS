@@ -7,6 +7,17 @@ mapping to AntD, naming conventions) lives in `FIGMA_DESIGN_SYSTEM.md` — read
 it before building or styling any screen. Both are living templates: fill in
 gaps found while building, in the same change that finds them.
 
+**Standing rule, stated explicitly by the user — anything they teach a
+session (a correction, a technique, a "no, do it like X instead", a gotcha
+hit while building) gets written into the relevant `.md` file in the same
+change, not just held in that session's own memory.** `FIGMA_DESIGN_SYSTEM.md`
+and `FIGMA_COMPONENT_INDEX.md` are where Figma-specific lessons go (new
+numbered subsection or a row edit, per their own "living template" rules
+above); this file is where a lesson about the *working process itself*
+goes (which MCP server to prefer, which branch to push to, and so on). The
+point is that the next session starts smarter than this one did, not that
+it re-learns the same thing from scratch.
+
 Direction matters for which doc to read: building a screen *from* Figma
 reads `FIGMA_DESIGN_SYSTEM.md`. Pushing this app's UI *into* Figma ("vibe
 code to Figma") reads `FIGMA_COMPONENT_INDEX.md` instead — it's the user's
