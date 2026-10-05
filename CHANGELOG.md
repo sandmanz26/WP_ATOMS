@@ -14,6 +14,30 @@ minor).
 
 ## [Unreleased]
 
+### Fixed — Claim Details drawer rebuilt to the same Basic/Additional Information pattern as Leave
+
+While recreating every Personal Dashboard screen in Figma (starting with
+Claims) against the real components, found that `ClaimDetailsDrawer` still
+used the AntD `Descriptions bordered column={1}` pattern — the exact gap
+`MOVE-3965` already fixed for the Leave module's equivalent drawer, just
+not yet applied here.
+
+`EmployeePortalClaimsDrawers.tsx`: duplicated the `DetailRow`/`DetailCell`
++ `LBL`/`VAL`/`SECTION_TITLE` helpers from `EmployeePortalLeaveDrawers.tsx`
+(not shared — this module's own isolation rule). Basic Information pairs
+Employee/Department, Receipt Date/Receipt Time, Amount/Remarks, then
+Attachments alone; Additional Information always shows Applied On/By, then
+exactly one of Approved On/By, Rejected On/By (+ Reason for Rejection), or
+Cancelled On/By (+ Reason for Cancellation) depending on `claim.status` —
+no separate Employee row here, since Claims already shows it in Basic
+Information. `CreateClaimDrawer` was already correctly gridded (same audit
+as Leave's apply drawer) and needed no change.
+
+Figma: rebuilt the Claims listing, claim details drawer, and submit-claim
+drawer in a new target section, all cloned from the already-built Leave
+equivalents and re-themed with Claims' own fields/data — see
+`FIGMA_COMPONENT_INDEX.md` for the full breakdown per screen.
+
 ### Fixed — Applied `MOVE-3779`/`MOVE-3893` edits (Sunday morning backlog check)
 
 User asked for a check of every Personal Dashboard-related ticket from

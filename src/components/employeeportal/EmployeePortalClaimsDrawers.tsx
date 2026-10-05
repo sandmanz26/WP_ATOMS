@@ -12,7 +12,7 @@
 
 import { useEffect, useState } from 'react'
 import {
-  Button, DatePicker, Descriptions, Drawer, Form, Input, InputNumber, Modal, Select, Space, Tag, TimePicker, Tooltip, Typography, Upload, message,
+  Button, DatePicker, Divider, Drawer, Form, Input, InputNumber, Modal, Select, Space, Tag, TimePicker, Tooltip, Typography, Upload, message,
 } from 'antd'
 import dayjs, { type Dayjs } from 'dayjs'
 import { PaperClipOutlined, UploadOutlined } from '@ant-design/icons'
@@ -41,6 +41,33 @@ import {
 } from '../claims/claimsLogic'
 
 const { Text } = Typography
+
+// Matches the "Leave Type Detail Drawer" Figma component's Basic/Additional
+// Information pattern (see EmployeePortalLeaveDrawers.tsx / FIGMA_DESIGN_SYSTEM.md
+// §4.1-4.3) — duplicated here rather than shared, per this module's own
+// "no shared component with any other page" isolation rule.
+const SECTION_TITLE: React.CSSProperties = { fontSize: 15, fontWeight: 600, color: '#1a1a1a', marginBottom: 16, display: 'block' }
+const LBL: React.CSSProperties = { fontSize: 12, color: '#8c8c8c', display: 'block', marginBottom: 3 }
+const VAL: React.CSSProperties = { fontSize: 13, display: 'block', fontWeight: 600, color: '#1a1a1a' }
+
+type DetailCell = { label: string; value: React.ReactNode }
+
+/** One row of the Basic/Additional Information pattern — 1 or 2 cells, divider unless `last`. */
+function DetailRow({ cells, last }: { cells: DetailCell[]; last?: boolean }) {
+  return (
+    <>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 40px', padding: '0 0 16px' }}>
+        {cells.map((c, i) => (
+          <div key={i}>
+            <Text style={LBL}>{c.label}</Text>
+            <Text style={VAL}>{c.value}</Text>
+          </div>
+        ))}
+      </div>
+      {!last && <Divider style={{ margin: '0 0 16px' }} />}
+    </>
+  )
+}
 
 const MAX_ATTACHMENT_BYTES = 2 * 1024 * 1024
 
@@ -349,49 +376,71 @@ export function ClaimDetailsDrawer({
           </Space>
         }
       >
-        <Descriptions column={1} bordered size="small" style={{ marginBottom: 20 }}>
-          <Descriptions.Item label="Employee">{employee.givenName} {employee.familyName}</Descriptions.Item>
-          <Descriptions.Item label="Department">{employee.department}</Descriptions.Item>
-          <Descriptions.Item label="Receipt Date">
-            {c.receiptDate ? dayjs(c.receiptDate).format('D MMM YYYY') : '-'}
-          </Descriptions.Item>
-          <Descriptions.Item label="Receipt Time">
-            {c.receiptTime ? dayjs(c.receiptTime, 'HH:mm').format('h:mm A') : '-'}
-          </Descriptions.Item>
-          <Descriptions.Item label="Amount">{formatAmount(c.amount)}</Descriptions.Item>
-          <Descriptions.Item label="Remarks">{c.remarks || '-'}</Descriptions.Item>
-          <Descriptions.Item label="Attachments">
-            <Tooltip title="Prototype — the file name is recorded, nothing to preview or download.">
-              <Space size={4}><PaperClipOutlined />{c.attachmentName}</Space>
-            </Tooltip>
-          </Descriptions.Item>
-        </Descriptions>
+        {(() => {
+          const basicRows: DetailCell[][] = [
+            [
+              { label: 'Employee', value: `${employee.givenName} ${employee.familyName}` },
+              { label: 'Department', value: employee.department },
+            ],
+            [
+              { label: 'Receipt Date', value: c.receiptDate ? dayjs(c.receiptDate).format('D MMM YYYY') : '-' },
+              { label: 'Receipt Time', value: c.receiptTime ? dayjs(c.receiptTime, 'HH:mm').format('h:mm A') : '-' },
+            ],
+            [
+              { label: 'Amount', value: formatAmount(c.amount) },
+              { label: 'Remarks', value: c.remarks || '-' },
+            ],
+            [
+              {
+                label: 'Attachments',
+                value: (
+                  <Tooltip title="Prototype — the file name is recorded, nothing to preview or download.">
+                    <Space size={4}><PaperClipOutlined />{c.attachmentName}</Space>
+                  </Tooltip>
+                ),
+              },
+            ],
+          ]
 
-        <Text strong style={{ fontSize: 12, color: '#8c8c8c' }}>Additional Information</Text>
-        <Descriptions column={1} bordered size="small" style={{ marginTop: 8 }}>
-          <Descriptions.Item label="Applied On">{dayjs(c.appliedOn).format('D MMM YYYY, h:mm A')}</Descriptions.Item>
-          <Descriptions.Item label="Applied By">{c.appliedBy}</Descriptions.Item>
-          {c.status === 'Approved' || c.status === 'Paid' ? (
+          const additionalRows: DetailCell[][] = [
+            [
+              { label: 'Applied On', value: dayjs(c.appliedOn).format('D MMM YYYY, h:mm A') },
+              { label: 'Applied By', value: c.appliedBy },
+            ],
+          ]
+          if (c.status === 'Approved' || c.status === 'Paid') {
+            additionalRows.push([
+              { label: 'Approved On', value: c.approvedOn ? dayjs(c.approvedOn).format('D MMM YYYY, h:mm A') : '-' },
+              { label: 'Approved By', value: c.approvedBy ?? '-' },
+            ])
+          } else if (c.status === 'Rejected') {
+            additionalRows.push([
+              { label: 'Rejected On', value: c.rejectedOn ? dayjs(c.rejectedOn).format('D MMM YYYY, h:mm A') : '-' },
+              { label: 'Rejected By', value: c.rejectedBy ?? '-' },
+            ])
+            additionalRows.push([{ label: 'Reason for Rejection', value: c.rejectionReason || '-' }])
+          } else if (c.status === 'Cancelled') {
+            additionalRows.push([
+              { label: 'Cancelled On', value: c.cancelledOn ? dayjs(c.cancelledOn).format('D MMM YYYY, h:mm A') : '-' },
+              { label: 'Cancelled By', value: c.cancelledBy ?? '-' },
+            ])
+            additionalRows.push([{ label: 'Reason for Cancellation', value: c.cancellationReason || '-' }])
+          }
+
+          return (
             <>
-              <Descriptions.Item label="Approved On">{c.approvedOn ? dayjs(c.approvedOn).format('D MMM YYYY, h:mm A') : '-'}</Descriptions.Item>
-              <Descriptions.Item label="Approved By">{c.approvedBy ?? '-'}</Descriptions.Item>
+              <Text style={SECTION_TITLE}>Basic Information</Text>
+              {basicRows.map((cells, i) => (
+                <DetailRow key={i} cells={cells} last={i === basicRows.length - 1} />
+              ))}
+
+              <Text style={{ ...SECTION_TITLE, marginTop: 24 }}>Additional Information</Text>
+              {additionalRows.map((cells, i) => (
+                <DetailRow key={i} cells={cells} last={i === additionalRows.length - 1} />
+              ))}
             </>
-          ) : null}
-          {c.status === 'Rejected' && (
-            <>
-              <Descriptions.Item label="Rejected On">{c.rejectedOn ? dayjs(c.rejectedOn).format('D MMM YYYY, h:mm A') : '-'}</Descriptions.Item>
-              <Descriptions.Item label="Rejected By">{c.rejectedBy ?? '-'}</Descriptions.Item>
-              <Descriptions.Item label="Reason for Rejection">{c.rejectionReason || '-'}</Descriptions.Item>
-            </>
-          )}
-          {c.status === 'Cancelled' && (
-            <>
-              <Descriptions.Item label="Cancelled On">{c.cancelledOn ? dayjs(c.cancelledOn).format('D MMM YYYY, h:mm A') : '-'}</Descriptions.Item>
-              <Descriptions.Item label="Cancelled By">{c.cancelledBy ?? '-'}</Descriptions.Item>
-              <Descriptions.Item label="Reason for Cancellation">{c.cancellationReason || '-'}</Descriptions.Item>
-            </>
-          )}
-        </Descriptions>
+          )
+        })()}
       </Drawer>
 
       <Modal
