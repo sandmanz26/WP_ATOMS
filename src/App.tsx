@@ -25,6 +25,7 @@ import LeavePage from '@/components/leave/LeavePage'
 import ManageLeaveTypesPage from '@/components/leave/ManageLeaveTypesPage'
 import LeaveProfilePage from '@/components/leave/LeaveProfilePage'
 import EmployeePortalPage from '@/components/employeeportal/EmployeePortalPage'
+import HrClaimsPage from '@/components/hrclaims/HrClaimsPage'
 import { Button } from 'antd'
 import { ArrowLeftOutlined } from '@ant-design/icons'
 
@@ -54,6 +55,7 @@ export type AppPage =
   | { type: 'leave-types' }
   | { type: 'leave-profile'; employeeId: string }
   | { type: 'personal-dashboard' }
+  | { type: 'claims' }
 
 export default function App() {
   const [page, setPage] = useState<AppPage>({ type: 'live-tracking-testing-2' })
@@ -286,6 +288,14 @@ export default function App() {
         onNavigate={navigate}
       >
         <LeaveProfilePage employeeId={page.employeeId} onNavigate={navigate} />
+      </AppLayout>
+    )
+  }
+
+  if (page.type === 'claims') {
+    return (
+      <AppLayout activeKey="claims" breadcrumbLabel="Claims" pageTitle="Claims" onNavigate={navigate}>
+        <HrClaimsPage />
       </AppLayout>
     )
   }

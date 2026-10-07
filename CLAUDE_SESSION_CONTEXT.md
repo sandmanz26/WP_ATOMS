@@ -14,6 +14,7 @@
 6. [HR Employees Module (MOVE-3409) — PRD Summary, Not Yet Started](#6-hr-employees-module-move-3409--prd-summary-not-yet-started)
 7. [Copy / Text Conventions](#7-copy--text-conventions)
 8. [Visual Layout Conventions (the "2.0" card pattern)](#8-visual-layout-conventions-the-20-card-pattern)
+9. [HR Claims Module (epic MOVE-4021) — Business Rules](#9-hr-claims-module-epic-move-4021--business-rules)
 
 ---
 
@@ -324,6 +325,14 @@ This works because navigating away and back to the listing page in this app's ro
 
 An earlier iteration of the Invoice Contract No. dropdown added fake extra contract-number options purely to make an empty-looking dropdown appear to have more choices, guessing that's what a reference screenshot implied. This was wrong — the actual PRD rule (§2.5 above) was that individual invoices shouldn't show a dropdown *at all*, and group invoices should only ever show their *real* linked contracts. **Don't invent placeholder options/data to make a UI element look fuller — check whether the underlying data model needs a real fix instead.**
 
+### 4.6 Column sorters only reordering the current page
+
+**Symptom**: clicking a sortable column header reorders the 10 visible rows but not the list as a whole. Ascending "Claim No." started at `CL20260003` instead of `CL20250041`, because the earlier-numbered claims were on page 2.
+
+**Cause**: listings that use `common/DataTable` + `leave/PaginationBar` slice the rows themselves and pass `pagination={false}`, so the `Table` only ever receives the current page. A plain `sorter: (a, b) => ...` comparator sorts that page and nothing else.
+
+**Fix** (`hrclaims/HrClaimsPage.tsx`): make the sort controlled. Set `sorter: true` plus `sortOrder` on each column, capture the sorter in the table's `onChange`, and apply it to the full filtered list *before* slicing. **`leave/LeavePage.tsx` has the same bug** (37 employees, 10 per page, comparator sorters on a pre-sliced `dataSource`) and has not been fixed. Check any other listing built this way the same way.
+
 ---
 
 ## 5. Pending / Not-Yet-Built Features
@@ -337,6 +346,7 @@ Explicit list of things that are referenced in the UI (menu items, action button
 - **Notification → Timeout feedback state**: `SendFeedbackModal.tsx` supports a partial-failure UI but the "timeout after 10 seconds" state (§3.9) has never been exercised/wired — the mock send always resolves after a fixed 700ms.
 - **Invoice module's "listing goes stale after a detail-page edit" bug** (see §4.3): confirmed to exist conceptually, not yet verified or fixed — check `InvoicePage.tsx`/`InvoiceDetailPage.tsx` (and the "2.0" pair) for the same local-state-not-synced-back pattern before assuming they're fine.
 - **HR Employees module (MOVE-3409)**: entire module has not been started. See §6 for the full PRD summary if/when this work begins.
+- **HR Claims (MOVE-4021) ↔ Personal Dashboard Claims (MOVE-3412)**: two separate data models for now (see §9). MOVE-3799 defers the link ("implement after personal dashboard").
 
 ---
 
@@ -439,3 +449,17 @@ This is the current visual reference pattern for any detail page in this codebas
 - The breadcrumb + "Return to Listing" bar at the very top of the page (owned by `AppLayout`, not the page itself) has **no white background** — it sits directly on the same gray page background with no border underneath it.
 
 When building a new detail page or fixing an existing one, use this pattern as the default unless a specific reference screenshot says otherwise.
+
+---
+
+## 9. HR Claims Module (epic MOVE-4021) — Business Rules
+
+Sidebar → **Claims** (`hrclaims/`). Built from MOVE-3797, 3798, 3799, 3801, 3920, 3731 and 3957. All three files are new; employees, departments and `CURRENT_USER` come from `leave/leaveData.ts`.
+
+- **Its own data model, not `claims/claimsData.ts`.** That file is the Personal Dashboard's (MOVE-3776 etc.), and the two epics disagree on statuses, types and fields. The HR model has: types Carpark / Taxi / Toll (ERP) / Others; statuses Pending Approval → Pending Payment → Paid, plus Rejected and Cancelled; Vehicle Licence Plate (Carpark, Toll (ERP)) and Trip (Toll (ERP) only); a `CLYYYYXXXX` claim number; payment date and reference no.
+- **Claim number**: `nextClaimNo()` reads the highest sequence already stored for the year and adds 1, so it restarts at 0001 each calendar year (seed has two CL2025 rows to show this).
+- **Approve does not mean "Approved"**: it moves the claim to **Pending Payment** (MOVE-3920). An employee with no approver (`claimApproverOf`, which reuses `leaveApprover`) is created straight into Pending Payment, attributed to `System (no approver assigned)`. Maya Anggraini (`lv-13`) is the seed example.
+- **Action gating**: Approve, Reject and Cancel need Pending Approval; Mark as Paid needs Pending Payment. A disabled action keeps a tooltip saying why. **Both** reject and cancel reasons are required (max 120). This differs from Leave, where the cancel reason is optional. Cancel also closes the drawer; the other actions stay on it.
+- **Remarks** shown in the listing and drawer = the user's text + `Vehicle Licence Plate: …` / `Trip: …` lines, derived on read (`remarksLines`), never stored composed.
+- **Highlights** (MOVE-3797) clear every search/filter and apply a single status filter. A card shows as active only while that exact single-status filter is all that's applied.
+- **Attachments**: picked files keep an object URL, so preview/download really works for anything submitted in-session. Seed files are names only and show a tooltip.

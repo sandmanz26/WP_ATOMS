@@ -8,6 +8,7 @@ import {
   IdcardOutlined,
   SolutionOutlined,
   UpOutlined,
+  WalletOutlined,
 } from '@ant-design/icons'
 import type { AppPage } from '@/App'
 import { version as appVersion } from '../../../package.json'
@@ -94,6 +95,14 @@ export default function AppLayout({
       icon: <SolutionOutlined style={{ fontSize: 16, color: '#595959' }} />,
       label: <span>Leave</span>,
       onClick: () => onNavigate?.({ type: 'leave' }),
+    },
+    // MOVE-4021 — HR's Claims module, top-level for the same reason as Leave:
+    // it covers every department's claims.
+    {
+      key: 'claims',
+      icon: <WalletOutlined style={{ fontSize: 16, color: '#595959' }} />,
+      label: <span>Claims</span>,
+      onClick: () => onNavigate?.({ type: 'claims' }),
     },
     // MOVE-3412 — its own top-level destination, same reasoning as Leave
     // above: it is the employee's own dashboard, not scoped under any one

@@ -14,6 +14,81 @@ minor).
 
 ## [Unreleased]
 
+### Added — HR Claims module (epic MOVE-4021): new "Claims" sidebar menu
+
+At the user's request, a new top-level **Claims** menu that builds all seven
+stories under MOVE-4021. New files are in `src/components/hrclaims/`; the
+route and menu are in `App.tsx` and `layout/AppLayout.tsx`.
+
+- **MOVE-3797 Claims Highlight**: Pending Approval and Pending Payment count
+  cards. Clicking one clears every search/filter and filters the listing to
+  that status.
+- **MOVE-3798 Claims Listing**: Claim No. / Submission Date / Claim Type /
+  Employee / Department / Remarks / Amount / Status / Last Updated On. The
+  default sort is last updated, newest first; manual sort is on the 7 columns
+  the ticket names. "Search Claims" matches Claim No., Claim Type and Remarks.
+  The Filter popover has Employee, Department, Submitted On, Claim Type and
+  Status. Last Updated On sits in the toolbar, as on the Leave listing.
+- **MOVE-3799 Submit Claim drawer**: the ticket's field table, with these rules:
+  - Vehicle Licence Plate shows for Carpark and Toll (ERP); Trip shows for
+    Toll (ERP) only.
+  - Receipt Date must be today or earlier, and Receipt Time can't be in the
+    future when the date is today.
+  - Attachments allow several files: PNG/JPG/JPEG/PDF, 2MB each.
+    Unsupported types are rejected with a message.
+  - A missing required field shows an error toast and puts the field in its
+    error state.
+  - Each claim gets a running `CLYYYYXXXX` number that restarts every year.
+  - An employee with no approver goes straight to Pending Payment.
+- **MOVE-3801 Claim Details drawer**: header is the claim number + status tag.
+  It uses the Basic / Payment (Paid only) / Additional Information two-column
+  pattern, with Remarks spanning both columns ("2 column layout for
+  remarks"). Actions live in a dropdown, with no primary CTA.
+- **MOVE-3920 Approve/Reject, MOVE-3731 Cancel, MOVE-3957 Mark as Paid**:
+  - Each action has a disabled-with-tooltip state when the status doesn't
+    allow it.
+  - Approve → Pending Payment. Reject and Cancel both need a reason (max 120).
+  - Cancel closes the drawer.
+  - Mark as Paid needs a Payment Date (today or earlier) and a Payment
+    Reference No. (max 50). It then shows the Payment Information section.
+
+**Judgment call — separate data model from Personal Dashboard's Claims.**
+`claims/claimsData.ts` (MOVE-3776 etc.) has an "Approved" status, Bus
+Number/Route and ERP/Carpark/Taxi Claims/Others. This epic has Pending
+Payment, Vehicle Licence Plate/Trip, Carpark/Taxi/Toll (ERP)/Others, claim
+numbers and payment details. MOVE-3799 itself defers linking the two
+("implement after personal dashboard"), so they stay separate rather than
+guessing a reconciliation. Employees, departments and the approver rule
+(`claimApproverOf`) are still shared, so there is one employee list.
+
+**Fixed while verifying**: column sorting only reordered the current page.
+The listing slices its own rows, so AntD's comparator saw 10 rows, not the
+whole list. Sorting is now controlled and applied before paging. The same
+latent bug is in `leave/LeavePage.tsx` and is not fixed here; it is recorded
+in `CLAUDE_SESSION_CONTEXT.md` §4.6.
+
+**Open items for the PM**
+- Every toast, modal and tooltip text points at the Lark "copy master list",
+  which this session can't open. The text used here is a placeholder.
+- MOVE-4021's own description has an older field table: auto-filled Date,
+  Full Name, Bus Number, Route, Remarks required at 1000 chars, and
+  ERP/Carpark/Others. It contradicts MOVE-3799 (edited 6 Oct), so MOVE-3799
+  was followed.
+- Trip is a free-text input in MOVE-3799 (max 120), but MOVE-3801 displays it
+  as "route code (start time)", e.g. "WP 1 (3:00 PM)", which implies
+  structured data. It was built as free text, with that example as the
+  placeholder.
+- Amount is required with a default of 0. $0.00 is treated as missing
+  (it must be > 0).
+- MOVE-3957 biz req 2 says "when user clicks on 'cancel' → open mark as paid
+  modal", and biz req 3 says "confirm" while the CTA is "Save". Both read as
+  copy-paste slips. MOVE-3731/3920 also link to MOVE-3964 (the Personal
+  Dashboard drawer) rather than MOVE-3801.
+- There is no permission model in this prototype, so every action is
+  available to the current user.
+- Vehicle Licence Plate options reuse the mock fleet list
+  (`CLAIM_BUS_FLEET`). No tenant vehicle registry exists here.
+
 ### Fixed — Claim Details drawer rebuilt to the same Basic/Additional Information pattern as Leave
 
 While recreating every Personal Dashboard screen in Figma (starting with
