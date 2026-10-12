@@ -97,7 +97,7 @@ For each screen and flow in the module, include:
   - Textarea counter max = the ticket's max length.
   - Upload helper size/types = the ticket's.
   - The error frame shows every required field's error.
-  - Use the house patterns in `FIGMA_DESIGN_SYSTEM.md` §4.8: `Upload / Button` + label + helper (not drag-and-drop), and modal body `{{copy to master}}`.
+  - Use the house patterns in `FIGMA_DESIGN_SYSTEM.md` §4.8: `Upload / Button` + label + helper (not drag-and-drop), modal body `{{copy to master}}`, and **no placeholder in filter-popover inputs**.
 
 ## 4. Layout — how the section must read
 

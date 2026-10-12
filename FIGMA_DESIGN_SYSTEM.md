@@ -403,6 +403,13 @@ so no change was needed there.
   2. Tick each against the frame: the field is present, the asterisk matches, the counter max and helper text match.
   3. Check the error frame: every required field shows its error, including upload.
   4. Check the variant frames (e.g. Others): every unconditional field is still present. The Others frame had lost Remarks entirely.
+- **Filter popover inputs have NO placeholder** (user rule, 12 Oct 2026, "save for the future").
+  - Inside a `Filter` popover (`Table Filter with Buttons`), every Select and date-range input is empty.
+  - The label above already names the field, so no "Select employee", and no "Start date → End date" (only the arrow and calendar icon remain).
+  - In code, drop `placeholder` from those `Select`s and pass `placeholder={['', '']}` to `RangePicker`. AntD otherwise falls back to "Start date / End date".
+  - In Figma, set the slot's `Select` text node and the range's `Start date` / `End date` text nodes to `''`.
+  - This is **only the filter popover**. The toolbar's own controls (search box "Search Claims", the "Last Updated On" range) and form drawers keep their placeholders.
+  - Applied to HR Claims (code + Figma `43006:22479`). Apply it to any new or touched filter popover.
 - **The user's own tidy-up of the section (8 Oct)**:
   - Removed every `Docs/Notes` card and most caption sub-lines, keeping plain step-title text.
   - Re-numbered the Submit row so the validation-error frame comes **last** (filled → submitted → Others → errors).

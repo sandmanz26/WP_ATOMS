@@ -14,6 +14,10 @@ minor).
 
 ## [Unreleased]
 
+### Changed — HR Claims filter popover: no placeholders (user rule)
+
+At the user's request, the filter popover's inputs no longer show placeholders. This covers the Employee, Department, Claim Type and Status selects, and the Submitted On range ("Start date → End date"). The label above each input already names it. The change is in the code (`HrClaimsPage.tsx`) and in Figma (`43006:22479`). The user asked for this to be remembered as a standing rule for filter popovers, so it's recorded in `FIGMA_DESIGN_SYSTEM.md` §4.8 and in the `code-to-figma` skill. Other modules' filter popovers aren't changed yet.
+
 ### Fixed — HR Claims Submit Claim: required-field audit against MOVE-3799; upload aligned to the Figma component
 
 At the user's request ("cek tiket 2 hari lalu, double check required field"), the tickets were re-diffed since 7 Oct:

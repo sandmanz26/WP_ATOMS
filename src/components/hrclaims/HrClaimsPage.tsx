@@ -238,13 +238,13 @@ export default function HrClaimsPage() {
       <Text style={{ fontSize: 16, fontWeight: 600, display: 'block', marginBottom: 16 }}>Filter</Text>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
         <div>
+          {/* Filter popover inputs carry no placeholder — the label above says it all (user rule, FIGMA_DESIGN_SYSTEM.md §4.8). */}
           {label('Employee')}
           <Select
             mode="multiple"
             showSearch
             optionFilterProp="label"
             allowClear
-            placeholder="Select employee"
             style={{ width: '100%' }}
             maxTagCount="responsive"
             value={fEmployees}
@@ -257,7 +257,6 @@ export default function HrClaimsPage() {
           <Select
             mode="multiple"
             allowClear
-            placeholder="Select department"
             style={{ width: '100%' }}
             maxTagCount="responsive"
             value={fDepartments}
@@ -270,7 +269,6 @@ export default function HrClaimsPage() {
           <Select
             mode="multiple"
             allowClear
-            placeholder="Select claim type"
             style={{ width: '100%' }}
             maxTagCount="responsive"
             value={fTypes}
@@ -283,7 +281,6 @@ export default function HrClaimsPage() {
           <Select
             mode="multiple"
             allowClear
-            placeholder="Select status"
             style={{ width: '100%' }}
             maxTagCount="responsive"
             value={fStatuses}
@@ -296,9 +293,9 @@ export default function HrClaimsPage() {
         {label('Submitted On')}
         <RangePicker
           style={{ width: '100%' }}
+          placeholder={['', '']}
           value={fSubmitted}
           onChange={(v) => { setFSubmitted(v as [Dayjs, Dayjs] | null); resetPage() }}
-          placeholder={['Start date', 'End date']}
         />
       </div>
       <Button size="small" onClick={clearAllFilters} style={{ borderRadius: 6 }}>
