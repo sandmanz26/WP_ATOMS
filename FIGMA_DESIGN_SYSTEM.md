@@ -410,6 +410,11 @@ so no change was needed there.
   - In Figma, set the slot's `Select` text node and the range's `Start date` / `End date` text nodes to `''`.
   - This is **only the filter popover**. The toolbar's own controls (search box "Search Claims", the "Last Updated On" range) and form drawers keep their placeholders.
   - Applied to HR Claims (code + Figma `43006:22479`). Apply it to any new or touched filter popover.
+- **Open-picker states (TimePicker / DatePicker dropdown).** Each picker Form Item carries its own hidden menu (`TimePicker` → `TimePicker Menu`, 170×224: three `Column`s of eight `_TimePicker / TimePicker Menu Cell`s + `Now`/`Ok` footer).
+  - Showing it in place would push the form's auto-layout. Instead, **clone it to the frame's top level** with `visible=true`, place it 4px under the input, and add AntD's dropdown shadow.
+  - Set the input to `State=Focused`, then re-find its text node: the variant swap replaces it.
+  - The cell has only `Default/Hover/Selected` (no Disabled). Show a disabled time with a text fill override `rgba(0,0,0,.25)`, and name the cell `… (disabled — no Disabled variant, text override)`.
+  - Built for MOVE-3799's "Receipt Date = today → only past time" rule (frame `43069:35877`, caption "2.4").
 - **The user's own tidy-up of the section (8 Oct)**:
   - Removed every `Docs/Notes` card and most caption sub-lines, keeping plain step-title text.
   - Re-numbered the Submit row so the validation-error frame comes **last** (filled → submitted → Others → errors).

@@ -14,6 +14,15 @@ minor).
 
 ## [Unreleased]
 
+### Added — Figma state: Receipt Time when Receipt Date = today (MOVE-3799)
+
+At the user's request, a state was added for MOVE-3799's rule "Receipt Time optional; if receipt date = today → only past time". Frame `43069:35877`, caption "2.4" in the Submit Claim row, shows:
+- Receipt Date "12 Oct 2026" (today).
+- The time picker open at 2:15 PM.
+- With now = 2:20 PM: hours 03 onwards and minutes 25 onwards greyed out.
+
+The validation-error frame moved one slot right so it stays last. The code already enforced this rule (`disabledReceiptTime` in `claims/claimsLogic.ts`); it was checked live in the browser and needed no change.
+
 ### Changed — HR Claims filter popover: no placeholders (user rule)
 
 At the user's request, the filter popover's inputs no longer show placeholders. This covers the Employee, Department, Claim Type and Status selects, and the Submitted On range ("Start date → End date"). The label above each input already names it. The change is in the code (`HrClaimsPage.tsx`) and in Figma (`43006:22479`). The user asked for this to be remembered as a standing rule for filter popovers, so it's recorded in `FIGMA_DESIGN_SYSTEM.md` §4.8 and in the `code-to-figma` skill. Other modules' filter popovers aren't changed yet.
