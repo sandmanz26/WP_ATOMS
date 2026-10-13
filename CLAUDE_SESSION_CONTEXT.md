@@ -465,3 +465,15 @@ Sidebar → **Claims** (`hrclaims/`). Built from MOVE-3797, 3798, 3799, 3801, 39
 - **Remarks** shown in the listing and drawer = the user's text + `Vehicle Licence Plate: …` / `Trip: …` lines, derived on read (`remarksLines`), never stored composed.
 - **Highlights** (MOVE-3797) clear every search/filter and apply a single status filter. A card shows as active only while that exact single-status filter is all that's applied.
 - **Attachments**: picked files keep an object URL, so preview/download really works for anything submitted in-session. Seed files are names only and show a tooltip.
+
+**Mobile (Driver app) claims = submission only (user, 14 Oct 2026).** The mobile app only lets a user *submit* a claim: no list, details or cancel. Its form is the field table in the **epic MOVE-4021 description**:
+- Date (read-only, today)
+- Claims Amount S$
+- Claim Type: ERP / Carpark / Others + manual input
+- Full Name (searchable)
+- Bus Number (searchable, Westpoint Transit fleet)
+- Route (optional, 120)
+- Remarks (required, 1000)
+- Attachment(s)
+
+The web HR Claims form (MOVE-3799) has different fields. Don't copy it to mobile.

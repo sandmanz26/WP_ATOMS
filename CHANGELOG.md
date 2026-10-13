@@ -14,6 +14,24 @@ minor).
 
 ## [Unreleased]
 
+### Changed — Driver app Claims: submission only, fields from the MOVE-4021 epic table (user correction)
+
+The user clarified that on mobile, claims are **submission only**. The list, details and cancel screens from the first pass were removed from Figma (`Section 1`, `8521:9653`), and the Account quick action is now "Submit Claim".
+
+Re-checking MOVE-4021 showed the epic description carries its own field table, which differs from the web Submit Claim ticket (MOVE-3799). The form now follows it:
+- Date: read-only, today.
+- Claims Amount (S$).
+- Claim Type: ERP / Carpark / Others.
+- Full Name: searchable.
+- Bus Number: searchable.
+- Route: optional, max 120 characters.
+- Remarks: required, max 1000 characters.
+- Attachment(s).
+
+The CTAs (Cancel / Send for Approval) come from MOVE-3799 because the epic table names none. Open items:
+- Should Full Name default to the logged-in driver? The epic says "all active employees".
+- The CTA copy is unconfirmed.
+
 ### Added — Figma (Mobile Apps Design): Claims master screens for the Driver app
 
 At the user's request, Claims was laid out in the Driver app as master screens (no states yet) in `Section 1` (`8521:9653`) of the Mobile Apps Design file:
