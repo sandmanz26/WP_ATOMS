@@ -192,6 +192,27 @@ Use this table when a feature exists on web and needs a mobile screen, e.g. Leav
 
 ---
 
+## 5.1 Built so far
+
+| Feature | Where | Frames | Notes |
+|---|---|---|---|
+| **Claims — master screens** (Driver app; content from web HR Claims, epic MOVE-4021) | Production - Driver → `Section 1` (`8521:9653`) | `8522:12503` Account (Quick Actions → **Manage Claims**), `8522:12557` Manage Claims list, `8522:12689` Claim Details (Pending Approval), `8522:12658` Submit Claim | Built 14 Oct 2026 by cloning the **Leave** flow (`8515:13884`): Manage Leave → list, Apply Leave → form, Detail Application → details. No Employee field and no approve / reject / mark-paid: the driver submits and cancels their own claims. Master screens only (no error, other-status or cancel-confirm states yet). |
+
+Techniques and gotchas from the Claims build:
+- **The Leave flow is the template for any "my requests" feature.**
+  - List = year `Input` + `Leave Card` frames (title, big value, small `Chips/Normal` Neutral_1, "Submitted on …", status chip) + full-width `Button` Primary.
+  - Form = stacked `Input/Input Border Style`; two-up rows for related pairs; `Upload File`; Cancel (Outline Brand) + submit (Primary).
+  - Details = header (type, big id + small chip, status chip), key/value rows (`Frame 1410126870` pattern: 12px label left, value right), a grey "Remark" box, file chips, line, Created On / By, and an Outline Brand action button.
+- **Status chip variants** (`Chips/Normal`, Size Medium, States Active): Pending Approval → `Info` (blue), Pending Payment → `Warning` (salmon/orange), Paid → `Success`, Rejected → `Danger`, Cancelled → `Neutral_1`. The chip has a fixed 83px width, so `resize(124, h)` for "Pending Approval" / "Pending Payment".
+- **Setting `Label#8293:122` on `Input/Input Border Style` resets the label's red `*`.** Re-apply it with `setRangeFills(i, i+1, Danger #e43231)` on the `Email` text node (that's the label layer's name).
+- Field icons are the inner `icon left` / `icon right` instances (`Icon#10392:0` swap). Use a component id already in the file, e.g. `clock` `829:6105` for time and `note` `203:2096`.
+- **`importComponentByKeyAsync` for Integral icons timed out (30s) through the cloud bridge.** Use an icon already present in the file (find its main component with `getMainComponentAsync()` on any instance) instead of importing from the library.
+- The Account page's Quick Actions block is a `Driver - Sidebar Menu` instance. **Detach it** to add a row: clone the `Container` row, set the text, swap the `◈ IconWrapper 2.0` `Icon#89:0`.
+- Instance property edits on these library components are slow. Do **one card or one screen per `figma_execute`**, or the call times out after half-applying.
+- Docs on canvas: `Docs/Big Title` (`2926:9461`), `Docs/Flow Label` (`1929:6773`, `Size=Small`, still ~670–1170px wide, so use a **1300px column pitch** for 390 frames), `Docs/Notes` (`2367:23027`). Arrows are orange, 6px; a branch (list → submit) uses an elbow arrow under the frames.
+
+---
+
 ## 6. Reference: library keys
 
 - Integral: `lk-747b38dd4f601acdfce08aa11be65bc0d49a124418e5059f7b9cce40b3e2e1570654b2d82ba68c6262d7ae6a11f941969d3b530a9fafc345cf73951a3c08c7e7`

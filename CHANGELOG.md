@@ -14,6 +14,16 @@ minor).
 
 ## [Unreleased]
 
+### Added — Figma (Mobile Apps Design): Claims master screens for the Driver app
+
+At the user's request, Claims was laid out in the Driver app as master screens (no states yet) in `Section 1` (`8521:9653`) of the Mobile Apps Design file:
+- Account with a new **Manage Claims** quick action.
+- Manage Claims list, with four claims across the statuses.
+- Claim Details (Pending Approval) with Cancel Claim.
+- Submit Claim: Claim Type, Receipt Date / Time, Amount, Vehicle Licence Plate + Trip (Toll (ERP)), Remarks, Attachments, Send for Approval.
+
+Content mirrors the web HR Claims tickets (MOVE-3798/3799/3801/3731), adapted to self-service: no Employee field, no approve / reject / mark-paid. The screens reuse the app's Leave flow and Integral components (Input/Input Border Style, Upload File, Chips/Normal, Button), and have a Big Title, notes, flow labels and arrows. Techniques and gotchas are in `FIGMA_MOBILE_DESIGN_SYSTEM.md` §5.1.
+
 ### Added — `FIGMA_MOBILE_DESIGN_SYSTEM.md`: mapping for the mobile apps' Integral design system
 
 At the user's request (study only, nothing to build yet), the Mobile Apps Design file and its design system "🔥🛞 Integral" were studied and mapped into a new doc, so mobile work isn't confused with the web (COMPASS/AntD) system. The doc covers:
