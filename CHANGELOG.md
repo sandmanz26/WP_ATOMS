@@ -14,6 +14,17 @@ minor).
 
 ## [Unreleased]
 
+### Added — Figma: Web Tracking Links + driver / passenger pages in Live Tracking 2.0 file (Section 1)
+
+At the user's request ("kerjakan di Figma"), the web tracking work was laid out in Section 1 (`39439:58584`) of the Live Tracking 2.0 – Ops Module file, as 15 frames in five titled rows:
+1. Ops: ⋯ menu → modal → copied toast.
+2. Driver mobile: live, register confirm, registered, location off, expired.
+3. Passenger mobile: live + ETA, driver offline, expired.
+4. Driver desktop: live, location off.
+5. Passenger desktop: live, driver offline.
+
+Every frame has a `Docs/Flow Label` caption, sequential steps have arrows, and the section has a title + how-to-read note. Frames reuse the file's `Map`, Switch, button, modal and toaster components; the rest is hand-built and named as such. The data matches the code demo (trip 146, Wei Liang, JK Attendant 6).
+
 ### Added — Live Tracking 2.0: Web Tracking Links (MOVE-3676) + driver / passenger web tracking pages
 
 At the user's request, built from a forwarded product-team chat (13 Oct 2026), MOVE-3676, and the FMS ticket it references (MOVE-1685).

@@ -430,6 +430,22 @@ so no change was needed there.
 
   Don't re-add the Notes cards here, and keep to their numbering when adding frames.
 
+**4.9 Live Tracking 2.0 – Ops Module file (`XKD77FPEWx0wfQxxCWelfM`): what's there and how the web tracking screens were built (13 Oct 2026).**
+
+- **Local components are few** (`🧩 Component` page): `Tag` (live-tracking statuses only), `Button` (KPI cards), `LiveTrackingFilter`, `Card Trip`, `Map`, `Live Tracking Drawer`, `LiveTracking Listing Page`. Everything else (Side Navbar, `Switch / Basic`, `Tenant Form Buttons`, `Toaster Pop-up Message`, `_Select Menu / Select Menu Item`) is a library instance inside the Production frames. Clone those from a Production frame.
+- **`Map` (`39048:40152`) is a captured Google map, 391×630.**
+  - `Property 1=Default` is the zoomed-out Singapore view with marker clusters. `Zoomed` is street level (Upper Thomson Rd) with one orange bus.
+  - The bus is the inner frame whose id ends `;39048:39923`. Hide it with that override, or clone it out to place the bus elsewhere (e.g. at a registered point).
+  - For a 1440 desktop page the instance was `rescale(2.67)`. That also scales its controls and bus, so hide the inner fullscreen / camera / Google / footer containers and the bus, then clone unscaled controls and the bus from a normal-size instance.
+- **Production's ⋯ menu exists twice.** The `Select Menu` hidden inside `39397:56171` is an older list without "Web Tracking Links". Frame `39156:37134` has it. Set the item `State=Hover` to show the click.
+- **`Toaster Pop-up Message` clones come with their inner `Message` instance hidden.** Set `Message.visible = true`, then let the outer hug (`primaryAxisSizingMode='AUTO'`) and re-centre it. Bring toasts and menus to the front with `appendChild`, or the listing frame paints over them.
+- **Confirm modal on mobile**: clone the Web Tracking Links `Modals` frame (`39397:58658`). Hide or remove `Frame 2609022`'s children, then add the body as `{{copy to master}}` (house rule, §4.8). The footer's `Tenant Form Button Groups` holds Close + Confirm. The content frame has no auto-layout, so set its height by hand.
+- **This file's docs components**:
+  - `Docs/Flow Label` (`Parent Flow#44:0` → `Current Flow#44:4`) is the per-frame caption, e.g. "2.3 → Point registered".
+  - `Docs/Big Title` / `Docs/Notes` are the row headers.
+  - Captions are 570–1230px wide, so 390px mobile frames need a **900px column pitch** or the captions overlap.
+- Arrows reuse the file's own style (red, `ARROW_LINES`), thickened to 6.
+
 <!-- fill in further as discovered:
      - Variant naming convention (e.g. `state=default/hover/disabled`)
      - Any boolean/instance-swap props worth knowing about
