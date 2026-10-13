@@ -14,6 +14,10 @@ minor).
 
 ## [Unreleased]
 
+### Changed — HR Claims details drawer: Remarks back in the 2-column grid (Figma review)
+
+A Figma review comment ("#Req Daniel: 2 column") on the Remarks row asked for it to sit in the 2-column grid instead of spanning full width. The fix covers every frame that shows the details drawer (16 frames: details by status, Approve/Reject, Cancel, Mark as Paid) and the code (`full: true` removed from the Remarks cell). It was checked by screenshot and live in the browser. The Reason for Rejection / Cancellation rows are still full width; that's logged as an open question.
+
 ### Added — Figma state: Receipt Time when Receipt Date = today (MOVE-3799)
 
 At the user's request, a state was added for MOVE-3799's rule "Receipt Time optional; if receipt date = today → only past time". Frame `43069:35877`, caption "2.4" in the Submit Claim row, shows:

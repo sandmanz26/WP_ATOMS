@@ -415,6 +415,13 @@ so no change was needed there.
   - Set the input to `State=Focused`, then re-find its text node: the variant swap replaces it.
   - The cell has only `Default/Hover/Selected` (no Disabled). Show a disabled time with a text fill override `rgba(0,0,0,.25)`, and name the cell `… (disabled — no Disabled variant, text override)`.
   - Built for MOVE-3799's "Receipt Date = today → only past time" rule (frame `43069:35877`, caption "2.4").
+- **Detail drawers keep a strict 2-column grid. Remarks is NOT full width** (Figma review comment "#Req Daniel: 2 column", 13 Oct 2026).
+  - Remarks is a normal left cell (`Content Cell` FIXED 240, first child of its `Group Content Cell`); the right cell stays empty or hidden.
+  - A multi-line value just wraps inside that cell.
+  - Fixed in all 16 HR Claims frames that show the details drawer (3.x, 4.x, 5.1–5.2, 6.x).
+  - In code, drop `full: true` from the Remarks `DetailCell` (`hrclaims/HrClaimDrawers.tsx`).
+  - The Reason for Rejection / Cancellation rows are still full width; the comment didn't cover them (open question to the user).
+  - When reviewing a drawer, find every cell set to `layoutSizingHorizontal='FILL'` across all frames: one fix usually has to land in many frames.
 - **The user's own tidy-up of the section (8 Oct)**:
   - Removed every `Docs/Notes` card and most caption sub-lines, keeping plain step-title text.
   - Re-numbered the Submit row so the validation-error frame comes **last** (filled → submitted → Others → errors).

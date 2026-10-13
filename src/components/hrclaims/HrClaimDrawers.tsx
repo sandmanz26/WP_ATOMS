@@ -75,7 +75,7 @@ const SUB: React.CSSProperties = { fontSize: 12, display: 'block', color: '#8c8c
 
 type DetailCell = { label: string; value: React.ReactNode; sub?: React.ReactNode; full?: boolean }
 
-/** 1 or 2 cells per row; `full` spans both columns (MOVE-3801's Remarks). */
+/** 1 or 2 cells per row; `full` spans both columns (the Reason rows). */
 function DetailRow({ cells, last }: { cells: DetailCell[]; last?: boolean }) {
   return (
     <>
@@ -544,8 +544,9 @@ export function HrClaimDetailsDrawer({
           ],
           [
             {
+              // Figma review ("#Req Daniel: 2 column"): Remarks keeps the 2-column grid —
+              // left cell only, not full width.
               label: 'Remarks',
-              full: true,
               value: lines.length ? <span style={{ whiteSpace: 'pre-line' }}>{lines.join('\n')}</span> : '-',
             },
           ],
