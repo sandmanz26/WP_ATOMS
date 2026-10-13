@@ -27,6 +27,8 @@ ticket rule drives it. Pretty frames with gaps are not done.
    MOVE-4021) and Personal Dashboard Claims (`employeeportal/`, epic
    MOVE-3412) are **different modules**. Never mix them.
 
+4. **Figma comments**: a comment tagged `#Req <name>` annotates the requirement for that person; it is not a bug report. Before changing anything because of a comment, read the ticket line it points at. If the wording is ambiguous, ask the user before touching many frames. Example: "2 column layout" means the field *spans* both columns of the drawer's 2-column grid. See `FIGMA_DESIGN_SYSTEM.md` §4.8.
+
 ## 1. Tooling
 
 - Use the **Figma Desktop Bridge** (`mcp__Figma_Southleft__*`) for all

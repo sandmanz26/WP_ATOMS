@@ -415,13 +415,14 @@ so no change was needed there.
   - Set the input to `State=Focused`, then re-find its text node: the variant swap replaces it.
   - The cell has only `Default/Hover/Selected` (no Disabled). Show a disabled time with a text fill override `rgba(0,0,0,.25)`, and name the cell `… (disabled — no Disabled variant, text override)`.
   - Built for MOVE-3799's "Receipt Date = today → only past time" rule (frame `43069:35877`, caption "2.4").
-- **Detail drawers keep a strict 2-column grid. Remarks is NOT full width** (Figma review comment "#Req Daniel: 2 column", 13 Oct 2026).
-  - Remarks is a normal left cell (`Content Cell` FIXED 240, first child of its `Group Content Cell`); the right cell stays empty or hidden.
-  - A multi-line value just wraps inside that cell.
-  - Fixed in all 16 HR Claims frames that show the details drawer (3.x, 4.x, 5.1–5.2, 6.x).
-  - In code, drop `full: true` from the Remarks `DetailCell` (`hrclaims/HrClaimDrawers.tsx`).
-  - The Reason for Rejection / Cancellation rows are still full width; the comment didn't cover them (open question to the user).
-  - When reviewing a drawer, find every cell set to `layoutSizingHorizontal='FILL'` across all frames: one fix usually has to land in many frames.
+- **Drawer grid rule (taught by the user, 13 Oct 2026). A details drawer is a 2-column grid by default. A field a ticket marks "2 column layout" spans BOTH columns (full width).** "2 column" describes the field's *width*, not "put it in the grid like the others".
+  - MOVE-3801's Remarks row says "2 column layout for remarks field", so Remarks is full width: `Content Cell` `layoutSizingHorizontal='FILL'`, with the row's second cell hidden. In code it's `full: true`.
+  - **Multi-part values stay on one line, joined with " | "**: "Detour for road closure | Vehicle Licence Plate: SBS5678B | Trip: WP 3 (3:00 PM)". Not a line per part. The user fixed this by hand in `43006:22763`; it was then applied to the other 15 drawer frames and to the code (`lines.join(' | ')`).
+  - The listing's Remarks column was not part of this fix and keeps its own rendering.
+  - The Reason for Rejection / Cancellation rows are also full width, but no ticket says so. That was a judgment call, kept for now.
+- **Mistake to not repeat (13 Oct 2026)**: a Figma comment "#Req Daniel — 2 column" was misread as a bug report. All 16 frames and the code were changed to *half* width, then reverted.
+  - **A `#Req` comment annotates the requirement for the named person. It is not a change request.**
+  - Before acting on any Figma comment, read the matching ticket line. If the ticket wording is ambiguous ("2 column"), ask the user instead of picking a reading and rebuilding many frames.
 - **The user's own tidy-up of the section (8 Oct)**:
   - Removed every `Docs/Notes` card and most caption sub-lines, keeping plain step-title text.
   - Re-numbered the Submit row so the validation-error frame comes **last** (filled → submitted → Others → errors).

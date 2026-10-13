@@ -14,6 +14,12 @@ minor).
 
 ## [Unreleased]
 
+### Fixed — Revert: HR Claims Remarks is full width again, as one " | "-joined line (user correction)
+
+The previous entry was a misreading and is reverted here. MOVE-3801's "2 column layout for remarks field" means Remarks **spans both columns** of the drawer's 2-column grid. The user explained this, and the Figma comment "#Req Daniel — 2 column" was annotating that requirement, not asking for a change.
+
+The user's own Figma fix also shows the value on **one line, parts joined by " | "** (remarks | Vehicle Licence Plate | Trip). Applied to all 16 drawer frames and to the code (`full: true`, `lines.join(' | ')`), and checked live. The lesson ("#Req" comments annotate requirements; read the ticket line before acting; ask when the wording is ambiguous) is recorded in `FIGMA_DESIGN_SYSTEM.md` §4.8 and in the `code-to-figma` skill.
+
 ### Changed — HR Claims details drawer: Remarks back in the 2-column grid (Figma review)
 
 A Figma review comment ("#Req Daniel: 2 column") on the Remarks row asked for it to sit in the 2-column grid instead of spanning full width. The fix covers every frame that shows the details drawer (16 frames: details by status, Approve/Reject, Cancel, Mark as Paid) and the code (`full: true` removed from the Remarks cell). It was checked by screenshot and live in the browser. The Reason for Rejection / Cancellation rows are still full width; that's logged as an open question.
