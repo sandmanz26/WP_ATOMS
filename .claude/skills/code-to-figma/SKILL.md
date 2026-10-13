@@ -24,7 +24,8 @@ ticket rule drives it. Pretty frames with gaps are not done.
    Figma push that misses a ticket edit is wrong even if it looks fine.
 2. Read `FIGMA_COMPONENT_INDEX.md` (what was already pushed, node IDs) and
    `FIGMA_DESIGN_SYSTEM.md` §4 (file conventions and every gotcha learned).
-3. Check which module it is. HR Claims (`src/components/hrclaims/`, epic
+3. **Web or mobile?** Mobile app screens (Driver / Passenger) use the Integral DS and `FIGMA_MOBILE_DESIGN_SYSTEM.md`, not the web docs. Mobile means 390-wide frames, Roboto, `#17334f`, a bottom tab bar, and no drawers or tables.
+4. Check which module it is. HR Claims (`src/components/hrclaims/`, epic
    MOVE-4021) and Personal Dashboard Claims (`employeeportal/`, epic
    MOVE-3412) are **different modules**. Never mix them.
 

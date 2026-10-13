@@ -14,6 +14,19 @@ minor).
 
 ## [Unreleased]
 
+### Added — `FIGMA_MOBILE_DESIGN_SYSTEM.md`: mapping for the mobile apps' Integral design system
+
+At the user's request (study only, nothing to build yet), the Mobile Apps Design file and its design system "🔥🛞 Integral" were studied and mapped into a new doc, so mobile work isn't confused with the web (COMPASS/AntD) system. The doc covers:
+- **The files**: the Driver section's flows and node ids, and where the Passenger frames live.
+- **Screen anatomy**: status bar, top bar, bottom tab bar, hero cards, map, forms, lists.
+- **Tokens with real values**:
+  - Colour: Dark Blue `#17334f` primary, Neutral ramp, Danger `#e43231`.
+  - Typography: Roboto text styles `displaySmall` … `labelSmall`.
+  - Spacing, radius and shadow variables.
+- **Components**: Integral components with props and variants (Button, Input/Input Border Style, Upload File, Chips/Normal, Icon Wrapper, Modal, Toast …), the local components, and a web → mobile equivalence table.
+
+`CLAUDE.md`, the `code-to-figma` skill and `FIGMA_DESIGN_SYSTEM.md` §1 now point to it.
+
 ### Added — Figma: Web Tracking Links + driver / passenger pages in Live Tracking 2.0 file (Section 1)
 
 At the user's request ("kerjakan di Figma"), the web tracking work was laid out in Section 1 (`39439:58584`) of the Live Tracking 2.0 – Ops Module file, as 15 frames in five titled rows:

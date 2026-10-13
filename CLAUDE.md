@@ -18,6 +18,8 @@ goes (which MCP server to prefer, which branch to push to, and so on). The
 point is that the next session starts smarter than this one did, not that
 it re-learns the same thing from scratch.
 
+**Mobile apps are a different design system.** For the Driver / Passenger apps (file `IICHGFDHLhKCvE5vMzFokS`, DS "🔥🛞 Integral" `sTpe9MCcI0HQJMmzJnXKRl`), read `FIGMA_MOBILE_DESIGN_SYSTEM.md`, not the web docs. Mobile uses Roboto, primary `#17334f`, 390-wide frames, a bottom tab bar and Integral components; never COMPASS/AntD.
+
 Direction matters for which doc to read: building a screen *from* Figma
 reads `FIGMA_DESIGN_SYSTEM.md`. Pushing this app's UI *into* Figma ("vibe
 code to Figma") reads `FIGMA_COMPONENT_INDEX.md` instead — it's the user's
