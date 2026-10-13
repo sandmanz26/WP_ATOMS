@@ -53,6 +53,12 @@ reports the bridge disconnected, re-pair with `figma_pair_plugin` (6-character
 code, 5-minute expiry, entered into the plugin's Cloud Mode toggle) rather
 than falling back to the official MCP.
 
+**Figma work needs a live bridge first — ask for pairing, don't fall back to code (user, 13 Oct 2026).** When the user asks for work *in Figma* (a Figma link, "kerjakan di figma", a Figma section to fill), the deliverable is the Figma frames, not code. Before anything else:
+1. Run `figma_diagnose`.
+2. If the bridge isn't connected to *that* file, immediately call `figma_pair_plugin`, give the user the code, and ask them to open that file and connect. Then wait.
+
+Don't build the feature in code instead and offer Figma "next". The web-tracking-links request went that way (built in code, Figma left for later) and the user corrected it. Reading the file with the official Figma MCP while waiting is fine; building a substitute deliverable is not. Code work for the same feature happens only if the user also asked for it.
+
 ## Changelog
 
 `CHANGELOG.md` must stay current. Every change that ships gets an entry **in the

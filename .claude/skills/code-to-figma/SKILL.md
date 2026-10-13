@@ -14,6 +14,7 @@ ticket rule drives it. Pretty frames with gaps are not done.
 
 ## 0. Before touching Figma
 
+0. **Bridge first.** Run `figma_diagnose`. If it isn't connected to the target file, call `figma_pair_plugin` right away, give the user the code, and ask them to open the target file and connect. Don't substitute a code build for a Figma request while waiting (user correction, 13 Oct 2026; see `CLAUDE.md`).
 1. **Re-read the tickets, including edits since the last build.** Fetch the
    epic's children (`parent = <EPIC>`). For any ticket updated since the
    last build, fetch it with `expand: changelog` and run
