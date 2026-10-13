@@ -14,6 +14,30 @@ minor).
 
 ## [Unreleased]
 
+### Added — Live Tracking 2.0: Web Tracking Links (MOVE-3676) + driver / passenger web tracking pages
+
+At the user's request, built from a forwarded product-team chat (13 Oct 2026), MOVE-3676, and the FMS ticket it references (MOVE-1685).
+
+- **Modal**: trip card "⋯" → **Web Tracking Links** (both menu variants in `LiveTrackingTesting2Page.tsx`). Shows "For Drivers" / "For Passengers", each a link + primary Copy (toast), and a Close button. Layout follows Figma `39397:56171`.
+- **Links** are deterministic per trip, so generating twice gives the same URLs (MOVE-1685 biz req 1.3). They open `#/web-tracking/<driver|passenger>/<token>`. `App.tsx` routes that hash to a standalone page with no sidebar.
+- **Driver page**:
+  - Map + traffic toggle, the driver's (simulated) location, Schedule Details, Route List, and Route Points with **Register** on the next point. Registering asks for confirmation, then shows a toast.
+  - Asks for browser location: denied → "Not sharing location" banner, bus hidden, Register disabled.
+  - Requests a screen wake lock (MOVE-1685 biz req 3.2.1).
+- **Passenger page**: the same, plus an **ETA** card (next point, minutes + clock time), **passenger location** (blue dot + "my location" button), and a call-driver button. Registration is read-only ("Registered at …"). Driver offline → bus hidden and ETA unavailable (MOVE-1685 AC).
+- **Both pages**:
+  - Expired → "Trip has ended, tracking unavailable" (MOVE-1685 biz req 4).
+  - Phone-first: map + bottom sheet under 768px, map + side panel on desktop.
+  - Google Maps when a key is set, otherwise Leaflet/OSM.
+  - A prototype-only **Demo** switch reaches every state without a backend.
+- Checked live in Playwright at 1440 and 390 widths in every state.
+
+**Assumptions / open items**:
+- "Routelist" is read as the schedule's routes (two in the demo, selectable, with In Progress / Upcoming).
+- Passenger "Registration" is read as seeing which points the driver has registered.
+- The toast copy is a placeholder until the copy master list key ("successfully copy tracking link to clipboard") is available.
+- The ticket says "[ticket TBC]" for page content, so the product-team chat was used.
+
 ### Fixed — Revert: HR Claims Remarks is full width again, as one " | "-joined line (user correction)
 
 The previous entry was a misreading and is reverted here. MOVE-3801's "2 column layout for remarks field" means Remarks **spans both columns** of the drawer's 2-column grid. The user explained this, and the Figma comment "#Req Daniel — 2 column" was annotating that requirement, not asking for a change.

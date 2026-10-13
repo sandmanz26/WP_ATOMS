@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import AppLayout from '@/components/layout/AppLayout'
 import CustomerContractsPage from '@/components/contracts/CustomerContractsPage'
 import ContractDetailPage from '@/components/contracts/ContractDetailPage'
@@ -10,6 +10,8 @@ import LiveTrackingLegacyPage from '@/components/livetracking/LiveTrackingLegacy
 import LiveTrackingTestingPage from '@/components/livetracking/LiveTrackingTestingPage'
 import LiveTrackingTesting2Page from '@/components/livetracking/LiveTrackingTesting2Page'
 import Tracking2Page from '@/components/livetracking/Tracking2Page'
+import WebTrackingPage from '@/components/livetracking/WebTrackingPage'
+import { parseWebTrackingHash } from '@/components/livetracking/webTrackingData'
 import TestingPage from '@/components/testing/TestingPage'
 import InvoicePage from '@/components/invoice/InvoicePage'
 import InvoiceDetailPage from '@/components/invoice/InvoiceDetailPage'
@@ -68,6 +70,17 @@ export default function App() {
   // button is rendered by AppLayout at the App level, so the page reports
   // its mode up via this callback.
   const [notifSelectModeActive, setNotifSelectModeActive] = useState(false)
+
+  // MOVE-3676 — a web tracking link (`#/web-tracking/<driver|passenger>/<token>`)
+  // opens a standalone page with no app chrome: drivers and passengers aren't users.
+  const [hash, setHash] = useState(() => window.location.hash)
+  useEffect(() => {
+    const on = () => setHash(window.location.hash)
+    window.addEventListener('hashchange', on)
+    return () => window.removeEventListener('hashchange', on)
+  }, [])
+  const webTracking = parseWebTrackingHash(hash)
+  if (webTracking) return <WebTrackingPage key={hash} audience={webTracking.audience} tripId={webTracking.tripId} />
 
   if (page.type === 'detail') return <ContractDetailPage contractId={page.contractId} onNavigate={navigate} onBack={goBack} />
   if (page.type === 'edit-basic') return <EditBasicInformationPage contractId={page.contractId} onBack={goBack} />

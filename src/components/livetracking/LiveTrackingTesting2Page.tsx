@@ -35,6 +35,7 @@ import {
   TeamOutlined,
   SortAscendingOutlined,
   SortDescendingOutlined,
+  LinkOutlined,
 } from '@ant-design/icons'
 import {
   type VehicleStop,
@@ -55,6 +56,7 @@ import {
   formatTimeAmPm,
 } from './trackingData'
 import { type DummyStop, DUMMY_STOPS } from './dummyLiveData'
+import WebTrackingLinksModal from './WebTrackingLinksModal'
 
 const { Text } = Typography
 
@@ -951,6 +953,7 @@ interface ClaimBundle {
   onNotify: () => void
   onViewGps: () => void
   onViewSchedule: () => void
+  onWebTrackingLinks: () => void // MOVE-3676
   onSendAnnouncement: () => void
   onCreateIncident: () => void
 }
@@ -964,7 +967,7 @@ function ClaimControl({ accent, claim, compact, hideDropdown }: { accent: string
   const {
     claimedBy, actionComplete, overdue, notified, buttonStyle, urgent, colorMode, buttonWidth, flashingStyle,
     onClaim, onRelease, onTakeOver, onMarkComplete,
-    onNotify, onViewGps, onViewSchedule, onSendAnnouncement, onCreateIncident,
+    onNotify, onViewGps, onViewSchedule, onWebTrackingLinks, onSendAnnouncement, onCreateIncident,
   } = claim
   const isMine = claimedBy === CURRENT_USER
   const settled = actionComplete || !!claimedBy
@@ -981,6 +984,7 @@ function ClaimControl({ accent, claim, compact, hideDropdown }: { accent: string
   const items = [
     { key: 'gps', label: 'View trip GPS report', icon: <AimOutlined />, onClick: onViewGps },
     { key: 'schedule', label: 'View daily schedule details', icon: <FileTextOutlined />, onClick: onViewSchedule },
+    { key: 'web-links', label: 'Web tracking links', icon: <LinkOutlined />, onClick: onWebTrackingLinks },
     { key: 'notify', label: notified ? 'Notified' : 'Send notification to driver', icon: <BellOutlined />, disabled: notified, onClick: onNotify },
     { key: 'announce', label: 'Send announcement to passengers', icon: <SoundOutlined />, onClick: onSendAnnouncement },
     { key: 'incident', label: 'Create incident', icon: <AlertOutlined />, onClick: onCreateIncident },
@@ -2612,6 +2616,7 @@ function buildTripMoreMenu(claim: ClaimBundle | undefined, onOpenDrawer: () => v
       children: [
         { key: 'gps',      label: 'Trip GPS Report',                  onClick: () => claim?.onViewGps() },
         { key: 'schedule', label: 'Daily Schedule',                   onClick: () => claim?.onViewSchedule() },
+        { key: 'web-links',label: 'Web Tracking Links',               onClick: () => claim?.onWebTrackingLinks() },
         { key: 'contact',  label: 'Contact Information',              onClick: () => onOpenDrawer() },
         { key: 'next-trip',label: "Driver's Next Trip",               onClick: () => onOpenDrawer() },
         { key: 'maps',     label: "Driver's Location in Google Maps", disabled: true },
@@ -3865,6 +3870,7 @@ export default function LiveTrackingTesting2Page() {
   const [simulating, setSimulating] = useState(false)
   const [progress, setProgress] = useState(0)
   const [messageApi, msgContext] = message.useMessage()
+  const [webLinksTripId, setWebLinksTripId] = useState<string | null>(null) // MOVE-3676
 
   // Floating, draggable Display settings panel — visible by default, same
   // behaviour as the Test Console on the main Live Tracking page
@@ -4173,6 +4179,7 @@ export default function LiveTrackingTesting2Page() {
       onNotify: () => notifyDriver(stop.id),
       onViewGps: viewGpsReport,
       onViewSchedule: viewScheduleDetails,
+      onWebTrackingLinks: () => setWebLinksTripId(stop.id),
       onSendAnnouncement: sendAnnouncement,
       onCreateIncident: createIncident,
     }
@@ -4457,6 +4464,7 @@ export default function LiveTrackingTesting2Page() {
   return (
     <div style={{ padding: '20px' }}>
       {msgContext}
+      <WebTrackingLinksModal tripId={webLinksTripId} onClose={() => setWebLinksTripId(null)} />
       <div
         style={{
           background: '#fff',
