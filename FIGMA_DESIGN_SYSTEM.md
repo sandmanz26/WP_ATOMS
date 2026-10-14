@@ -469,6 +469,11 @@ so no change was needed there.
   - **Re-fit the columns.** Reset all column widths so they sum to the table width, 1155. The old columns already overflowed by 56px and clipped "Last Updated On". HR Claims widths now: `125 / 150 / 175 / 160 / 140 / 95 / 145 / 165`.
   - **Sweep.** Afterwards, check that no `Header Row` still has the column. Also sweep notes and captions for the word.
 - **Listing data must match the code's sort** ("#Data Daniel — Missing Cancelled - grey"). Page 1 is the 10 newest by Last Updated On, so it must contain CL20260003 (Cancelled, 20 May 2026) and not CL20260002 (Paid, 31 Mar). Grey = `Tag / Status` `Status=Default` with text "Cancelled".
+- **Empty state = the `Empty / Image` component, always** (user, 15 Oct 2026: "gunakan ini untuk empty state ya tolong di ingat selalu").
+  - Component: variant `Image=1`, main `43115:433553`, key `a03cfe16d7afb97975743504256e318ba445c2d5`; the example instance is `43115:433570` in the Claim (HR Module) file.
+  - Lay it out as a vertical stack centred in the table body: `Empty / Image` (67×43) above a grey 14px message ("No data", or the ticket's own empty-state copy).
+  - Never hand-draw the tray icon. In another file, find the component with `search_design_system` / `importComponentByKeyAsync(key)`, or copy the instance across.
+  - Code equivalent: AntD `<Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="…" />`, which is the same tray graphic.
 - **Highlight cards = the file's `Highlights Card` frame (`43114:431210`), 277×78** (user, 15 Oct 2026). It contains:
   - a `Title` instance (`Level=2`, `Text#1233:64` = the count, 30px);
   - a 12px SF Pro Semibold grey label;

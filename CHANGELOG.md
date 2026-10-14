@@ -14,6 +14,15 @@ minor).
 
 ## [Unreleased]
 
+### Docs — Empty state standard: `Empty / Image` component (user rule, 15 Oct 2026)
+
+The user named `Empty / Image` (`43115:433570` → main `43115:433553`) as the empty state to always use. It is recorded in:
+- `FIGMA_DESIGN_SYSTEM.md` §4.10;
+- `FIGMA_COMPONENT_INDEX.md` (new row);
+- the `code-to-figma` coverage checklist.
+
+The Claim (HR Module) file's only empty state (empty search, `43023:241260`) already uses it. Its misleading "hand-built, no Empty component found" name was corrected.
+
 ### Changed — HR Claims highlight cards resized to the file's Highlights Card (user, 15 Oct 2026)
 
 The user pointed at `Highlights Card` (`43114:431210`, 277×78) as the right size.

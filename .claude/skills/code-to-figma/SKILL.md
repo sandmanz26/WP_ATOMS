@@ -80,7 +80,7 @@ For each screen and flow in the module, include:
 - [ ] Default state with realistic data (enough rows/fields to read as real).
 - [ ] Every filter/search UI open at least once (popover, dropdown).
 - [ ] Quick filters / highlights in their active state.
-- [ ] **Empty state** (no data, or no search result).
+- [ ] **Empty state** (no data, or no search result), built from the `Empty / Image` component (key `a03cfe16d7afb97975743504256e318ba445c2d5`) + message. Never hand-drawn (user rule, `FIGMA_DESIGN_SYSTEM.md` §4.10).
 - [ ] Each **status** of a record's detail view. Actions menu open where
       actions differ by status. Disabled actions show their tooltip.
 - [ ] Each **conditional field** variant (e.g. a type that reveals extra
