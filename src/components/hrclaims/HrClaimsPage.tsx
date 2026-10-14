@@ -300,7 +300,8 @@ export default function HrClaimsPage() {
 
   return (
     <div style={{ padding: 24 }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16, marginBottom: 16, maxWidth: 720 }}>
+      {/* Highlights Card size from the Figma file (43114:431210): 277×78, number 30px, label 12px semibold grey. */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 277px)', gap: 16, marginBottom: 16 }}>
         {HIGHLIGHTS.map((h) => {
           const active = activeHighlight === h.status
           return (
@@ -312,14 +313,16 @@ export default function HrClaimsPage() {
                 background: '#fff',
                 borderRadius: 8,
                 border: `1px solid ${active ? '#1677ff' : '#f0f0f0'}`,
-                padding: '20px 24px',
+                padding: '8px 16px',
+                height: 78,
+                boxSizing: 'border-box',
                 cursor: 'pointer',
               }}
             >
-              <Text style={{ fontSize: 32, fontWeight: 700, color: '#1a1a1a', display: 'block', lineHeight: 1 }}>
+              <Text style={{ fontSize: 30, fontWeight: 600, color: '#1a1a1a', display: 'block', lineHeight: '38px' }}>
                 {counts[h.status]}
               </Text>
-              <Text style={{ fontSize: 13, color: active ? '#1677ff' : '#8c8c8c', marginTop: 6, display: 'block' }}>
+              <Text style={{ fontSize: 12, fontWeight: 600, color: active ? '#1677ff' : '#8c8c8c', lineHeight: '20px', display: 'block' }}>
                 {h.label}
               </Text>
             </div>

@@ -14,6 +14,14 @@ minor).
 
 ## [Unreleased]
 
+### Changed — HR Claims highlight cards resized to the file's Highlights Card (user, 15 Oct 2026)
+
+The user pointed at `Highlights Card` (`43114:431210`, 277×78) as the right size.
+
+- **Figma (Claim (HR Module), Production):** every `Claims Highlights` frame, 27 in total, now uses clones of it instead of the hand-built 352×103 cards. The Pending Approval highlight-active frame keeps its blue stroke/label.
+  - Restore point: "Before highlight resize to Highlights Card 277x78 (Claude, 15 Oct 2026)".
+- **Code:** `HrClaimsPage.tsx`'s highlight cards are now 277×78 (number 30px semibold, label 12px semibold). Checked in Chromium.
+
 ### Changed — Personal Dashboard: applied the 12–13 Oct 2026 ticket rewrite (MOVE-3412 epic)
 
 At the user's request ("cek dari 3 hari lalu, update vibe coding personal dashboard"), every Personal Dashboard ticket edited since 11 Oct was diffed with `tools/jira-desc-diff.py`. Rank / sprint-only and summary-only edits were skipped. Real description edits, and what changed in code:

@@ -469,6 +469,12 @@ so no change was needed there.
   - **Re-fit the columns.** Reset all column widths so they sum to the table width, 1155. The old columns already overflowed by 56px and clipped "Last Updated On". HR Claims widths now: `125 / 150 / 175 / 160 / 140 / 95 / 145 / 165`.
   - **Sweep.** Afterwards, check that no `Header Row` still has the column. Also sweep notes and captions for the word.
 - **Listing data must match the code's sort** ("#Data Daniel — Missing Cancelled - grey"). Page 1 is the 10 newest by Last Updated On, so it must contain CL20260003 (Cancelled, 20 May 2026) and not CL20260002 (Paid, 31 Mar). Grey = `Tag / Status` `Status=Default` with text "Cancelled".
+- **Highlight cards = the file's `Highlights Card` frame (`43114:431210`), 277×78** (user, 15 Oct 2026). It contains:
+  - a `Title` instance (`Level=2`, `Text#1233:64` = the count, 30px);
+  - a 12px SF Pro Semibold grey label;
+  - 8px padding, radius 8, stroke `#f0f0f0`.
+
+  The earlier hand-built 352×103 cards were replaced with clones of it in all 27 `Claims Highlights` frames. The active state is a blue stroke + blue label. Code matches in `HrClaimsPage.tsx`.
 - **The bridge's `figma_get_comments` uses the REST token, and it returned 401.** When comment text can't be read and the screenshot only shows pins, ask the user for the comment text rather than guessing.
 
 ## 5. States & interaction patterns
