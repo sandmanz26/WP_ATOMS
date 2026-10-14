@@ -58,7 +58,8 @@ const HIGHLIGHTS: { label: string; status: HrClaimStatus }[] = [
 /**
  * MOVE-3798 biz req 2 — alphabetical on Claim No., Claim Type, Employee,
  * Department, Status; chronological on Submission Date and Last Updated On.
- * Remarks and Amount are in neither list, so they don't sort. Applied to the
+ * Amount is in neither list, so it doesn't sort. (Remarks left the listing in
+ * the 14 Oct 2026 edit, but search still covers it — biz req 3.) Applied to the
  * whole filtered list before paging — AntD's own client-side sort would only
  * reorder the rows already on the current page.
  */
@@ -189,19 +190,6 @@ export default function HrClaimsPage() {
       width: 140,
       ...sortable('department'),
       render: (_, c) => cell(employeeDepartment(c.employeeId)),
-    },
-    {
-      title: 'Remarks',
-      key: 'remarks',
-      width: 260,
-      render: (_, c) => {
-        const lines = remarksLines(c)
-        return lines.length ? (
-          <Text style={{ fontSize: 13, whiteSpace: 'pre-line' }}>{lines.join('\n')}</Text>
-        ) : (
-          <Text style={{ fontSize: 13, color: '#bfbfbf' }}>-</Text>
-        )
-      },
     },
     {
       title: 'Amount',
@@ -386,7 +374,7 @@ export default function HrClaimsPage() {
         dataSource={paged}
         rowKey="id"
         pagination={false}
-        scroll={{ x: 1360 }}
+        scroll={{ x: 1100 }}
         onChange={(_, __, sorter) => {
           const s = Array.isArray(sorter) ? sorter[0] : sorter
           setSort(s?.order ? { key: s.columnKey as SortKey, order: s.order } : null)

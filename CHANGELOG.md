@@ -14,6 +14,20 @@ minor).
 
 ## [Unreleased]
 
+### Changed — HR Claims listing: Remarks column removed (MOVE-3798 edit, 14 Oct 2026) + Cancelled row on page 1 (Figma review)
+
+- **Code.** MOVE-3798's 14 Oct edit dropped the Remarks column from the listing table, so `HrClaimsPage.tsx` drops it too.
+  - Search still covers remarks, because biz req 3 is unchanged.
+  - The table's scroll width went from 1360 to 1100.
+  - Checked live in the browser: 8 columns, and CL20260003 Cancelled shows on page 1.
+- **Figma (Claim (HR Module) file, Production page).** Two review comments by Daniel are applied:
+  - "#CR — remove the 'remarks' column": the column was removed from all 26 frames that carry the listing table (the listing itself and the listing behind every drawer and modal). Column widths were reset to fill the table's 1155px; before, they overflowed by 56px and clipped "Last Updated On".
+  - "#Data — Missing Cancelled - grey": page 1 wrongly showed CL20260002 (Paid, 31 Mar) as its 10th row. Sorting by Last Updated On, it should be CL20260003 (Toll (ERP), Joko Prasetyo, $1.80, grey Cancelled tag, 20 May 2026). That row is fixed in every frame; in the filtered/empty frames it stays hidden.
+  - A named restore point was saved first: "Before CR: remove Remarks column + add Cancelled row (Claude, 15 Oct 2026)", version `2410038709683049161`.
+
+Open item:
+- The comments on the Claim Details frames (3.1–3.3) couldn't be read. The bridge's comment API returned 401, so the user was asked for their text.
+
 ### Changed — Driver app Claims: Manage Claims modelled on Manage Leave (user, 14 Oct 2026)
 
 This supersedes the "submission only" rule below. Jira's mobile epic **MOVE-4113** (Driver - Accounts Tab) gained four claims stories on 13 Oct 2026: MOVE-4431 Manage Claims, MOVE-4432 View Claims Application, MOVE-4433 Submit Claims and MOVE-4434 Cancel Claims. They mirror Leave one-to-one (MOVE-2481 / 4073 / 4074 / 4075). MOVE-2280 (Accounts Tab) already names the entry row "Manage Claims". When asked, the user chose to follow that structure, so the screens were built in the Mobile Apps Design file, `Section 2` (`8524:13453`):

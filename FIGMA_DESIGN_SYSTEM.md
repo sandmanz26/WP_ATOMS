@@ -454,6 +454,23 @@ so no change was needed there.
 
 ---
 
+**4.10 Restore point before bulk edits + table column removal (Claim (HR Module) file, 15 Oct 2026).** The user asked for a way to undo if a change goes wrong ("pastikan kamu punya semacam memori atau menyimpan… kalau salah kita bisa undo").
+
+- **Before any edit that touches more than a couple of frames,** save a named version from the bridge:
+
+  ```js
+  await figma.saveVersionHistoryAsync(title, description)
+  ```
+
+  It returns a version id. Report the title and id to the user. To undo, they open File → Show version history and restore that entry. Cheaper and safer than cloning a whole section to a backup page; that clone timed out on big pages.
+- **Removing a listing column ("#CR Daniel — remove the 'remarks' column", MOVE-3798 edit 14 Oct 2026).**
+  - **Find every frame first.** The listing table (`Table` → `Header Row` + `Row n`, cells are `Table / Table cell` instances) is repeated behind every drawer and modal. Search the page for `Header Row` frames, not just the listing frames: 26 frames carried it.
+  - **Remove the column.** Remove the header's index from every row that has the same cell count. Hidden rows count too, since the highlight and empty-search frames hide rows rather than delete them.
+  - **Re-fit the columns.** Reset all column widths so they sum to the table width, 1155. The old columns already overflowed by 56px and clipped "Last Updated On". HR Claims widths now: `125 / 150 / 175 / 160 / 140 / 95 / 145 / 165`.
+  - **Sweep.** Afterwards, check that no `Header Row` still has the column. Also sweep notes and captions for the word.
+- **Listing data must match the code's sort** ("#Data Daniel — Missing Cancelled - grey"). Page 1 is the 10 newest by Last Updated On, so it must contain CL20260003 (Cancelled, 20 May 2026) and not CL20260002 (Paid, 31 Mar). Grey = `Tag / Status` `Status=Default` with text "Cancelled".
+- **The bridge's `figma_get_comments` uses the REST token, and it returned 401.** When comment text can't be read and the screenshot only shows pins, ask the user for the comment text rather than guessing.
+
 ## 5. States & interaction patterns
 
 <!-- fill in the standard treatment for these, so every new drawer/table/form
