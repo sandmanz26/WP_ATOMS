@@ -196,19 +196,30 @@ Use this table when a feature exists on web and needs a mobile screen, e.g. Leav
 
 | Feature | Where | Frames | Notes |
 |---|---|---|---|
-| **Claims — submission only** (Driver app; epic MOVE-4021) | Production - Driver → `Section 1` (`8521:9653`) | `8522:12503` Account (Quick Actions → **Submit Claim**), `8522:12658` Submit Claim | **User rule (14 Oct 2026): on mobile, claims are submission only.** No claims list, no details, no cancel; those live on the web HR Claims module. The form follows the **field table in the epic MOVE-4021 description** (not MOVE-3799, which is the web HR form): Date (read-only, today), Claims Amount* (S$), Claim Type* (ERP / Carpark / Others → manual input), Full Name* (searchable, active employees), Bus Number* (searchable, Westpoint Transit fleet), Route (optional, max 120), Remarks* (max 1000), Attachment(s)* (multiple, png / jpg / jpeg / pdf). CTAs Cancel / Send for Approval (taken from MOVE-3799, since the epic table names none). Master screens only. A first version that copied the web list / details / cancel was removed. |
+| **Claims — Manage Claims** (Driver app; epic MOVE-4113 stories MOVE-4431/4432/4433/4434, form per MOVE-4021) | Production - Driver → `Section 2` (`8524:13453`) | `8524:13458` Account (Quick Actions → **Manage Claims**), `8524:13615` Manage Claims list, `8524:13570` Submit Claim form, details `8524:14017` Pending Approval / `8524:14069` Pending Payment / `8524:14125` Paid / `8524:14181` Rejected / `8524:14240` Cancelled, `8524:15021` Cancel Claim sheet | **Current version (user, 14 Oct 2026), modelled on Manage Leave.** List = year dropdown + claim cards (type, amount, claim no. chip, "Submitted on …", status chip) + "Submit New Claim". Details = Leave's detail page + claim rows (Date, Full Name, Bus Number, Route), Remarks, Attachment(s), audit rows per status. Cancel only while Pending Approval, reason required (web MOVE-3731). Docs: `Docs/Big Title` `8524:13454`, notes `8524:15113` / `8524:15120`, flow labels per row, captions 2.x / 3.1, orange arrows. |
+| **Claims — submission only** (superseded) | Production - Driver → `Section 1` (`8521:9653`) | `8522:12503` Account (Quick Actions → Submit Claim), `8522:12658` Submit Claim | Earlier version, from when the user said mobile is submission only. Superseded by Section 2 after the MOVE-4113 claims stories appeared; kept untouched. |
 
 Techniques and gotchas from the Claims build:
-- **Before building a mobile version of a web feature, confirm what the app actually needs.** Claims on mobile is submission only. The epic description's own field table was the mobile spec, and it differs from the web child tickets.
+- **Before building a mobile version of a web feature, confirm what the app actually needs: check the mobile epic's children** (`parent = MOVE-4113` for the Driver Accounts tab). Claims went "submission only" → "Manage Claims like Manage Leave" once MOVE-4431–4434 appeared. The MOVE-4021 epic description's own field table is still the form spec, and it differs from the web child tickets.
 - **The Leave flow is the template for any "my requests" feature.**
   - List = year `Input` + `Leave Card` frames (title, big value, small `Chips/Normal` Neutral_1, "Submitted on …", status chip) + full-width `Button` Primary.
   - Form = stacked `Input/Input Border Style`; two-up rows for related pairs; `Upload File`; Cancel (Outline Brand) + submit (Primary).
   - Details = header (type, big id + small chip, status chip), key/value rows (`Frame 1410126870` pattern: 12px label left, value right), a grey "Remark" box, file chips, line, Created On / By, and an Outline Brand action button.
-- (Kept for reference, not used by the submission-only flow.) **Status chip variants** (`Chips/Normal`, Size Medium, States Active): Pending Approval → `Info` (blue), Pending Payment → `Warning` (salmon/orange), Paid → `Success`, Rejected → `Danger`, Cancelled → `Neutral_1`. The chip has a fixed 83px width, so `resize(124, h)` for "Pending Approval" / "Pending Payment".
+- **Status chip variants** (`Chips/Normal`, Size Medium, States Active): Pending Approval → `Info` (blue), Pending Payment → `Warning` (salmon/orange), Paid → `Success`, Rejected → `Danger`, Cancelled → `Neutral_1`. The chip has a fixed 83px width, so `resize(124, h)` for "Pending Approval" / "Pending Payment". **Cancelled** = `Neutral_1` with `States=Default` (Medium has no `Neutral_1` + `Active` combo, so `setProperties` throws "Unable to find a variant").
 - **Setting `Label#8293:122` on `Input/Input Border Style` resets the label's red `*`.** Re-apply it with `setRangeFills(i, i+1, Danger #e43231)` on the `Email` text node (that's the label layer's name).
 - Field icons are the inner `icon left` / `icon right` instances (`Icon#10392:0` swap). Use a component id already in the file, e.g. `clock` `829:6105` for time and `note` `203:2096`.
 - **`importComponentByKeyAsync` for Integral icons timed out (30s) through the cloud bridge.** Use an icon already present in the file (find its main component with `getMainComponentAsync()` on any instance) instead of importing from the library.
 - The Account page's Quick Actions block is a `Driver - Sidebar Menu` instance. **Detach it** to add a row: clone the `Container` row, set the text, swap the `◈ IconWrapper 2.0` `Icon#89:0`.
+- **Rebuilding a Leave detail page for another record type:** clone the leave detail and empty `Frame 1410126874` (the body). Then refill it with clones of the Rejected leave detail's (`8484:6814`) parts:
+  - its rows container (`Frame 1410126872`) for the field rows and the audit rows;
+  - one label/value row (`Frame 1410126870`);
+  - the grey reason box (`Frame 1410126868`);
+  - the remark + attachment group;
+  - `Line 38`.
+
+  Remove the bottom `Button` where the status has no action. Then set the body's parent `Frame 43196` to `primaryAxisAlignItems='MIN'`. Clones of Approved/Pending leave use `SPACE_BETWEEN`, which floats the content down once the button is gone.
+- Keep the person consistent: the Account page's logged-in driver is **John Mit**, so Created By / Full Name on that driver's records use the same name.
+- `Docs/Big Title`'s `Brief` description is ~180px type. Don't put notes there. Use a `Docs/Notes` clone (`2367:23027`) instead.
 - Instance property edits on these library components are slow. Do **one card or one screen per `figma_execute`**, or the call times out after half-applying.
 - Docs on canvas: `Docs/Big Title` (`2926:9461`), `Docs/Flow Label` (`1929:6773`, `Size=Small`, still ~670–1170px wide, so use a **1300px column pitch** for 390 frames), `Docs/Notes` (`2367:23027`). Arrows are orange, 6px; a branch (list → submit) uses an elbow arrow under the frames.
 

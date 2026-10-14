@@ -466,7 +466,13 @@ Sidebar → **Claims** (`hrclaims/`). Built from MOVE-3797, 3798, 3799, 3801, 39
 - **Highlights** (MOVE-3797) clear every search/filter and apply a single status filter. A card shows as active only while that exact single-status filter is all that's applied.
 - **Attachments**: picked files keep an object URL, so preview/download really works for anything submitted in-session. Seed files are names only and show a tooltip.
 
-**Mobile (Driver app) claims = submission only (user, 14 Oct 2026).** The mobile app only lets a user *submit* a claim: no list, details or cancel. Its form is the field table in the **epic MOVE-4021 description**:
+**Mobile (Driver app) claims = Manage Claims, modelled on Manage Leave (user, 14 Oct 2026; supersedes the earlier "submission only" rule).** Jira's mobile epic MOVE-4113 has MOVE-4431 Manage Claims, MOVE-4432 View Claims Application, MOVE-4433 Submit Claims and MOVE-4434 Cancel Claims. They were created 13 Oct 2026 and are empty so far, and they mirror Leave's MOVE-2481 / 4073 / 4074 / 4075. The flow is:
+- Account → Manage Claims: list cards + "Submit New Claim".
+- Submit form.
+- Detail Application per status.
+- Cancel sheet: Pending Approval only, reason required, as on web MOVE-3731.
+
+Until the mobile stories are written, statuses and audit rows follow web HR Claims. **Always check the mobile epic's children (`parent = MOVE-4113`) for scope before building a mobile version of a web feature.** The submit form is the field table in the **epic MOVE-4021 description**:
 - Date (read-only, today)
 - Claims Amount S$
 - Claim Type: ERP / Carpark / Others + manual input

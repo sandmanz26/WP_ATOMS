@@ -14,6 +14,21 @@ minor).
 
 ## [Unreleased]
 
+### Changed — Driver app Claims: Manage Claims modelled on Manage Leave (user, 14 Oct 2026)
+
+This supersedes the "submission only" rule below. Jira's mobile epic **MOVE-4113** (Driver - Accounts Tab) gained four claims stories on 13 Oct 2026: MOVE-4431 Manage Claims, MOVE-4432 View Claims Application, MOVE-4433 Submit Claims and MOVE-4434 Cancel Claims. They mirror Leave one-to-one (MOVE-2481 / 4073 / 4074 / 4075). MOVE-2280 (Accounts Tab) already names the entry row "Manage Claims". When asked, the user chose to follow that structure, so the screens were built in the Mobile Apps Design file, `Section 2` (`8524:13453`):
+- Account: Quick Actions → **Manage Claims** (was "Submit Claim").
+- Manage Claims list, laid out like Manage Leave: a year dropdown, claim cards and a full-width "Submit New Claim" button. The cards show type, amount, claim no. chip, "Submitted on …" and a status chip. There are five cards, one per status.
+- Submit Claim form, unchanged: the MOVE-4021 epic field table. That ticket was re-checked and has had no edits since 30 Sep.
+- Detail Application for each status: Pending Approval (Cancel Claim button), Pending Payment, Paid, Rejected and Cancelled. The layout is Leave's detail page with claim fields added: Date, Full Name, Bus Number and Route rows, plus Remarks and Attachment(s).
+- Cancel Claim bottom sheet, cloned from Cancel Leave, with a required "Reason for Cancellation" and Confirm disabled until it is filled.
+
+All four new stories are still empty, so two things were borrowed from the web HR Claims tickets and noted on the canvas:
+- The status set and the audit rows: MOVE-3798 / 3801 / 3957.
+- The cancel rule (Pending Approval only, reason required): MOVE-3731.
+
+`Section 1` (`8521:9653`, the submission-only version) was left untouched.
+
 ### Changed — Driver app Claims: submission only, fields from the MOVE-4021 epic table (user correction)
 
 The user clarified that on mobile, claims are **submission only**. The list, details and cancel screens from the first pass were removed from Figma (`Section 1`, `8521:9653`), and the Account quick action is now "Submit Claim".
