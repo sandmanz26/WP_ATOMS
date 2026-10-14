@@ -23,10 +23,10 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import {
-  Button, DatePicker, Divider, Drawer, Form, Input, Modal, Select, Space, Tag, TimePicker, Tooltip, Typography, Upload, message,
+  Button, DatePicker, Divider, Drawer, Dropdown, Form, Input, Modal, Select, Space, Tag, TimePicker, Tooltip, Typography, Upload, message,
 } from 'antd'
 import dayjs, { type Dayjs } from 'dayjs'
-import { PaperClipOutlined, UploadOutlined } from '@ant-design/icons'
+import { DownOutlined, PaperClipOutlined, UploadOutlined } from '@ant-design/icons'
 import {
   CURRENT_USER,
   LEAVE_APPLICATIONS,
@@ -225,7 +225,7 @@ export function CreateLeaveApplicationDrawer({
       documentName: fileName ?? undefined,
       status,
       appliedOn: now,
-      appliedBy: CURRENT_USER,
+      appliedBy: `${employee.givenName} ${employee.familyName}`, // self-service: the employee applies for themselves
       approvedOn: status === 'Approved' ? now : undefined,
       approvedBy: status === 'Approved' ? 'System (no approver assigned)' : undefined,
     })
@@ -383,14 +383,17 @@ type Action = 'approve' | 'reject' | 'cancel'
 export function LeaveApplicationDetailsDrawer({
   application,
   employee,
-  /** True when opened from "Pending My Approval" — enables Approve/Reject. */
+  /** True when opened from the Approvals tab (someone else's leave) — Approve/Reject, never Cancel. */
   canDecide,
+  /** Who is acting — the signed-in employee, written to Approved/Rejected/Cancelled By. */
+  actorName = CURRENT_USER,
   onClose,
   onChanged,
 }: {
   application: LeaveApplication | null
   employee: LeaveEmployee
   canDecide: boolean
+  actorName?: string
   onClose: () => void
   onChanged: (message: string) => void
 }) {
@@ -402,14 +405,28 @@ export function LeaveApplicationDetailsDrawer({
   const type = leaveTypeById(app.leaveTypeId)
   const isTimeOff = app.leaveTypeId === TIME_OFF_ID
 
-  // MOVE-3950 §"only when pending approval / approved" — and only the
-  // applicant's own action. MOVE-3947 biz req 4 is explicit that "manage own
-  // dashboard" means acting on one's own leave only, so an approver reviewing
-  // someone else's application (canDecide) gets Approve/Reject, never Cancel.
-  const canCancel = !canDecide && (app.status === 'Pending Approval' || app.status === 'Approved')
-  // MOVE-3952 — approve/reject only make sense while pending, and only for
-  // someone reviewing another employee's application.
+  // MOVE-3950 (13 Oct 2026 edit) — Cancel is the applicant's own secondary
+  // CTA: enabled only while pending approval / approved AND the leave dates
+  // have not started; otherwise shown disabled with a tooltip. On someone
+  // else's leave (canDecide) there is no Cancel button at all.
+  const statusAllowsCancel = app.status === 'Pending Approval' || app.status === 'Approved'
+  const notStarted = dayjs(app.startDate).isAfter(dayjs(), 'day')
+  const canCancel = statusAllowsCancel && notStarted
+  const cancelWhy = !statusAllowsCancel
+    ? `Only a leave application that is pending approval or approved can be cancelled — this one is ${app.status.toLowerCase()}.`
+    : 'This leave has already started, so it can no longer be cancelled here.'
+  // MOVE-3952 — Approve/Reject sit under an Actions dropdown, enabled only
+  // while pending approval, disabled with a tooltip otherwise.
   const canApproveReject = canDecide && app.status === 'Pending Approval'
+  const decideWhy = `Only a leave application pending approval can be approved or rejected — this one is ${app.status.toLowerCase()}.`
+  const decideItem = (key: 'approve' | 'reject', label: string) => ({
+    key,
+    disabled: !canApproveReject,
+    danger: key === 'reject' && canApproveReject,
+    label: canApproveReject ? label : (
+      <Tooltip title={decideWhy} placement="left"><span style={{ display: 'block' }}>{label}</span></Tooltip>
+    ),
+  })
 
   const openAction = (a: Action) => { setAction(a); setReason('') }
 
@@ -418,16 +435,16 @@ export function LeaveApplicationDetailsDrawer({
     if (action === 'approve') {
       app.status = 'Approved'
       app.approvedOn = now
-      app.approvedBy = CURRENT_USER
+      app.approvedBy = actorName
     } else if (action === 'reject') {
       app.status = 'Rejected'
       app.rejectedOn = now
-      app.rejectedBy = CURRENT_USER
+      app.rejectedBy = actorName
       app.rejectionReason = reason.trim()
     } else if (action === 'cancel') {
       app.status = 'Cancelled'
       app.cancelledOn = now
-      app.cancelledBy = CURRENT_USER
+      app.cancelledBy = actorName
       app.cancellationReason = reason.trim() || undefined
     }
     setAction(null)
@@ -452,16 +469,23 @@ export function LeaveApplicationDetailsDrawer({
         open
         onClose={onClose}
         width={480}
+        // MOVE-3965 — no primary CTA. Own leave: Cancel (secondary CTA).
+        // Someone else's leave: Approve / Reject under an Actions dropdown.
         extra={
-          <Space>
-            {canCancel && <Button danger onClick={() => openAction('cancel')}>Cancel</Button>}
-            {canApproveReject && (
-              <>
-                <Button danger onClick={() => openAction('reject')}>Reject</Button>
-                <Button type="primary" onClick={() => openAction('approve')}>Approve</Button>
-              </>
-            )}
-          </Space>
+          canDecide ? (
+            <Dropdown
+              trigger={['click']}
+              menu={{ items: [decideItem('approve', 'Approve'), decideItem('reject', 'Reject')], onClick: ({ key }) => openAction(key as Action) }}
+            >
+              <Button>Actions <DownOutlined /></Button>
+            </Dropdown>
+          ) : canCancel ? (
+            <Button onClick={() => openAction('cancel')}>Cancel</Button>
+          ) : (
+            <Tooltip title={cancelWhy} placement="bottomRight">
+              <Button disabled>Cancel</Button>
+            </Tooltip>
+          )
         }
       >
         {(() => {

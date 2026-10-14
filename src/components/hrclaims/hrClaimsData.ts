@@ -152,6 +152,39 @@ export function nextClaimNo(at = dayjs()): string {
  * went straight to Pending Payment (MOVE-3799 biz req 3's exception).
  */
 export const HR_CLAIMS: HrClaim[] = [
+  // Citra Dewi (lv-3) — the Personal Dashboard's signed-in employee — so her
+  // "My Claims" table has rows (MOVE-3943 2.2). Kept in late 2025 so they sit
+  // below the HR listing's first page and don't disturb the 2026 numbering.
+  {
+    id: 'hc-21', claimNo: 'CL20250038', employeeId: 'lv-3', type: 'Carpark',
+    receiptDate: '2025-11-18', receiptTime: '09:40', amount: 6.5, vehiclePlate: 'SBS2468E',
+    remarks: 'Parking at MOM for the work-pass appointment',
+    attachments: [{ name: 'carpark-18nov2025.jpg' }],
+    status: 'Paid', createdOn: '2025-11-18T17:30:00', createdBy: 'Citra Dewi',
+    approvedOn: '2025-11-19T10:00:00', approvedBy: 'Maya Anggraini',
+    paymentDate: '2025-11-28', paymentRefNo: 'PAY-2025-0412',
+    markedPaidOn: '2025-11-28T15:00:00', markedPaidBy: 'Nadia Rahmawati',
+    lastUpdatedOn: '2025-11-28T15:00:00',
+  },
+  {
+    id: 'hc-22', claimNo: 'CL20250039', employeeId: 'lv-3', type: 'Taxi',
+    receiptDate: '2025-12-05', receiptTime: '22:15', amount: 24.3,
+    remarks: 'Late finish after the year-end payroll run',
+    attachments: [{ name: 'taxi-05dec2025.pdf' }],
+    status: 'Rejected', createdOn: '2025-12-08T09:10:00', createdBy: 'Citra Dewi',
+    rejectedOn: '2025-12-09T11:45:00', rejectedBy: 'Maya Anggraini',
+    rejectionReason: 'Late-finish taxi claims need the department head\'s pre-approval.',
+    lastUpdatedOn: '2025-12-09T11:45:00',
+  },
+  {
+    id: 'hc-23', claimNo: 'CL20250040', employeeId: 'lv-3', type: 'Others', otherLabel: 'training materials',
+    receiptDate: '2025-12-12', amount: 38,
+    attachments: [{ name: 'training-materials-invoice.pdf' }],
+    status: 'Cancelled', createdOn: '2025-12-15T13:20:00', createdBy: 'Citra Dewi',
+    cancelledOn: '2025-12-16T08:30:00', cancelledBy: 'Citra Dewi',
+    cancellationReason: 'Paid by the training vendor instead.',
+    lastUpdatedOn: '2025-12-16T08:30:00',
+  },
   {
     id: 'hc-1', claimNo: 'CL20250041', employeeId: 'lv-5', type: 'Toll (ERP)',
     receiptDate: '2025-12-20', receiptTime: '08:15', amount: 3.2,

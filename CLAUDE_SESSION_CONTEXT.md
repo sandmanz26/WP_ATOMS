@@ -348,7 +348,7 @@ Explicit list of things that are referenced in the UI (menu items, action button
 - **Notification → Timeout feedback state**: `SendFeedbackModal.tsx` supports a partial-failure UI but the "timeout after 10 seconds" state (§3.9) has never been exercised/wired — the mock send always resolves after a fixed 700ms.
 - **Invoice module's "listing goes stale after a detail-page edit" bug** (see §4.3): confirmed to exist conceptually, not yet verified or fixed — check `InvoicePage.tsx`/`InvoiceDetailPage.tsx` (and the "2.0" pair) for the same local-state-not-synced-back pattern before assuming they're fine.
 - **HR Employees module (MOVE-3409)**: entire module has not been started. See §6 for the full PRD summary if/when this work begins.
-- **HR Claims (MOVE-4021) ↔ Personal Dashboard Claims (MOVE-3412)**: two separate data models for now (see §9). MOVE-3799 defers the link ("implement after personal dashboard").
+- **HR Claims (MOVE-4021) ↔ Personal Dashboard Claims (MOVE-3412)**: **one data model since 15 Oct 2026.** The 13 Oct rewrite of MOVE-3943 / 3776 / 3964 points the Personal Dashboard at the claims module, so `employeeportal/` reads `hrclaims/hrClaimsData.ts` and reuses its drawers in their `own` / `approver` variants. `claims/claimsData.ts` is no longer used by any page; only its bus-fleet list is still imported. See §10.
 
 ---
 
@@ -483,3 +483,46 @@ Until the mobile stories are written, statuses and audit rows follow web HR Clai
 - Attachment(s)
 
 The web HR Claims form (MOVE-3799) has different fields. Don't copy it to mobile.
+
+
+---
+
+## 10. Personal Dashboard (epic MOVE-3412): business rules after the 12–13 Oct 2026 rewrite
+
+Code: `src/components/employeeportal/`. The tickets were rewritten on 12–13 Oct 2026 and applied on 15 Oct.
+
+- **Approver-only tabs.** Leave (MOVE-3948) and Claims (MOVE-3943) show tabs only to someone who is another employee's approver: "My Leave" / "Approvals" and "My Claims" / "Approvals". Everyone else sees their own tables with no tabs.
+  - Approver relations: leave = `leaveApprover`; claims = `claimApproverOf()`, which currently reuses `leaveApprover`.
+  - Approvers see only their own approvees.
+  - The page has a prototype-only "viewing as" switch: Citra Dewi (lv-3, approver) / Joko Prasetyo (lv-10, not an approver).
+- **Leave Approvals tab** (MOVE-3948 4.2 / 4.3) has two tables, "Pending Approval" and "History" (every non-pending application).
+  - Each table: 5 per page, sorted by applied on (newest first).
+  - Filters: Employee, Leave Type, Leave Application Period, Applied On; History also has Status. Each table's filters affect only that table.
+  - Columns: Employee, Leave Type, Dates (+ time for time off), Used (time off in hours), Applied On, Status.
+  - Empty states:
+    - Pending Approval: "There are currently no leave applications pending your approval".
+    - History: "You have not rejected or approved any leave applications".
+- **Leave details drawer** (MOVE-3965). No primary CTA.
+  - Own leave: a **Cancel** secondary CTA (MOVE-3950). It is enabled only while the leave is pending approval / approved **and its dates haven't started**; otherwise it's disabled with a tooltip. Reason is optional, max 120.
+  - Someone else's leave: **Actions → Approve / Reject**, enabled only while pending approval (MOVE-3952). There is no Cancel on others' leave.
+- **Leave balance row → Leave Balance Details drawer** (MOVE-4351). "Exact same details and format" as the Leave module (MOVE-4137), so it reuses `leave/LeaveBalanceDrawer.tsx` read-only: no Edit, no What's-new marks, with View Change History.
+- **Claims** use the HR Claims model: Claim No. `CLYYYYXXXX`; types Carpark / Taxi / Toll (ERP) / Others; statuses Pending Approval / Pending Payment / Paid / Rejected / Cancelled.
+  - **Tables** (MOVE-3943):
+    - Own table columns: Claim No., Submission Date, Claim Type, **Remarks** (still listed here, unlike the HR listing), Amount, Status, Last Updated On.
+    - Approvals adds Employee first.
+    - 10 per page, sorted by last updated.
+    - Search covers Claim No. / Claim Type / Remarks. Filters: Claim Type, Status, Submitted On (+ Employee on Approvals), plus a Last Updated On range.
+  - **Submit** (MOVE-3776) is the HR Submit Claim drawer with `selfEmployee`: no Employee field, Created By = the employee.
+  - **Details** (MOVE-3964) is the HR details drawer:
+    - `own`: no Employee field; a Cancel secondary CTA, pending approval only, reason required (MOVE-3958).
+    - `approver`: Employee shown; Actions → Approve / Reject only (MOVE-3945).
+  - Seed: Citra's own claims are three late-2025 rows (CL20250038–40), placed so they don't move the HR listing's first page.
+- **Home** (MOVE-3949) is the default view. It has:
+  - Apply Leave + Submit Claim primary CTAs.
+  - Recent Activity for the last 7 days:
+    - Pending items stay while pending.
+    - Other changes show for 7 days from the change date.
+    - Each card opens its details drawer.
+    - Pay slip cards are KIV.
+  - Annual + medical leave balances, with **View more** → Leave tab, scrolled to the balances table.
+- The tickets describe a side nav inside the dashboard; the prototype keeps the top tab bar.

@@ -70,15 +70,20 @@ export default function LeaveBalanceDrawer({
   onClose,
   onEdit,
   onHistory,
+  showMarks = true,
 }: {
   row: BalanceRow | null
   employee: LeaveEmployee
   year: number
   onClose: () => void
-  onEdit: (row: BalanceRow) => void
+  /** Omitted on the Personal Dashboard (MOVE-4351): it only offers View Change History. */
+  onEdit?: (row: BalanceRow) => void
   onHistory: () => void
+  /** The Leave module's What's-new pins; the Personal Dashboard reuses this drawer without them. */
+  showMarks?: boolean
 }) {
   if (!row) return null
+  const M = (props: React.ComponentProps<typeof Mark>) => (showMarks ? <Mark {...props} /> : null)
 
   const type = row.leaveType
   const breakdown = entitlementBreakdown(row)
@@ -156,7 +161,7 @@ export default function LeaveBalanceDrawer({
         <div>
           <Space size={8}>
             <span style={{ fontSize: 15 }}>{type.name}</span>
-            <Mark id="balance-drawer" />
+            <M id="balance-drawer" />
           </Space>
           <Text type="secondary" style={{ fontSize: 12, display: 'block', fontWeight: 400 }}>
             {formatValidity(row.validity)}
@@ -167,9 +172,9 @@ export default function LeaveBalanceDrawer({
         <Space size={8}>
           {/* Biz req 2 — Edit is the primary CTA, change history the secondary.
               Both moved here from the page's actions dropdown. */}
-          <Mark id="drawer-actions" label="MOVED HERE" />
+          <M id="drawer-actions" label="MOVED HERE" />
           <Button size="small" onClick={onHistory}>View Change History</Button>
-          <Button size="small" type="primary" onClick={() => onEdit(row)}>Edit</Button>
+          {onEdit && <Button size="small" type="primary" onClick={() => onEdit(row)}>Edit</Button>}
         </Space>
       }
     >
@@ -193,7 +198,7 @@ export default function LeaveBalanceDrawer({
 
       {/* Biz req 1.2 — this section exists only for the two annual leave types. */}
       {breakdown && (
-        <Section title="Entitlement" extra={<Mark id="carry-forward" />}>
+        <Section title="Entitlement" extra={<M id="carry-forward" />}>
           <Row label={`Carried Forward from ${year - 1}`} value={formatDays(breakdown.carriedForward)} />
           <Row label="Entitlement This Year" value={formatDays(breakdown.thisYear)} />
           <Row label="Total Entitlement This Year" strong value={formatDays(breakdown.total)} />
@@ -205,7 +210,7 @@ export default function LeaveBalanceDrawer({
           the choice can be made by looking rather than by imagining. */}
       <Section
         title="Option 1 — Days Used by Month"
-        extra={<Mark id="usage-options" label="PICK ONE" />}
+        extra={<M id="usage-options" label="PICK ONE" />}
       >
         <Table<MonthUsage>
           columns={monthColumns}
@@ -228,7 +233,7 @@ export default function LeaveBalanceDrawer({
         title="Option 2 — Leave Applications"
         extra={
           <Space size={6}>
-            <Mark id="cross-year-days" label="PER YEAR" />
+            <M id="cross-year-days" label="PER YEAR" />
             {applications.length > 0 && <Tag style={{ fontSize: 10, margin: 0 }}>{applications.length}</Tag>}
           </Space>
         }

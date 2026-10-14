@@ -14,6 +14,43 @@ minor).
 
 ## [Unreleased]
 
+### Changed — Personal Dashboard: applied the 12–13 Oct 2026 ticket rewrite (MOVE-3412 epic)
+
+At the user's request ("cek dari 3 hari lalu, update vibe coding personal dashboard"), every Personal Dashboard ticket edited since 11 Oct was diffed with `tools/jira-desc-diff.py`. Rank / sprint-only and summary-only edits were skipped. Real description edits, and what changed in code:
+
+- **MOVE-3948 Leave Details Page** (restructured).
+  - Approvers now get "My Leave" / "Approvals" tabs; non-approvers get no tabs.
+  - Approvals holds "Pending Approval" + "History" tables (5 / page, own filters, the ticket's empty-state copy).
+  - This replaces the old single "Pending My Approval" card.
+- **MOVE-4351 Leave Balance Details Drawer** (new, 12–13 Oct). A balance row opens the Leave module's `LeaveBalanceDrawer`, read-only: new `showMarks` / optional `onEdit` props, so there's no Edit and no What's-new pins. Plus View Change History.
+- **MOVE-3965 / MOVE-3952 / MOVE-3950** (leave details drawer).
+  - Approve / Reject moved under an Actions dropdown, disabled with a tooltip unless pending.
+  - Own-leave Cancel is now also blocked once the leave dates have started (disabled + tooltip).
+  - Acted-by fields record the signed-in employee, not the HR demo user.
+- **MOVE-3943 / 3776 / 3964 / 3958 / 3945 Claims.** Claims moved to the HR Claims model: Claim No., Pending Payment, Carpark / Taxi / Toll (ERP) / Others. They also gained the same "My Claims" / "Approvals" tab rule.
+  - The tickets now say "same as claims module" and that own claims include HR-created ones, so the page reads `HR_CLAIMS`. It reuses `SubmitHrClaimDrawer` (new `selfEmployee`: no Employee field) and `HrClaimDetailsDrawer` (new `variant` `own` / `approver` and `actorName`).
+  - `EmployeePortalClaimsDrawers.tsx` was deleted.
+  - Citra Dewi got three late-2025 seed claims (CL20250038–40). This is a judgment call: it keeps the HR listing's first page and 2026 numbering exactly as the Claim (HR Module) Figma file shows. The HR listing total goes from 14 to 17.
+- **MOVE-3949 Homepage** (now specified).
+  - Home is the default tab: Apply Leave / Submit Claim CTAs, Recent Activity (7-day rules from biz req 2.2; pay slip cards KIV), and annual + medical balances with View more → Leave balances.
+  - The tickets' side nav is kept as the existing top tab bar.
+- **MOVE-3946** (wording + "same behaviour as MOVE-3777 biz req 4") needed no code change, beyond success toasts now showing for apply / approve / reject / cancel.
+- MOVE-3412 (epic) only lost old leave-type notes; MOVE-3947 is KIV.
+- Prototype-only **"viewing as"** switch: Citra Dewi (approver) / Joko Prasetyo (not an approver), to show both layouts.
+
+Verified: `npx tsc --noEmit` clean. In Chromium at 1440 wide, checked:
+- Home, and the activity card → drawer.
+- View more → balances, and the balance drawer.
+- Leave Approvals, and the Actions dropdown.
+- My Claims / Approvals, and Submit Claim without the Employee field.
+- Own claim drawer with Cancel disabled.
+- The non-approver's no-tab Leave and Claims.
+
+Open items:
+- MOVE-3943 2.1 says "show own claims on **leave** details page, 'my claims' tab". Read as a typo for claims details page.
+- The Personal Dashboard Figma frames (Personal Dashboard - HR Module file, Section 7) still show the old claims model; they are marked stale in `FIGMA_COMPONENT_INDEX.md`.
+- The HR Claims Figma file shows "of 14" in pagination while the code now has 17 claims (page 1 unchanged).
+
 ### Changed — HR Claims listing: Remarks column removed (MOVE-3798 edit, 14 Oct 2026) + Cancelled row on page 1 (Figma review)
 
 - **Code.** MOVE-3798's 14 Oct edit dropped the Remarks column from the listing table, so `HrClaimsPage.tsx` drops it too.

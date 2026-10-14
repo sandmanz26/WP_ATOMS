@@ -120,11 +120,19 @@ interface SubmitValues {
 export function SubmitHrClaimDrawer({
   open,
   employees,
+  selfEmployee,
   onClose,
   onSubmitted,
 }: {
   open: boolean
   employees: LeaveEmployee[]
+  /**
+   * Personal Dashboard (MOVE-3776, 13 Oct 2026): "all fields and logic same as
+   * submit claim drawer in claims module… exception: employee field not
+   * required". When set, the Employee field is hidden and the claim is the
+   * signed-in employee's own, created by them.
+   */
+  selfEmployee?: LeaveEmployee
   onClose: () => void
   onSubmitted: (msg: string) => void
 }) {
@@ -159,7 +167,7 @@ export function SubmitHrClaimDrawer({
       message.error('Unable to submit claim — please fill in all required fields.')
       return
     }
-    const employee = hrEmployeeById(values.employeeId)!
+    const employee = selfEmployee ?? hrEmployeeById(values.employeeId)!
     const now = dayjs()
     const nowIso = now.format('YYYY-MM-DDTHH:mm:ss')
     // Biz req 3 — no claims approver on file → created straight into Pending Payment.
@@ -184,7 +192,7 @@ export function SubmitHrClaimDrawer({
       attachments,
       status: noApprover ? 'Pending Payment' : 'Pending Approval',
       createdOn: nowIso,
-      createdBy: CURRENT_USER,
+      createdBy: selfEmployee ? fullName(selfEmployee) : CURRENT_USER,
       approvedOn: noApprover ? nowIso : undefined,
       approvedBy: noApprover ? SYSTEM_NO_APPROVER : undefined,
       lastUpdatedOn: nowIso,
@@ -212,14 +220,16 @@ export function SubmitHrClaimDrawer({
       }
     >
       <Form form={form} layout="vertical" requiredMark initialValues={{ amount: 0 }}>
-        <Form.Item name="employeeId" label="Employee" rules={[{ required: true, message: 'Select an employee.' }]}>
-          <Select
-            showSearch
-            optionFilterProp="label"
-            placeholder="Select employee"
-            options={employees.map((e) => ({ value: e.id, label: fullName(e) }))}
-          />
-        </Form.Item>
+        {!selfEmployee && (
+          <Form.Item name="employeeId" label="Employee" rules={[{ required: true, message: 'Select an employee.' }]}>
+            <Select
+              showSearch
+              optionFilterProp="label"
+              placeholder="Select employee"
+              options={employees.map((e) => ({ value: e.id, label: fullName(e) }))}
+            />
+          </Form.Item>
+        )}
 
         <Form.Item name="type" label="Claim Type" rules={[{ required: true, message: 'Select a claim type.' }]}>
           <Select placeholder="Select claim type" options={HR_CLAIM_TYPES.map((t) => ({ value: t, label: t }))} />
@@ -401,10 +411,23 @@ function AttachmentLinks({ items }: { items: HrClaimAttachment[] }) {
 
 export function HrClaimDetailsDrawer({
   claim,
+  variant = 'hr',
+  actorName = CURRENT_USER,
   onClose,
   onChanged,
 }: {
   claim: HrClaim | null
+  /**
+   * 'hr' — Claims module: every action under the Actions dropdown.
+   * 'own' — Personal Dashboard, own claim (MOVE-3964 1.1 / 2.1): no Employee
+   *   field; a Cancel secondary CTA, enabled only while pending approval
+   *   (MOVE-3958).
+   * 'approver' — Personal Dashboard Approvals tab (MOVE-3964 1.2 / 2.2):
+   *   Employee field shown; Approve / Reject only, under Actions (MOVE-3945).
+   */
+  variant?: 'hr' | 'own' | 'approver'
+  /** Written to Approved/Rejected/Cancelled By. */
+  actorName?: string
   onClose: () => void
   onChanged: (msg: string) => void
 }) {
@@ -431,16 +454,16 @@ export function HrClaimDetailsDrawer({
       // MOVE-3920 — approving moves the claim to Pending Payment, not "Approved".
       c.status = 'Pending Payment'
       c.approvedOn = now
-      c.approvedBy = CURRENT_USER
+      c.approvedBy = actorName
     } else if (a === 'reject') {
       c.status = 'Rejected'
       c.rejectedOn = now
-      c.rejectedBy = CURRENT_USER
+      c.rejectedBy = actorName
       c.rejectionReason = reason.trim()
     } else {
       c.status = 'Cancelled'
       c.cancelledOn = now
-      c.cancelledBy = CURRENT_USER
+      c.cancelledBy = actorName
       c.cancellationReason = reason.trim()
     }
     c.lastUpdatedOn = now
@@ -488,11 +511,16 @@ export function HrClaimDetailsDrawer({
     ),
   })
 
+  const cancelWhy = `Only a claim pending approval can be cancelled — this one is ${statusWord}.`
   const menuItems = [
     item('approve', 'Approve', isPendingApproval, `Only a claim pending approval can be approved — this one is ${statusWord}.`),
     item('reject', 'Reject', isPendingApproval, `Only a claim pending approval can be rejected — this one is ${statusWord}.`),
-    item('paid', 'Mark as Paid', isPendingPayment, `Only a claim pending payment can be marked as paid — this one is ${statusWord}.`),
-    item('cancel', 'Cancel', isPendingApproval, `Only a claim pending approval can be cancelled — this one is ${statusWord}.`, true),
+    ...(variant === 'hr'
+      ? [
+          item('paid', 'Mark as Paid', isPendingPayment, `Only a claim pending payment can be marked as paid — this one is ${statusWord}.`),
+          item('cancel', 'Cancel', isPendingApproval, cancelWhy, true),
+        ]
+      : []),
   ]
 
   const lines = remarksLines(c)
@@ -512,8 +540,16 @@ export function HrClaimDetailsDrawer({
             <HrClaimStatusTag status={c.status} />
           </Space>
         }
-        // Biz req 2 — no primary CTA; every action sits under the dropdown.
+        // Biz req 2 — no primary CTA. Claims module / approver: actions under
+        // the dropdown. Own claim (Personal Dashboard): a Cancel secondary CTA.
         extra={
+          variant === 'own' ? (
+            isPendingApproval ? (
+              <Button onClick={() => { setAction('cancel'); setReason('') }}>Cancel</Button>
+            ) : (
+              <Tooltip title={cancelWhy} placement="bottomRight"><Button disabled>Cancel</Button></Tooltip>
+            )
+          ) : (
           <Dropdown
             trigger={['click']}
             menu={{ items: menuItems, onClick: ({ key }) => { setAction(key as ClaimAction); setReason('') } }}
@@ -522,14 +558,18 @@ export function HrClaimDetailsDrawer({
               Actions <DownOutlined />
             </Button>
           </Dropdown>
+          )
         }
       >
         <Text style={SECTION_TITLE}>Basic Information</Text>
         {rows([
-          [
-            { label: 'Employee', value: employeeName(c.employeeId), sub: employeeDepartment(c.employeeId) },
-            { label: 'Claim Type', value: hrClaimTypeLabel(c) },
-          ],
+          // MOVE-3964 1.1 — the employee field is not shown on one's own claim.
+          variant === 'own'
+            ? [{ label: 'Claim Type', value: hrClaimTypeLabel(c) }]
+            : [
+                { label: 'Employee', value: employeeName(c.employeeId), sub: employeeDepartment(c.employeeId) },
+                { label: 'Claim Type', value: hrClaimTypeLabel(c) },
+              ],
           [
             { label: 'Submission Date', value: fmtDate(c.createdOn) },
             { label: 'Receipt Date & Time', value: fmtDate(c.receiptDate), sub: fmtTime(c.receiptTime) },
