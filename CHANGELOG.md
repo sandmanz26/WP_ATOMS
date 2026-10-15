@@ -14,6 +14,15 @@ minor).
 
 ## [Unreleased]
 
+### Docs — `ACCOUNT_MANAGEMENT_KNOWLEDGE.md` (epic MOVE-4449, 15 Oct 2026)
+
+The user asked to learn the new ATOMS Account Management module (it replaces the Staff module) before preparing its Figma working area. The new file summarises:
+- the 13 child tickets, grouped as build vs system rule vs KIV;
+- statuses;
+- listing, create, details, edit and suspend/unsuspend specs;
+- data sync with Employees / Sub-con drivers;
+- 5 open PM questions.
+
 ### Changed — Figma (Mobile Apps Design): Driver-app Claims aligned to HR Claims (user decisions, 15 Oct 2026)
 
 The user asked for a double-check of Section 2 against HR Claims; the audit is in `CLAIMS_KNOWLEDGE.md` §6. Four questions were asked, and the user decided:
