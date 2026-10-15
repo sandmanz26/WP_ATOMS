@@ -174,3 +174,23 @@ Mobile Apps Design, Section 2 `8524:13453`, compared with §2–§3 above.
 - **Amount format = `$2.10`**, same as HR (not "S$").
 - **Year dropdown on the mobile list stays**, consistent with Manage Leave.
 - Mobile claim numbers must not reuse numbers the HR seed already gives other employees.
+
+### 6.2 Applied in Figma (15 Oct 2026)
+
+Restore point: "Before mobile Claims align to HR Claims (Claude, 15 Oct 2026)".
+
+- **List `8524:13615`**:
+  - Types now read Toll (ERP) / Carpark / Others (car wash).
+  - Amounts use `$`.
+  - Claim numbers are CL20260018 → CL20260014. They no longer collide with HR seed numbers.
+  - Chips follow HR colours.
+- **Submit (empty) `8524:13570`**:
+  - Fields in order: Claim Type*, Receipt Date* | Receipt Time, Amount* ("$ 0.00"), Remarks (Max 240), Attachments* + "Maximum file size: 2MB / Accepted file types" helper.
+  - Vehicle Licence Plate* and Trip* exist but are hidden until a type needs them.
+  - Full Name / Bus Number / Route / Date were removed.
+- **New: Submit (Toll (ERP) filled) `8545:15279`**: shows Vehicle Licence Plate* + Trip* and an uploaded attachment (`Upload File` `State=Success`).
+- **Details `8524:14017 / 14069 / 14125 / 14181 / 14240`**:
+  - Rows: Submission Date, Receipt Date & Time, Vehicle Licence Plate, Trip.
+  - Remarks joined with " | ".
+  - Header shows the HR type label, the `$` amount, the new claim no. and the HR chip colour.
+- The two `Docs/Notes` on the canvas had been removed from the file (by the user), so they were not re-added. Captions 1.3 / 1.4 were added above the form frames.

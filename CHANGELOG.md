@@ -14,6 +14,16 @@ minor).
 
 ## [Unreleased]
 
+### Changed — Figma (Mobile Apps Design): Driver-app Claims aligned to HR Claims (user decisions, 15 Oct 2026)
+
+The user asked for a double-check of Section 2 against HR Claims; the audit is in `CLAIMS_KNOWLEDGE.md` §6. Four questions were asked, and the user decided:
+- fields follow HR MOVE-3799 (not the MOVE-4021 epic table);
+- status colours are the same as HR (Pending Approval orange, Pending Payment blue);
+- amounts use `$2.10`;
+- the year dropdown stays.
+
+Applied to the list, both submit frames (a Toll (ERP) filled variant is new) and all five detail pages. Claim numbers were changed so they no longer collide with HR seed data. Restore point saved first.
+
 ### Docs — `CLAIMS_KNOWLEDGE.md` + "knowledge in files" rule (user, 15 Oct 2026)
 
 The user asked to save what the Claim (HR Module) Figma file teaches, for the upcoming mobile Claims discussion, and to keep such knowledge in files rather than memory from now on.
