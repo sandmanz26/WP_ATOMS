@@ -142,3 +142,20 @@ Section `29013:27819` has six flow rows, each with a `Docs/Big Title` and `n.m` 
   - Whether mobile shows Pending Payment / Paid at all.
   - Whether the year filter stays.
   - Whether the cancel copy uses `{{copy to master}}`.
+
+## 6. Audit: mobile Section 2 vs HR Claims (15 Oct 2026)
+
+Mobile Apps Design, Section 2 `8524:13453`, compared with §2–§3 above.
+
+| # | Area | Mobile now | HR Claims | Verdict |
+|---|---|---|---|---|
+| 1 | Status set (list + details) | Pending Approval, Pending Payment, Paid, Rejected, Cancelled | same 5 | ✅ match |
+| 2 | Cancel rule | Pending Approval only; Reason for Cancellation required; Confirm disabled until filled | same (MOVE-3731) | ✅ match (mobile lacks the 0/120 counter) |
+| 3 | Audit rows per status | Created On/By; Approved On/By; Mark as Paid On/By + Payment Date / Ref No.; Rejected/Cancelled On/By + Reason | same | ✅ match |
+| 4 | Submit form fields | MOVE-4021 epic table: Date (read-only), Claims Amount, Claim Type ERP/Carpark/Others, Full Name, Bus Number, Route (120), Remarks* (1000), Attachment(s) | MOVE-3799: Claim Type Carpark/Taxi/Toll (ERP)/Others (+ Specify), Receipt Date*, Receipt Time, Amount*, Vehicle Licence Plate (Carpark/Toll), Trip (Toll), Remarks (optional, 240), Attachments* | ❓ conflict: asked the user |
+| 5 | Claim type labels on cards / details | "ERP", "Others (Car wash)" | "Toll (ERP)", "Others (…)", plus Taxi | follows #4 |
+| 6 | Detail rows | Date, Full Name, Bus Number, Route, Remarks, Attachment(s) | Submission Date, Receipt Date & Time, Amount, Attachments, Vehicle Licence Plate, Trip, Remarks (" \| " joined) | follows #4 |
+| 7 | Status colours | Pending Approval = Info (blue), Pending Payment = Warning (orange) | Pending Approval = warning (yellow), Pending Payment = processing (blue) | ❓ inverted: asked |
+| 8 | Amount format | "S$ 2.10" | "$2.10" | ❓ asked |
+| 9 | Claim numbers | CL20260011 / 0010 / 0007 / 0004 / 0003 on John Mit's cards | the same numbers belong to other employees in the HR seed | ❌ must be unique once the data syncs; fix after #4 |
+| 10 | Year dropdown on list | present (copied from Manage Leave) | no equivalent (HR uses search, filters, Last Updated range) | ❓ asked |
