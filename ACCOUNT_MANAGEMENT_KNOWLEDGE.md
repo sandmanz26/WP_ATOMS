@@ -106,7 +106,27 @@ Disabled items show a tooltip (copy master list).
 - **Sub-contractor Driver**: created when the sub-con driver is created. Name / mobile come from the sub-con module. No email, no access roles.
 - **Verification email** (MOVE-4463): sent on creation if there's a work email. The link lets the user verify the account + set a password.
 
-## 9. Open questions for PM
+## 9. Figma build (15 Oct 2026)
+
+Section 7 `41001:22331` now holds the module as 20 frames in 6 rows: Listing, Create, Details, Edit, Suspend, Unsuspend. Each row has a header, rule notes, n.m captions and arrows; node ids are in `FIGMA_COMPONENT_INDEX.md`.
+
+- **Restore point:** "Before Account Management build in Section 7 (Claude, 15 Oct 2026)" (id 2410496742691575608).
+- **Not drawn yet:**
+  - the module's tabs (Accounts / Activity), because the Activity tab has no spec;
+  - Deactivated status (KIV);
+  - Reset Password and View Change History results (KIV);
+  - the verify / set-password email.
+- **Seed data** (made up, consistent across frames):
+  - Rudi Hartono, Employee, HR Admin + Leave Approver, created by Heikke Ekkieh. He is the main record through Create → Details → Edit → Suspend → Unsuspend.
+  - Yusuf Rahman, Sub-con driver, created by System.
+  - The listing reuses the Leave seed names.
+- **Copy:**
+  - modal bodies are `{{copy to master}}`;
+  - field errors, toasts and disabled-action tooltips are `{{refer to copy}}`;
+  - modal titles are real ("Suspend Rudi Hartono?").
+- **Post-action landing** follows the ticket, so Edit, Suspend and Unsuspend all land on the listing with a toast. This is still open question 2 below.
+
+## 10. Open questions for PM
 
 1. The listing has no Status column; should Active / Suspended show in the listing?
 2. After Suspend / Unsuspend / Edit save, does the user really leave the drawer for the listing? Claims and Leave stay on the drawer.

@@ -14,6 +14,25 @@ minor).
 
 ## [Unreleased]
 
+### Added — Figma (Account Management file): MOVE-4449 module built in Section 7 (15 Oct 2026)
+
+The user asked for the Account Management working area (`41001:22331`) to be prepared from MOVE-4449. It is built from the file's own Production Leave template, per the code-to-figma skill. There is no code for this module yet, so the tickets are the only source. Restore point saved first.
+
+It now holds 20 frames in 6 rows: Listing (MOVE-4452), Create (4450), Details (4455), Edit (4456), Suspend (4453) and Unsuspend (4457).
+- **States covered:**
+  - filter popover open;
+  - empty search, using `Empty / Image`;
+  - Employee vs Sub-contractor Driver field sets;
+  - required-field and duplicate-username errors, each with an error toast;
+  - Active vs Suspended details, with the Actions menu open, disabled items and a tooltip;
+  - reason-required Suspend modal (empty, error and filled);
+  - the result screen of every action.
+- **Judgment calls:**
+  - Post-action landing follows the ticket's "remain on accounts listing page", which differs from Leave / Claims. It's flagged as an open question on the canvas.
+  - The listing has no Status column, as specified (also flagged).
+  - Module tabs are not drawn, because Activity (MOVE-4458) has no spec.
+- **Docs:** `FIGMA_DESIGN_SYSTEM.md` §4.11 (component-set import workaround, popover overlay, form / details / toast recipes), a new `FIGMA_COMPONENT_INDEX.md` row with every node id, and `ACCOUNT_MANAGEMENT_KNOWLEDGE.md` §9.
+
 ### Docs — `ACCOUNT_MANAGEMENT_KNOWLEDGE.md` (epic MOVE-4449, 15 Oct 2026)
 
 The user asked to learn the new ATOMS Account Management module (it replaces the Staff module) before preparing its Figma working area. The new file summarises:

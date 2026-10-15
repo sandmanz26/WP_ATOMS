@@ -482,6 +482,43 @@ so no change was needed there.
   The earlier hand-built 352×103 cards were replaced with clones of it in all 27 `Claims Highlights` frames. The active state is a blue stroke + blue label. Code matches in `HrClaimsPage.tsx`.
 - **The bridge's `figma_get_comments` uses the REST token, and it returned 401.** When comment text can't be read and the screenshot only shows pins, ask the user for the comment text rather than guessing.
 
+**4.11 Building a new HR module from the Production template (Account Management file `kI1rSu1FAsPpV5K1EI2HvM`, MOVE-4449, 15 Oct 2026).** Account Management's `🏭 Production` section `29013:27819` holds the same Leave template as the Claim file. Section 7 (`41001:22331`) was built from it in 20 frames. What worked, and what to avoid:
+
+- **Library imports.** `importComponentByKeyAsync(key)` on the `Empty / Image` variant key timed out (30s, twice).
+  - Importing the **component set** instead worked: `importComponentSetByKeyAsync('ac29cc9196a4854e88f97e0fb812a26009c5a6c3')` (COMPASS `Empty / Image`), then pick the `Image=1` child.
+  - The default instance is 184×117. `rescale(67/184)` gives the house 67×43 size.
+  - The COMPASS `Tooltip` set (`f5c249bb07d798357029189e660d54f795b5759c`) also timed out twice. The third call returned the local copy, `29009:28743`. So this file **does** have a Tooltip component; §4.8's "no Tooltip component" applies only to the Personal Dashboard file.
+  - To find a set key, use `mcp__Figma__search_design_system` with the file key.
+  - Wrap the import in `Promise.race` with a 25s timer so a slow import returns "pending" instead of killing the call.
+- **Popover filter: overlay it, don't detach it.**
+  - Switching `Leave/Filter` to `State=Active` and then detaching broke the header auto-layout: the toolbar spread across the page.
+  - The fix is to clone the plain listing, then append a detached copy of `Table Filter Dropdown 2.0` as a free child of the page frame, right-aligned to the filter icon (`x = iconRight − width`, `y = 160`).
+  - Set `Table Header Buttons` → `Active: 'True'`.
+  - Enabling `Additional Date Picker 2#235:0` gives a date-range filter field.
+  - Clear the date placeholders to `' '` (no-placeholder rule).
+- **Create / Edit drawer.** Clone `Leave Type - Detail - Create`'s overlay (`39283:130365`), detach `Create Leave Type`, and empty its `Frame 2608909`. This is a HORIZONTAL WRAP container with 16 gaps.
+  - Add `_Form / Form Item / Vertical` clones, one per field, and set `Type`. The options include `Phone`, a +code select plus an input.
+  - Phone needs two changes: set `Size: Default` and `Post Tab: No` on the inner `Input / Pre Post Tab`, then set `Pre Tab Text` to `+65`.
+  - Field widths: 620 for full width, 302 for half width.
+  - Inputs need `State: 'Filled'` to render values in black. Without it they render grey, like placeholders.
+  - Multi-select uses `_Select / Select Input` with `Type: 'Multiple'`. Rename the tag texts and hide the third tag.
+  - Errors:
+    - `Caption#515:251: true`;
+    - caption `Status: 'Error'` with the text `{{refer to copy}}`;
+    - input or select `Status: 'Error'`.
+- **Details drawer.** Clone `Leave Type - Detail - Drawer - System`'s overlay (`39283:110677`), then detach it twice (drawer, then `Drawers Template`).
+  - Delete `Section 1` (`Sales/Row Content`, which is huge). Clone the `RT-Details Content Sub-Section` for Basic and for Additional Information.
+  - `Content Cell` takes `Label#15150:33` / `Value#15150:39`. Set `Line: '2'` for no caption; `'3'` adds the "x ago" line.
+  - A full-width row is a `Group Content Cell` with `Item: '1', Column: '1'`. Its first child is a hidden frame, so target `children.find(type==='INSTANCE')`.
+  - Header: in `BusCom-Header Text`, set `First Status#9045:7` and use the `Tag / Status` variants `Active` and `Suspended`. In `BusCom-Details Button 2.0`, set `Show Action#11657:6`; the `BusCom-Details Action Button 2.0` variant `Active` opens the menu.
+  - The menu is 156 wide and truncates "View Change History". Resizing it needs the header, the button group and the action button all detached; the menu is then 190 wide.
+  - Menu items take `State: Disabled / Hover`.
+- **Toasts.** `Toaster Pop-up Message` has `Module=Staff` variants: Create, Edited, Deleted, Password Reset, Suspend, Reactivate.
+  - There's no Staff error variant. Use `Type=Email Change, Status=Error, Version=Changed Recently, Module=User Profile`.
+  - Every variant hides its inner `Message` child. Set `children[0].visible = true`, then centre the toast at `y = 24`.
+- **Reason modal.** Use the Reject Leave overlay `39312:45655`. `Input / Textarea` has no error state: set a red stroke (`#ff4d4f`) on the instance and append a cloned error `_Input / Input Caption` under it.
+- **Layout used.** Rows sit 1850px apart. In each row, a `Docs/Big Title` (row name) is followed by a `Docs/Notes` resized to 2600 wide, so its rules fit in ~340px of height. A `Docs/Flow Label` caption goes 100px above each frame. Arrows are 4px red vectors with `strokeCap: ARROW_LINES` on the end vertex, at frame mid-height.
+
 ## 5. States & interaction patterns
 
 <!-- fill in the standard treatment for these, so every new drawer/table/form
