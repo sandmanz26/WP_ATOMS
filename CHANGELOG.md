@@ -14,6 +14,10 @@ minor).
 
 ## [Unreleased]
 
+### Docs — Figma bridge: one file per pairing (user question, 15 Oct 2026)
+
+`CLAUDE.md` now notes that Cloud Mode pairs with one plugin instance, so one file at a time. Switching files means re-pairing.
+
 ### Docs — Empty state standard: `Empty / Image` component (user rule, 15 Oct 2026)
 
 The user named `Empty / Image` (`43115:433570` → main `43115:433553`) as the empty state to always use. It is recorded in:

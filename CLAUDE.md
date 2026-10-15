@@ -61,6 +61,10 @@ than falling back to the official MCP.
 
 Don't build the feature in code instead and offer Figma "next". The web-tracking-links request went that way (built in code, Figma left for later) and the user corrected it. Reading the file with the official Figma MCP while waiting is fine; building a substitute deliverable is not. Code work for the same feature happens only if the user also asked for it.
 
+**One Figma file per pairing (15 Oct 2026).** In this cloud session the Desktop Bridge runs in Cloud Mode, and one pairing connects to a single plugin instance, so one open file at a time. Multi-file (`fileKey`) works only in Local Mode.
+- To work on two files, finish one, then have the user open the plugin in the other file and give them a fresh pairing code.
+- Always confirm the connected file with `figma_diagnose` before editing.
+
 **Save a Figma restore point before bulk edits (user, 15 Oct 2026).** Before changing more than a couple of frames in any Figma file, run `figma.saveVersionHistoryAsync(title, description)` through the bridge. Tell the user the version title so they can undo from File → Version history. Details: `FIGMA_DESIGN_SYSTEM.md` §4.10.
 
 ## Changelog
