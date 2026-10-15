@@ -159,3 +159,18 @@ Mobile Apps Design, Section 2 `8524:13453`, compared with §2–§3 above.
 | 8 | Amount format | "S$ 2.10" | "$2.10" | ❓ asked |
 | 9 | Claim numbers | CL20260011 / 0010 / 0007 / 0004 / 0003 on John Mit's cards | the same numbers belong to other employees in the HR seed | ❌ must be unique once the data syncs; fix after #4 |
 | 10 | Year dropdown on list | present (copied from Manage Leave) | no equivalent (HR uses search, filters, Last Updated range) | ❓ asked |
+
+### 6.1 Decisions (user, 15 Oct 2026)
+
+- **Mobile Submit Claim follows HR Claims (MOVE-3799), not the MOVE-4021 epic table.** Fields:
+  - Claim Type* (Carpark / Taxi / Toll (ERP) / Others → Specify Claim Type*).
+  - Receipt Date* + Receipt Time (optional).
+  - Amount*.
+  - Vehicle Licence Plate (Carpark, Toll (ERP)) and Trip (Toll (ERP)).
+  - Remarks (optional, 240), Attachments*.
+
+  There is no Employee field: the logged-in driver is the employee. Detail rows follow the HR drawer (minus Employee).
+- **Status colours = HR**: Pending Approval = Warning (orange), Pending Payment = Info (blue), Paid = Success, Rejected = Danger, Cancelled = Neutral_1.
+- **Amount format = `$2.10`**, same as HR (not "S$").
+- **Year dropdown on the mobile list stays**, consistent with Manage Leave.
+- Mobile claim numbers must not reuse numbers the HR seed already gives other employees.
