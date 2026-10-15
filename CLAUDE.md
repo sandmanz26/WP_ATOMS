@@ -18,6 +18,9 @@ goes (which MCP server to prefer, which branch to push to, and so on). The
 point is that the next session starts smarter than this one did, not that
 it re-learns the same thing from scratch.
 
+**Knowledge goes into files, not session memory (user, 15 Oct 2026).** Session memory is limited and lost between sessions. Whenever the user says "pelajari / simpan / ingat" (learn / save / remember), or points at a Figma file, ticket or chat to learn from, write what was learned into a repo `.md` file in the same turn, then commit and push. This applies to every topic, not just Figma.
+- Feature knowledge bases live at the repo root as `<TOPIC>_KNOWLEDGE.md`, e.g. `CLAIMS_KNOWLEDGE.md`. Read the matching one before working on that topic.
+
 **Mobile apps are a different design system.** For the Driver / Passenger apps (file `IICHGFDHLhKCvE5vMzFokS`, DS "🔥🛞 Integral" `sTpe9MCcI0HQJMmzJnXKRl`), read `FIGMA_MOBILE_DESIGN_SYSTEM.md`, not the web docs. Mobile uses Roboto, primary `#17334f`, 390-wide frames, a bottom tab bar and Integral components; never COMPASS/AntD.
 
 Direction matters for which doc to read: building a screen *from* Figma

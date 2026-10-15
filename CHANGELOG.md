@@ -14,6 +14,19 @@ minor).
 
 ## [Unreleased]
 
+### Docs — `CLAIMS_KNOWLEDGE.md` + "knowledge in files" rule (user, 15 Oct 2026)
+
+The user asked to save what the Claim (HR Module) Figma file teaches, for the upcoming mobile Claims discussion, and to keep such knowledge in files rather than memory from now on.
+
+- New `CLAIMS_KNOWLEDGE.md` covers:
+  - the three Claims surfaces (HR web, Personal Dashboard, Driver app) with tickets, code and Figma ids;
+  - the status lifecycle with web tag / mobile chip mapping;
+  - fields and copy;
+  - the file's flow map with node ids;
+  - the user's conventions in the file (`{{refer to copy}}` / `{{copy to master}}` placeholders, the `#CR/#Req/#Logic/#Data/#UI/UX/#Copy/#Std` review tags, highlight and empty-state components);
+  - what this means for mobile, with open PM questions.
+- `CLAUDE.md` now carries the standing rule and the `<TOPIC>_KNOWLEDGE.md` convention.
+
 ### Docs — Figma bridge: one file per pairing (user question, 15 Oct 2026)
 
 `CLAUDE.md` now notes that Cloud Mode pairs with one plugin instance, so one file at a time. Switching files means re-pairing.
